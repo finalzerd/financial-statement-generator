@@ -1,0 +1,194 @@
+import * as XLSX from 'xlsx';
+import type { 
+  TrialBalanceEntry, 
+  CompanyInfo, 
+  SheetValidation, 
+  ProcessingResult, 
+  AccountClassification, 
+  InventoryInfo 
+} from '../types/financial';
+
+export class ExcelProcessor {
+  private workbook: XLSX.WorkBook | null = null;
+
+  async processUploadedFile(file: File): Promise<ProcessingResult> {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      this.workbook = XLSX.read(arrayBuffer);
+      
+      const validation = this.validateSheets();
+      if (!validation.isValid) {
+        return {
+          success: false,
+          message: `Invalid sheet structure. Found ${validation.trialBalanceCount} Trial Balance sheets and ${validation.trialPLCount} Trial PL sheets.`,
+          errors: ['Expected 1 or 2 of each sheet type']
+        };
+      }
+
+      return {
+        success: true,
+        message: `File processed successfully. Processing type: ${validation.processingType}`,
+        data: validation
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error processing Excel file',
+        errors: [error instanceof Error ? error.message : 'Unknown error']
+      };
+    }
+  }
+
+  validateSheets(): SheetValidation {
+    if (!this.workbook) {
+      return {
+        trialBalanceCount: 0,
+        trialPLCount: 0,
+        isValid: false,
+        processingType: 'invalid'
+      };
+    }
+
+    const sheetNames = this.workbook.SheetNames;
+    const trialBalanceCount = sheetNames.filter(name => 
+      name.toLowerCase().includes('trial balance')
+    ).length;
+    const trialPLCount = sheetNames.filter(name => 
+      name.toLowerCase().includes('trial pl')
+    ).length;
+
+    let processingType: 'single-year' | 'multi-year' | 'invalid' = 'invalid';
+    let isValid = false;
+
+    if (trialBalanceCount === 1 && trialPLCount === 1) {
+      processingType = 'single-year';
+      isValid = true;
+    } else if (trialBalanceCount === 2 && trialPLCount === 2) {
+      processingType = 'multi-year';
+      isValid = true;
+    }
+
+    return {
+      trialBalanceCount,
+      trialPLCount,
+      isValid,
+      processingType
+    };
+  }
+
+  extractCompanyInfo(): CompanyInfo {
+    if (!this.workbook) {
+      throw new Error('No workbook loaded');
+    }
+
+    // Look for Info sheet
+    const infoSheet = this.workbook.Sheets['Info'];
+    if (!infoSheet) {
+      throw new Error('Info sheet not found');
+    }
+
+    const companyName = infoSheet['B1'] ? String(infoSheet['B1'].v) : 'Unknown Company';
+    const companyType = infoSheet['B2'] ? String(infoSheet['B2'].v) : 'บริษัทจำกัด';
+    const reportingPeriod = infoSheet['B3'] ? String(infoSheet['B3'].v) : '2024';
+    
+    return {
+      name: companyName,
+      type: companyType as 'ห้างหุ้นส่วนจำกัด' | 'บริษัทจำกัด',
+      reportingPeriod,
+      reportingYear: parseInt(reportingPeriod) || 2024
+    };
+  }
+
+  extractTrialBalanceData(sheetName: string): TrialBalanceEntry[] {
+    if (!this.workbook) {
+      throw new Error('No workbook loaded');
+    }
+
+    const sheet = this.workbook.Sheets[sheetName];
+    if (!sheet) {
+      throw new Error(`Sheet ${sheetName} not found`);
+    }
+
+    const data: TrialBalanceEntry[] = [];
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1:Z100');
+
+    // Skip header row, start from row 2
+    for (let row = 1; row <= range.e.r; row++) {
+      const accountCodeCell = sheet[XLSX.utils.encode_cell({ r: row, c: 0 })]; // Column A
+      const accountNameCell = sheet[XLSX.utils.encode_cell({ r: row, c: 1 })]; // Column B
+      const debitCell = sheet[XLSX.utils.encode_cell({ r: row, c: 2 })]; // Column C
+      const creditCell = sheet[XLSX.utils.encode_cell({ r: row, c: 3 })]; // Column D
+
+      if (accountCodeCell && accountNameCell) {
+        const accountCode = String(accountCodeCell.v || '');
+        const accountName = String(accountNameCell.v || '');
+        const debitAmount = Number(debitCell?.v || 0);
+        const creditAmount = Number(creditCell?.v || 0);
+        const balance = debitAmount - creditAmount;
+
+        if (accountCode && accountName) {
+          data.push({
+            accountCode,
+            accountName,
+            debitAmount,
+            creditAmount,
+            balance
+          });
+        }
+      }
+    }
+
+    return data;
+  }
+
+  checkHasInventory(trialBalanceData: TrialBalanceEntry[]): InventoryInfo {
+    const inventoryAccount = trialBalanceData.find(entry => 
+      entry.accountCode === '1510'
+    );
+
+    const purchaseAccounts = trialBalanceData.filter(entry => 
+      entry.accountCode === '5010' && entry.balance !== 0
+    );
+
+    return {
+      hasInventory: !!inventoryAccount || purchaseAccounts.length > 0,
+      inventoryAccount,
+      purchaseAccounts
+    };
+  }
+
+  classifyAccounts(trialBalanceData: TrialBalanceEntry[]): AccountClassification {
+    const salesExpenses: TrialBalanceEntry[] = [];
+    const adminExpenses: TrialBalanceEntry[] = [];
+    const otherExpenses: TrialBalanceEntry[] = [];
+    const financialCosts: TrialBalanceEntry[] = [];
+
+    trialBalanceData.forEach(entry => {
+      const code = parseInt(entry.accountCode);
+      
+      if (code >= 5300 && code <= 5311) {
+        salesExpenses.push(entry);
+      } else if (code >= 5312 && code <= 5350) {
+        adminExpenses.push(entry);
+      } else if ((code >= 5351 && code <= 5359) || (code >= 5365 && code <= 5999)) {
+        otherExpenses.push(entry);
+      } else if (code >= 5360 && code <= 5364) {
+        financialCosts.push(entry);
+      }
+    });
+
+    return {
+      salesExpenses,
+      adminExpenses,
+      otherExpenses,
+      financialCosts
+    };
+  }
+
+  getAvailableSheets(): string[] {
+    if (!this.workbook) {
+      return [];
+    }
+    return this.workbook.SheetNames;
+  }
+}

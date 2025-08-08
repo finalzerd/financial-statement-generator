@@ -1,0 +1,52 @@
+{
+  "name": "project-mpv3",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "vite",
+    "dev:backend": "node server.js",
+    "build": "tsc -b && vite build",
+    "build:backend": "tsc src/server/**/*.ts --outDir dist/server",
+    "start:backend": "node dist/server/app.js",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "db:setup": "node scripts/setupSQLiteDatabase.js",
+    "db:read": "node scripts/readDatabase.js",
+    "db:setup:old": "node -r ts-node/register scripts/setupDatabase.ts"
+  },
+  "dependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/express-fileupload": "^1.5.1",
+    "@types/pg": "^8.15.5",
+    "concurrently": "^9.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "express-fileupload": "^1.5.2",
+    "file-saver": "^2.0.5",
+    "nodemon": "^3.1.10",
+    "pg": "^8.16.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/file-saver": "^2.0.7",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "vite": "^5.0.0"
+  }
+}

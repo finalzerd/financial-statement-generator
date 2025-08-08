@@ -1,0 +1,1715 @@
+import { saveAs } from 'file-saver';
+import { ExcelJSFormatter } from './excelFormatter';
+import type { 
+  TrialBalanceEntry, 
+  CompanyInfo, 
+  FinancialStatements
+} from '../types/financial';
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/**
+ * Interface for tracking cell positions during balance sheet generation
+ * Used to generate accurate formulas that reference the correct cell locations
+ */
+interface CellTracker {
+  currentRow: number;
+  currentLiabilitiesRows: number[];
+  nonCurrentLiabilitiesRows: number[];
+  equityDataRows: number[];
+  currentLiabilitiesTotalRow: number;
+  nonCurrentLiabilitiesTotalRow: number;
+}
+
+// ============================================================================
+// MAIN FINANCIAL STATEMENT GENERATOR CLASS
+// ============================================================================
+
+export class FinancialStatementGenerator {
+  
+  // ============================================================================
+  // PUBLIC INTERFACE METHODS
+  // ============================================================================
+  
+  generateFinancialStatements(
+    trialBalanceData: TrialBalanceEntry[],
+    companyInfo: CompanyInfo,
+    processingType: 'single-year' | 'multi-year',
+    trialBalancePrevious?: TrialBalanceEntry[]
+  ): FinancialStatements {
+    
+    const balanceSheetAssets = this.generateBalanceSheetAssets(trialBalanceData, companyInfo, processingType);
+    const balanceSheetLiabilities = this.generateBalanceSheetLiabilities(trialBalanceData, companyInfo, processingType);
+    const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
+    const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
+    const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
+    const accountingNotes = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
+    const detailNotes = this.generateDetailNotes(trialBalanceData, companyInfo);
+
+    return {
+      balanceSheet: {
+        assets: balanceSheetAssets,
+        liabilities: balanceSheetLiabilities
+      },
+      profitLossStatement,
+      changesInEquity: statementOfChangesInEquity,
+      notes: notesToFinancialStatements,
+      accountingNotes,
+      detailNotes: {
+        detail1: detailNotes,
+        detail2: undefined
+      },
+      companyInfo,
+      processingType
+    };
+  }
+
+  async downloadAsExcel(statements: FinancialStatements): Promise<void> {
+    console.log('Starting Excel generation with ExcelJS...');
+    
+    const workbook = ExcelJSFormatter.createWorkbook();
+
+    // Create Balance Sheet - Assets
+    const assetsWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Assets', statements.balanceSheet.assets);
+    ExcelJSFormatter.formatBalanceSheetAssets(assetsWs);
+
+    // Create Balance Sheet - Liabilities
+    const liabilitiesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Liabilities', statements.balanceSheet.liabilities);
+    ExcelJSFormatter.formatBalanceSheetAssets(liabilitiesWs); // Use available formatter
+
+    // Create Profit & Loss Statement
+    const plWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'P&L', statements.profitLossStatement);
+    ExcelJSFormatter.formatBalanceSheetAssets(plWs); // Use available formatter
+
+    // Create Statement of Changes in Equity
+    const equityWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Changes_in_Equity', statements.changesInEquity);
+    ExcelJSFormatter.formatBalanceSheetAssets(equityWs); // Use available formatter
+
+    // Create Notes to Financial Statements (Policy Notes)
+    const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Policy', statements.notes);
+    ExcelJSFormatter.formatNotesToFinancialStatements(notesWs);
+
+    // Create Accounting Notes (Detailed Notes)
+    const accountingNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Accounting', statements.accountingNotes);
+    ExcelJSFormatter.formatNotesWithoutBackground(accountingNotesWs);
+
+    // Create Detail Notes (if available)
+    if (statements.detailNotes?.detail1) {
+      const detailNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Detail', statements.detailNotes.detail1);
+      ExcelJSFormatter.formatDetailNotes(detailNotesWs); // Use detail notes specific formatting
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    const fileName = `${statements.companyInfo.name}_FinancialStatements_${statements.companyInfo.reportingYear}.xlsx`;
+    saveAs(blob, fileName);
+    
+    console.log('Excel file generated successfully');
+  }
+
+  // ============================================================================
+  // UTILITY METHODS
+  // ============================================================================
+  
+  private getAccountBalance(trialBalanceData: TrialBalanceEntry[], accountCodes: string[]): number {
+    console.log(`Getting balance for codes:`, accountCodes);
+    
+    const matchingEntries = trialBalanceData.filter(entry => 
+      accountCodes.some(code => {
+        return entry.accountCode === code || entry.accountCode?.startsWith(code);
+      })
+    );
+    
+    console.log(`Found ${matchingEntries.length} matching entries:`, matchingEntries);
+    
+    const total = matchingEntries.reduce((sum, entry) => {
+      const balance = (entry.debitAmount || 0) - (entry.creditAmount || 0);
+      console.log(`Account ${entry.accountCode}: debit=${entry.debitAmount}, credit=${entry.creditAmount}, balance=${balance}`);
+      return sum + balance;
+    }, 0);
+    
+    console.log(`Total balance: ${total}`);
+    return total;
+  }
+
+  private formatNumber(amount: number): string {
+    if (amount === 0) return '-';
+    return new Intl.NumberFormat('th-TH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Math.abs(amount));
+  }
+
+  private formatCurrency(amount: number): string {
+    if (amount === 0) return '-';
+    return new Intl.NumberFormat('th-TH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Math.abs(amount));
+  }
+
+  private buildSumFormula(rows: number[], column: string): string {
+    if (rows.length === 0) return '0';
+    if (rows.length === 1) return `${column}${rows[0]}`;
+    
+    // Create ranges for consecutive rows, individual cells for non-consecutive
+    const ranges: string[] = [];
+    let rangeStart = rows[0];
+    let rangeEnd = rows[0];
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i] === rangeEnd + 1) {
+        rangeEnd = rows[i];
+      } else {
+        if (rangeStart === rangeEnd) {
+          ranges.push(`${column}${rangeStart}`);
+        } else {
+          ranges.push(`${column}${rangeStart}:${column}${rangeEnd}`);
+        }
+        rangeStart = rows[i];
+        rangeEnd = rows[i];
+      }
+    }
+    
+    // Add the last range
+    if (rangeStart === rangeEnd) {
+      ranges.push(`${column}${rangeStart}`);
+    } else {
+      ranges.push(`${column}${rangeStart}:${column}${rangeEnd}`);
+    }
+    
+    return `SUM(${ranges.join(',')})`;
+  }
+
+  // ============================================================================
+  // ACCOUNT BALANCE CALCULATION METHODS
+  // ============================================================================
+
+  private sumAccountsByRange(trialBalanceData: TrialBalanceEntry[], accountCodes: string[], dataType: 'current' | 'previous', trialBalancePrevious?: TrialBalanceEntry[]): number {
+    const sourceData = dataType === 'previous' ? trialBalancePrevious || [] : trialBalanceData;
+    
+    const matchingEntries = sourceData.filter(entry => 
+      accountCodes.some(code => entry.accountCode === code || entry.accountCode?.startsWith(code))
+    );
+    
+    return Math.abs(matchingEntries.reduce((sum, entry) => {
+      const balance = dataType === 'previous' 
+        ? (entry.previousBalance || 0)
+        : ((entry.debitAmount || 0) - (entry.creditAmount || 0));
+      return sum + balance;
+    }, 0));
+  }
+
+  private sumAccountsByNumericRange(trialBalanceData: TrialBalanceEntry[], startCode: number, endCode: number): number {
+    const matchingEntries = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= startCode && code <= endCode;
+    });
+    
+    return matchingEntries.reduce((sum, entry) => {
+      const balance = (entry.debitAmount || 0) - (entry.creditAmount || 0);
+      return sum + balance;
+    }, 0);
+  }
+
+  private sumPreviousBalanceByNumericRange(trialBalanceData: TrialBalanceEntry[], startCode: number, endCode: number): number {
+    const matchingEntries = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= startCode && code <= endCode;
+    });
+    
+    return Math.abs(matchingEntries.reduce((sum, entry) => {
+      return sum + (entry.previousBalance || 0);
+    }, 0));
+  }
+
+  // ============================================================================
+  // BALANCE SHEET GENERATION METHODS
+  // ============================================================================
+
+  private generateBalanceSheetAssets(
+    trialBalanceData: TrialBalanceEntry[],
+    companyInfo: CompanyInfo,
+    processingType: 'single-year' | 'multi-year'
+  ) {
+    // Calculate current year asset balances using VBA-compliant ranges
+    const cashAndCashEquivalents = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
+    const tradeReceivables = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
+    const inventory = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
+    const prepaidExpenses = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
+    const landBuildingsEquipment = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
+    const otherAssets = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
+
+    // Calculate previous year asset balances using previousBalance field
+    const prevCashAndCashEquivalents = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099);
+    const prevTradeReceivables = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215);
+    const prevInventory = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519);
+    const prevPrepaidExpenses = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439);
+    const prevLandBuildingsEquipment = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659);
+    const prevOtherAssets = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700);
+
+    // Initialize worksheet data with headers
+    const worksheetData: (string | number | {f: string})[][] = [
+      [companyInfo.name, '', '', '', '', '', '', '', '', ''],
+      ['งบแสดงฐานะการเงิน', '', '', '', '', '', '', '', '', ''],
+      [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
+      ['', '', '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', '', ''],
+      ['สินทรัพย์', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']
+    ];
+
+    // Track current row and data rows for formulas
+    let currentRow = worksheetData.length + 1;
+    const currentAssetRows: number[] = [];
+
+    // Current Assets section
+    worksheetData.push(['', 'สินทรัพย์หมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
+    currentRow++;
+
+    // Add current assets
+    if (cashAndCashEquivalents !== 0) {
+      worksheetData.push(['', '', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '7', cashAndCashEquivalents, '', processingType === 'multi-year' ? prevCashAndCashEquivalents : '', '']);
+      currentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    if (tradeReceivables !== 0) {
+      worksheetData.push(['', '', 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '8', tradeReceivables, '', processingType === 'multi-year' ? prevTradeReceivables : '', '']);
+      currentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    if (inventory !== 0) {
+      worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
+      currentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    if (prepaidExpenses !== 0) {
+      worksheetData.push(['', '', 'ค่าใช้จ่ายจ่ายล่วงหน้า', '', '', '10', prepaidExpenses, '', processingType === 'multi-year' ? prevPrepaidExpenses : '', '']);
+      currentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    // Current Assets Total
+    const currentAssetsFormula = this.buildSumFormula(currentAssetRows, 'G');
+    const currentAssetsFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(currentAssetRows, 'I') : '';
+    
+    worksheetData.push(['', 'รวมสินทรัพย์หมุนเวียน', '', '', '', '', 
+      { f: currentAssetsFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: currentAssetsFormulaPrev } : '', '']);
+    const currentAssetsTotalRow = currentRow;
+    currentRow++;
+
+    // Spacer
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    currentRow++;
+
+    // Non-Current Assets section
+    const nonCurrentAssetRows: number[] = [];
+    
+    worksheetData.push(['', 'สินทรัพย์ไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
+    currentRow++;
+
+    if (landBuildingsEquipment !== 0) {
+      worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', '11', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+      nonCurrentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    if (otherAssets !== 0) {
+      worksheetData.push(['', '', 'สินทรัพย์อื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
+      nonCurrentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    // Non-Current Assets Total
+    const nonCurrentAssetsFormula = this.buildSumFormula(nonCurrentAssetRows, 'G');
+    const nonCurrentAssetsFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(nonCurrentAssetRows, 'I') : '';
+    
+    worksheetData.push(['', 'รวมสินทรัพย์ไม่หมุนเวียน', '', '', '', '', 
+      { f: nonCurrentAssetsFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: nonCurrentAssetsFormulaPrev } : '', '']);
+    const nonCurrentAssetsTotalRow = currentRow;
+    currentRow++;
+
+    // Total Assets
+    const totalAssetsFormula = `G${currentAssetsTotalRow}+G${nonCurrentAssetsTotalRow}`;
+    const totalAssetsFormulaPrev = processingType === 'multi-year' ? `I${currentAssetsTotalRow}+I${nonCurrentAssetsTotalRow}` : '';
+    
+    worksheetData.push(['', 'รวมสินทรัพย์', '', '', '', '', 
+      { f: totalAssetsFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: totalAssetsFormulaPrev } : '', '']);
+
+    // Add footer
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    worksheetData.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '', '']);
+
+    return worksheetData;
+  }
+
+  private generateBalanceSheetLiabilities(
+    trialBalanceData: TrialBalanceEntry[],
+    companyInfo: CompanyInfo,
+    processingType: 'single-year' | 'multi-year'
+  ) {
+    // Company type and terminology determination
+    const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
+    const liabilityAndEquityTerm = isLimitedPartnership ? 
+      'หนี้สินและส่วนของผู้เป็นหุ้นส่วน' : 'หนี้สินและส่วนของผู้ถือหุ้น';
+    const equityTerm = isLimitedPartnership ? 
+      'ส่วนของผู้เป็นหุ้นส่วน' : 'ส่วนของผู้ถือหุ้น';
+
+    // Account balance calculations using VBA-compliant ranges for current year
+    const bankOverdraftsAndShortTermLoans = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
+    const totalCurrentPayablesRange = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999));
+    const excludeShortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
+    const excludeIncomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
+    const excludeLongTermCurrent = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
+    const excludeLongTermFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
+    
+    const tradeAndOtherPayables = totalCurrentPayablesRange - excludeShortTermBorrowings - 
+                                 excludeIncomeTax - excludeLongTermCurrent - excludeLongTermFI;
+    const shortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
+    const incomeTaxPayable = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
+    const longTermLoansFromFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) 
+                               - Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
+    const otherLongTermLoans = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
+    const registeredCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
+    const paidUpCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3010, 3019));
+    const retainedEarnings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3020, 3029));
+    const legalReserve = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039));
+
+    // Previous year balance calculations using previousBalance field
+    const prevBankOverdraftsAndShortTermLoans = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009);
+    const prevTotalCurrentPayablesRange = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999);
+    const prevExcludeShortTermBorrowings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
+    const prevExcludeIncomeTax = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
+    const prevExcludeLongTermCurrent = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052);
+    const prevExcludeLongTermFI = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123);
+    
+    const prevTradeAndOtherPayables = prevTotalCurrentPayablesRange - prevExcludeShortTermBorrowings - 
+                                     prevExcludeIncomeTax - prevExcludeLongTermCurrent - prevExcludeLongTermFI;
+    const prevShortTermBorrowings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
+    const prevIncomeTaxPayable = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
+    const prevLongTermLoansFromFI = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123) 
+                                   - this.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121);
+    const prevOtherLongTermLoans = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052);
+    const prevRegisteredCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3000, 3009);
+    const prevPaidUpCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3019);
+    const prevRetainedEarnings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3029);
+    const prevLegalReserve = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039);
+
+    // Initialize worksheet data with headers
+    const worksheetData: (string | number | {f: string})[][] = [
+      [companyInfo.name, '', '', '', '', '', '', '', '', ''],
+      ['งบแสดงฐานะการเงิน (ต่อ)', '', '', '', '', '', '', '', '', ''],
+      [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
+      ['', '', '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', '', ''],
+      [liabilityAndEquityTerm, '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']
+    ];
+
+    // Initialize cell tracker for VBA-compliant formula generation
+    const cellTracker: CellTracker = {
+      currentRow: worksheetData.length + 1,
+      currentLiabilitiesRows: [],
+      nonCurrentLiabilitiesRows: [],
+      equityDataRows: [],
+      currentLiabilitiesTotalRow: 0,
+      nonCurrentLiabilitiesTotalRow: 0
+    };
+
+    // Build sections using the helper methods with cell tracking
+    this.buildCurrentLiabilitiesSection(worksheetData, cellTracker, 
+      bankOverdraftsAndShortTermLoans, tradeAndOtherPayables, shortTermBorrowings, incomeTaxPayable,
+      prevBankOverdraftsAndShortTermLoans, prevTradeAndOtherPayables, prevShortTermBorrowings, prevIncomeTaxPayable, processingType);
+    
+    this.buildNonCurrentLiabilitiesSection(worksheetData, cellTracker, 
+      longTermLoansFromFI, otherLongTermLoans, prevLongTermLoansFromFI, prevOtherLongTermLoans, processingType);
+    
+    this.buildEquitySection(worksheetData, cellTracker, 
+      isLimitedPartnership, equityTerm, registeredCapital, paidUpCapital, retainedEarnings, legalReserve,
+      prevPaidUpCapital, prevRetainedEarnings, companyInfo, processingType);
+
+    // Add footer rows
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    worksheetData.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '', '']);
+
+    return worksheetData;
+  }
+
+  // ============================================================================
+  // BALANCE SHEET SECTION BUILDERS (WITH CELL TRACKING)
+  // ============================================================================
+
+  private buildCurrentLiabilitiesSection(
+    worksheetData: any[][],
+    cellTracker: CellTracker,
+    bankOverdraftsAndShortTermLoans: number,
+    tradeAndOtherPayables: number,
+    shortTermBorrowings: number,
+    incomeTaxPayable: number,
+    prevBankOverdrafts: number,
+    prevTradeAndOtherPayables: number,
+    prevShortTermBorrowings: number,
+    prevIncomeTaxPayable: number,
+    processingType: 'single-year' | 'multi-year'
+  ) {
+    // Current Liabilities header
+    worksheetData.push(['', 'หนี้สินหมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
+    cellTracker.currentRow++;
+
+    // Add each current liability and track its row
+    if (bankOverdraftsAndShortTermLoans !== 0) {
+      worksheetData.push(['', '', 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', '15', bankOverdraftsAndShortTermLoans, '', processingType === 'multi-year' ? prevBankOverdrafts : '', '']);
+      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    // Always include trade payables - VBA always shows this
+    worksheetData.push(['', '', 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '16', tradeAndOtherPayables, '', processingType === 'multi-year' ? prevTradeAndOtherPayables : '', '']);
+    cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
+
+    if (shortTermBorrowings !== 0) {
+      worksheetData.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', '17', shortTermBorrowings, '', processingType === 'multi-year' ? prevShortTermBorrowings : '', '']);
+      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    if (incomeTaxPayable !== 0) {
+      worksheetData.push(['', '', 'ภาษีเงินได้นิติบุคคลค้างจ่าย', '', '', '18', incomeTaxPayable, '', processingType === 'multi-year' ? prevIncomeTaxPayable : '', '']);
+      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    // Current Liabilities Total using tracked rows
+    const currentLiabilitiesFormula = this.buildSumFormula(cellTracker.currentLiabilitiesRows, 'G');
+    const currentLiabilitiesFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.currentLiabilitiesRows, 'I') : '';
+    
+    worksheetData.push(['', 'รวมหนี้สินหมุนเวียน', '', '', '', '', 
+      { f: currentLiabilitiesFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: currentLiabilitiesFormulaPrev } : '', '']);
+    
+    // Track the current liabilities total row
+    cellTracker.currentLiabilitiesTotalRow = cellTracker.currentRow;
+    cellTracker.currentRow++;
+
+    // Spacer
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    cellTracker.currentRow++;
+  }
+
+  private buildNonCurrentLiabilitiesSection(
+    worksheetData: any[][],
+    cellTracker: CellTracker,
+    longTermLoansFromFI: number,
+    otherLongTermLoans: number,
+    prevLongTermLoansFromFI: number,
+    prevOtherLongTermLoans: number,
+    processingType: 'single-year' | 'multi-year'
+  ) {
+    // Non-Current Liabilities header
+    worksheetData.push(['', 'หนี้สินไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
+    cellTracker.currentRow++;
+
+    // Add each non-current liability and track its row
+    if (longTermLoansFromFI !== 0) {
+      worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '19', longTermLoansFromFI, '', processingType === 'multi-year' ? prevLongTermLoansFromFI : '', '']);
+      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    if (otherLongTermLoans !== 0) {
+      worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวอื่น', '', '', '20', otherLongTermLoans, '', processingType === 'multi-year' ? prevOtherLongTermLoans : '', '']);
+      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    // Non-Current Liabilities Total using tracked rows
+    const nonCurrentLiabilitiesFormula = this.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'G');
+    const nonCurrentLiabilitiesFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'I') : '';
+    
+    worksheetData.push(['', 'รวมหนี้สินไม่หมุนเวียน', '', '', '', '', 
+      { f: nonCurrentLiabilitiesFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: nonCurrentLiabilitiesFormulaPrev } : '', '']);
+    
+    // Track the non-current liabilities total row
+    cellTracker.nonCurrentLiabilitiesTotalRow = cellTracker.currentRow;
+    cellTracker.currentRow++;
+
+    // Total Liabilities - VBA-compliant: simple addition of two subtotal rows
+    const totalLiabilitiesFormula = cellTracker.currentLiabilitiesTotalRow && cellTracker.nonCurrentLiabilitiesTotalRow 
+      ? `G${cellTracker.currentLiabilitiesTotalRow}+G${cellTracker.nonCurrentLiabilitiesTotalRow}`
+      : '0';
+    const totalLiabilitiesFormulaPrev = processingType === 'multi-year' && cellTracker.currentLiabilitiesTotalRow && cellTracker.nonCurrentLiabilitiesTotalRow
+      ? `I${cellTracker.currentLiabilitiesTotalRow}+I${cellTracker.nonCurrentLiabilitiesTotalRow}`
+      : '';
+    
+    worksheetData.push(['', 'รวมหนี้สิน', '', '', '', '', 
+      { f: totalLiabilitiesFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: totalLiabilitiesFormulaPrev } : '', '']);
+    cellTracker.currentRow++;
+
+    // Spacer
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    cellTracker.currentRow++;
+  }
+
+  private buildEquitySection(
+    worksheetData: any[][],
+    cellTracker: CellTracker,
+    isLimitedPartnership: boolean,
+    equityTerm: string,
+    registeredCapital: number,
+    paidUpCapital: number,
+    retainedEarnings: number,
+    legalReserve: number,
+    prevPaidUpCapital: number,
+    prevRetainedEarnings: number,
+    _companyInfo: any,
+    processingType: 'single-year' | 'multi-year'
+  ) {
+    // Equity Section header
+    worksheetData.push(['', equityTerm, '', '', '', '', '', '', '', '']);
+    cellTracker.currentRow++;
+
+    if (isLimitedPartnership) {
+      // Partnership equity structure
+      worksheetData.push(['', '', 'เงินลงทุนของผู้เป็นหุ้นส่วน คนที่ 1', '', '', '21', paidUpCapital / 2, '', processingType === 'multi-year' ? prevPaidUpCapital / 2 : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+
+      worksheetData.push(['', '', 'เงินลงทุนของผู้เป็นหุ้นส่วน คนที่ 2', '', '', '22', paidUpCapital / 2, '', processingType === 'multi-year' ? prevPaidUpCapital / 2 : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+
+      worksheetData.push(['', '', 'กำไรสะสม', '', '', '23', retainedEarnings, '', processingType === 'multi-year' ? prevRetainedEarnings : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    } else {
+      // Limited company equity structure
+      worksheetData.push(['', '', 'ทุนเรือนหุ้น', '', '', '', '', '', '', '']);
+      cellTracker.currentRow++;
+
+      worksheetData.push(['', '', '', 'ทุนจดทะเบียน', '', '', '', '', '', '']);
+      worksheetData.push(['', '', '', '', `หุ้นสามัญ ${registeredCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
+      cellTracker.currentRow += 2;
+
+      worksheetData.push(['', '', '', 'ทุนที่ออกและชำระแล้ว', '', '', '', '', '', '']);
+      worksheetData.push(['', '', '', '', `หุ้นสามัญ ${paidUpCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '24', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow + 1);
+      cellTracker.currentRow += 2;
+
+      if (legalReserve !== 0) {
+        worksheetData.push(['', '', 'ทุนสำรองตามกฎหมาย', '', '', '25', legalReserve, '', processingType === 'multi-year' ? legalReserve : '', '']);
+        cellTracker.equityDataRows.push(cellTracker.currentRow);
+        cellTracker.currentRow++;
+      }
+
+      worksheetData.push(['', '', 'กำไรสะสม', '', '', '26', retainedEarnings, '', processingType === 'multi-year' ? prevRetainedEarnings : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    // Total Equity using tracked rows
+    const totalEquityFormula = this.buildSumFormula(cellTracker.equityDataRows, 'G');
+    const totalEquityFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.equityDataRows, 'I') : '';
+    
+    worksheetData.push(['', `รวม${equityTerm}`, '', '', '', '', 
+      { f: totalEquityFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: totalEquityFormulaPrev } : '', '']);
+    const totalEquityRow = cellTracker.currentRow;
+    cellTracker.currentRow++;
+
+    // Grand Total (Liabilities + Equity) - VBA compliant: simple addition of totals
+    const totalLiabilitiesRow = totalEquityRow - 1; // Total liabilities is right before equity section
+    const grandTotalFormula = `G${totalLiabilitiesRow - cellTracker.equityDataRows.length - 2}+G${totalEquityRow}`;
+    const grandTotalFormulaPrev = processingType === 'multi-year' ? `I${totalLiabilitiesRow - cellTracker.equityDataRows.length - 2}+I${totalEquityRow}` : '';
+    
+    worksheetData.push(['', `รวม${'หนี้สินและส่วนของผู้ถือหุ้น'}`, '', '', '', '', 
+      { f: grandTotalFormula }, 
+      '', 
+      processingType === 'multi-year' ? { f: grandTotalFormulaPrev } : '', '']);
+  }
+
+  // ============================================================================
+  // OTHER FINANCIAL STATEMENT GENERATION METHODS
+  // ============================================================================
+  
+  private generateProfitLossStatement(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year'
+  ): any[][] {
+    console.log('=== START P&L DEBUG ===');
+    console.log('Trial Balance Data:', trialBalanceData);
+    
+    // Calculate revenue (4000-4099)
+    const revenue = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4099));
+    const previousRevenue = processingType === 'multi-year' ? 0 : 0; // Placeholder for previous year
+    
+    // Calculate other income (4100-4999)
+    const otherIncome = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4100, 4999));
+    const previousOtherIncome = processingType === 'multi-year' ? 0 : 0;
+    
+    // Calculate cost of services/goods sold (5000-5099)
+    const costOfServices = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5099));
+    const previousCostOfServices = processingType === 'multi-year' ? 0 : 0;
+    
+    // Calculate administrative expenses (5300-5350 + selected ranges)
+    const adminExpenses = Math.abs(
+      this.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
+    );
+    const previousAdminExpenses = processingType === 'multi-year' ? 0 : 0;
+    
+    // Calculate other expenses (5351-5354, 5358-5361, 5364, 5366-5999)
+    const otherExpenses = Math.abs(
+      this.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
+      this.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
+    );
+    const previousOtherExpenses = processingType === 'multi-year' ? 0 : 0;
+    
+    // Calculate income tax (5910)
+    const incomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
+    const previousIncomeTax = processingType === 'multi-year' ? 0 : 0;
+    
+    console.log('Calculated values:', {
+      revenue,
+      otherIncome,
+      costOfServices,
+      adminExpenses,
+      otherExpenses,
+      incomeTax
+    });
+    console.log('=== END P&L DEBUG ===');
+    
+    return [
+      [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
+      ['งบกำไรขาดทุน จำแนกค่าใช้จ่ายตามหน้าที่ - แบบขั้นเดียว', '', '', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ 1 มกราคม ${companyInfo.reportingYear} ถึงวันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท'],
+      ['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : ''],
+      ['รายได้', '', '', '', '', '', '', '', ''],
+      ['', '', 'รายได้จากการขายหรือการให้บริการ', '', '', '1', revenue, '', processingType === 'multi-year' ? previousRevenue : ''],
+      ['', '', 'รายได้อื่น', '', '', '2', otherIncome, '', processingType === 'multi-year' ? previousOtherIncome : ''],
+      ['', 'รวมรายได้', '', '', '', '', { f: 'SUM(G8:G9)' }, '', processingType === 'multi-year' ? { f: 'SUM(I8:I9)' } : ''],
+      ['', '', '', '', '', '', '', '', ''],
+      ['ค่าใช้จ่าย', '', '', '', '', '', '', '', ''],
+      ['', '', 'ต้นทุนขายหรือต้นทุนการให้บริการ', '', '', '3', costOfServices, '', processingType === 'multi-year' ? previousCostOfServices : ''],
+      ['', '', 'ค่าใช้จ่ายในการบริหาร', '', '', '4', adminExpenses, '', processingType === 'multi-year' ? previousAdminExpenses : ''],
+      ['', '', 'ค่าใช้จ่ายอื่น', '', '', '5', otherExpenses, '', processingType === 'multi-year' ? previousOtherExpenses : ''],
+      ['', 'รวมค่าใช้จ่าย', '', '', '', '', { f: 'SUM(G13:G15)' }, '', processingType === 'multi-year' ? { f: 'SUM(I13:I15)' } : ''],
+      ['', 'กำไรก่อนภาษีเงินได้', '', '', '', '', { f: 'G10-G16' }, '', processingType === 'multi-year' ? { f: 'I10-I16' } : ''],
+      ['', '', 'ภาษีเงินได้', '', '', '6', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
+      ['', 'กำไร(ขาดทุน)สุทธิ', '', '', '', '', { f: 'G17-G18' }, '', processingType === 'multi-year' ? { f: 'I17-I18' } : ''],
+      ['', '', '', '', '', '', '', '', ''],
+      ['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']
+    ];
+  }
+
+  private generateStatementOfChangesInEquity(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year'
+  ): any[][] {
+    const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
+    
+    if (isLimitedPartnership) {
+      return this.generatePartnershipEquityStatement(trialBalanceData, companyInfo, processingType);
+    } else {
+      return this.generateCorporateEquityStatement(trialBalanceData, companyInfo, processingType);
+    }
+  }
+
+  private generatePartnershipEquityStatement(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    _processingType: 'single-year' | 'multi-year'
+  ): any[][] {
+    // Calculate partnership equity values
+    const totalCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3010, 3019));
+    const retainedEarnings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3020, 3029));
+    const currentYearProfit = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999)) - 
+                             Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999));
+    
+    // Split capital equally between partners
+    const partner1Capital = totalCapital / 2;
+    const partner2Capital = totalCapital / 2;
+    
+    return [
+      [`${companyInfo.name}`, '', '', '', '', '', ''],
+      ['งบแสดงการเปลี่ยนแปลงส่วนของผู้เป็นหุ้นส่วน', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี สิ้นสุด วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', 'หน่วย:บาท'],
+      ['', 'ผู้เป็นหุ้นส่วน คนที่ 1', 'ผู้เป็นหุ้นส่วน คนที่ 2', 'กำไรสะสม', 'รวม', '', ''],
+      ['ยอดคงเหลือ ณ วันต้นปี', partner1Capital, partner2Capital, retainedEarnings, { f: 'B7+C7+D7' }, '', ''],
+      ['กำไรสุทธิสำหรับปี', '', '', currentYearProfit, currentYearProfit, '', ''],
+      ['ยอดคงเหลือ ณ วันสิ้นปี', { f: 'B7+B8' }, { f: 'C7+C8' }, { f: 'D7+D8' }, { f: 'B9+C9+D9' }, '', ''],
+      ['', '', '', '', '', '', ''],
+      ['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '']
+    ];
+  }
+
+  private generateCorporateEquityStatement(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year'
+  ): any[][] {
+    const isMultiYear = processingType === 'multi-year';
+    const currentYear = companyInfo.reportingYear;
+    const previousYear = currentYear - 1;
+    
+    // Get current year values from trial balance
+    const paidUpCapitalCurrent = this.getSingleAccountBalance(trialBalanceData, '3010');
+    const retainedEarningsCurrent = this.getSingleAccountBalance(trialBalanceData, '3020');
+    
+    // Calculate current year net profit from account ranges
+    const currentYearRevenue = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999));
+    const currentYearExpenses = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999));
+    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    
+    const result: any[][] = [
+      [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
+      ['งบแสดงการเปลี่ยนแปลงส่วนของผู้ถือหุ้น', '', '', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี สิ้นสุด วันที่ 31 ธันวาคม ${currentYear}`, '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
+      ['', '', 'หน่วย:บาท', '', '', '', '', '', ''],
+      ['', '', 'ทุนเรือนหุ้นที่ออกและชำระแล้ว', '', '', 'กำไร(ขาดทุน)สะสม', '', '', 'รวม'],
+      ['', '', '', '', '', '', '', '', '']
+    ];
+
+    let rowIndex = 7;
+
+    if (isMultiYear) {
+      // Previous year section
+      const openingRetainedEarningsPrevious = retainedEarningsCurrent - currentYearProfit;
+      const openingTotalPrevious = paidUpCapitalCurrent + openingRetainedEarningsPrevious;
+      
+      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarningsPrevious, '', '', openingTotalPrevious]);
+      result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
+      result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: 'C10+F10' }]);
+      result.push(['', '', '', '', '', '', '', '', '']);
+      result.push(['', '', '', '', '', '', '', '', '']);
+      rowIndex = 12;
+    }
+
+    // Current year section
+    const openingRetainedEarningsCurrent = isMultiYear ? retainedEarningsCurrent : 0;
+    const openingTotalCurrent = paidUpCapitalCurrent + openingRetainedEarningsCurrent;
+    
+    result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarningsCurrent, '', '', openingTotalCurrent]);
+    result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
+    result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 2}+F${rowIndex + 2}` }]);
+    
+    result.push(['', '', '', '', '', '', '', '', '']);
+    result.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']);
+    
+    return result;
+  }
+
+  private getSingleAccountBalance(trialBalanceData: TrialBalanceEntry[], accountCode: string): number {
+    const account = trialBalanceData.find(entry => entry.accountCode === accountCode);
+    return account ? Math.abs(account.currentBalance || 0) : 0;
+  }
+
+  private generateNotesToFinancialStatements(
+    companyInfo: CompanyInfo, 
+    trialBalanceData?: TrialBalanceEntry[], 
+    processingType?: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[]
+  ): (string | number | {f: string})[][] {
+    const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
+    const entityType = isLimitedPartnership ? 'ห้างหุ้นส่วนจำกัด' : 'บริษัทจำกัด';
+    const shortEntityName = isLimitedPartnership ? 'ห้างฯ' : 'บริษัทฯ';
+    
+    const worksheetData: (string | number | {f: string})[][] = [
+      // Header section
+      [`${companyInfo.name}`, '', '', '', '', ''],
+      ['หมายเหตุประกอบงบการเงิน', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ 1 มกราคม ${companyInfo.reportingYear} ถึงวันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      
+      // Note 1: ข้อมูลทั่วไป
+      ['1', 'ข้อมูลทั่วไป', '', '', '', ''],
+      ['', '', '1.1', `สถานะทางกฎหมาย เป็น${entityType}จดทะเบียนในประเทศไทย`, '', ''],
+      ['', '', '1.2', `สถานที่ตั้ง ${companyInfo.address || '6 ถนนลาซาล 4 ซ.สุรศักดิ์ ต.สีลม อ.บางรัก'}`, '', ''],
+      ['', '', '1.3', `ลักษณะธุรกิจและการดำเนินงาน ${companyInfo.businessDescription || 'ประกอบธุรกิจเกี่ยวกับเทคโนโลยีและบริการด้วยซอฟต์แวร์'}`, '', ''],
+      ['', '', '', '', '', ''],
+      
+      // Note 2: ฐานะการดำเนินงานของบริษัท
+      ['2', 'ฐานะการดำเนินงานของบริษัท', '', '', '', ''],
+      ['', '', `${companyInfo.name} ได้จดทะเบียนตามประมวลกฎหมายแพ่งและพาณิชย์เป็นนิติบุคคล ประเภท ${entityType} เมื่อวันที่ 17 ก.ค. 2563 ทะเบียนเลขที่ 0335563000688`, '', '', '', ''],
+      ['', '', '', '', '', ''],
+      
+      // Note 3: เกณฑ์การจัดทำงบการเงินของกิจการ
+      ['3', 'เกณฑ์การจัดทำงบการเงินของกิจการ', '', '', '', ''],
+      ['', '', `${shortEntityName}จัดทำงบการเงินนี้ตามมาตรฐานการรายงานทางการเงินสำหรับกิจการที่ไม่มีส่วนได้เสียสาธารณะ ตามมาตรฐานการบัญชี ฉบับที่ 48/2565 ลงวันที่ 14 กรกฎาคม 2565 เรื่องมาตรฐานการรายงานทางการเงิน ป.ป. 2547 และประกาศสภาวิชาชีพบัญชี เรื่องการใช้มาตรฐานการรายงานทางการเงิน ลงวันที่ 27 ธันวาคม 2566 เป็นต้น`, '', '', '', ''],
+      ['', '', 'งบการเงินได้จัดทำขึ้น ตามหลักการคำนวณต้นทุนในการจัดทำขึ้นของกิจการของเงินกินค้างงบการเงิน ยกเว้นบางรายการที่เปิดเผยไว้ในนโยบายการบัญชีที่เกี่ยวข้อง', '', '', '', ''],
+      ['', '', '', '', '', ''],
+      
+      // Note 4: นโยบายการบัญชีที่สำคัญ
+      ['4', 'นโยบายการบัญชีที่สำคัญ', '', '', '', ''],
+      ['4.1', 'การรับรู้รายได้และค่าใช้จ่าย', '', '', '', ''],
+      ['', 'การรับรู้รายได้จากสินค้า', '', '', '', ''],
+      ['', 'การรับรู้รายได้จากสินค้า รับรู้เมื่อกิจการได้โอนการควบคุมในสินค้าให้แก่ลูกค้าและสามารถวัดมูลค่าได้อย่างน่าเชื่อถือ กิจการต้องรับรู้รายได้จากการควบคุมในสินค้าให้แก่ลูกค้าในจุดเวลาใดจุดเวลาหนึ่ง โดยทั่วไปคือเมื่อได้จัดส่งสินค้าให้แก่ลูกค้าแล้ว', '', '', '', ''],
+      ['', 'การรับรู้รายได้จากการให้บริการ', '', '', '', ''],
+      ['', 'รายได้จากการให้บริการ รับรู้เมื่อได้ให้บริการผลตอบแทนไม่ชำระค่าความรับผิดชอบของกิจการต่อผู้รับบริการ', '', '', '', ''],
+      ['', 'การรับรู้รายได้และค่าใช้จ่ายอื่น', '', '', '', ''],
+      ['', 'รายได้และค่าใช้จ่ายอื่น รับรู้ตามหลักการคงค้าง', '', '', '', ''],
+      ['4.2', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '', ''],
+      ['', 'เงินสด ครอบคลุม เงินสดในมือและเงินฝากธนาคารที่ต้องการแคชชมน์ รายการเทียบเท่าเงินสด ครอบคลุม เงินลงทุนระยะสั้นที่มีสภาพคล่องสูง ซึ่งถึงกำหนดไม่เกิน 3 เดือนนับจากวันที่ได้มาและไม่มีข้อจำกัดในการเบิกใช้เงินสดในจำนวนที่สำคัญ', '', '', '', ''],
+      ['4.3', 'ลูกหนี้การค้าและลูกหนี้อื่น ๆ', '', '', '', ''],
+      ['', 'ลูกหนี้การค้าและลูกหนี้อื่น ๆ ครอบคลุม ลูกหนี้ที่เกิดขึ้นจากการขายสินค้าหรือการให้บริการในสายงานปกติของกิจการ และรอคอยชำระหนี้ ลูกหนี้อาจรวมถึงลูกหนี้การค้าและลูกหนี้อื่น ๆ', '', '', '', '']
+    ];
+
+    // Add all accounting policies
+    worksheetData.push(
+      ['4.4', 'สินค้าคงเหลือ ( Inventories )', '', '', '', ''],
+      ['', 'หมายถึง สินค้าสำเร็จรูป งานหรือสินค้าระหว่างทำ วัตถุดิบและวัสดุที่ใช้ในการผลิตเพื่อขาย หรือให้บริการตามปกติของกิจการ ซึ่งรวมถึง ที่ดินรอการพัฒนาและต้นทุนระหว่างพัฒนาอสังหาริมทรัพย์และงานระหว่างก่อสร้าง ทั้งนี้ ให้เป็นไปตามมาตรฐาน การรายงานทางการเงินที่เกี่ยวข้อง', '', '', '', ''],
+      
+      ['4.5', 'ที่ดิน อาคารและอุปกรณ์', '', '', '', ''],
+      ['', 'กิจการวัดมูลค่าของรายการที่ดิน อาคารและอุปกรณ์ที่เข้าเงื่อนไขโดยใช้ราคาทุน กิจการวัดมูลค่าภายหลังการรับรู้รายการ โดยใช้วิธีราคาทุน โดยแสดงรายการที่ดิน อาคารและอุปกรณ์ ด้วยราคาทุนหักค่าเสื่อมราคาสะสม และค่าเผื่อการลดลงของมูลค่า (ถ้ามี) กิจการคิดค่าเสื่อมราคา ด้วยวิธีเส้นตรง และ ด้วยวิธียอดคงเหลือลดลง', '', '', '', ''],
+      
+      ['4.6', 'สัญญาเช่าดำเนินงาน', '', '', '', ''],
+      ['', 'สัญญาเช่าซึ่งความเสี่ยงและประโยชน์ส่วนใหญ่ จากการเป็นเจ้าของทรัพย์สินยังคงอยู่กับผู้ให้เช่า บันทึกเป็นสัญญาเช่า ดำเนินงาน ค่าเช่าที่เกิดขึ้นจากสัญญาเช่าดังกล่าว รับรู้เป็นค่าใช้จ่ายในงบกำไรขาดทุน ตามอายุของสัญญาเช่า', '', '', '', ''],
+      
+      ['4.7', 'ประมาณการทางบัญชี', '', '', '', ''],
+      ['', 'ในการจัดทำงบการเงินตามมาตรฐานการรายงานทางการเงินสำหรับกิจการที่ไม่มีส่วนได้เสียสาธารณะ ฝ่ายบริหารต้องใช้ ดุลยพินิจในการกำหนดนโยบายบัญชี การประมาณการและตั้งข้อสมมติฐานหลายประการ ซึ่งจะมีผลกระทบต่อจำนวนเงิน ผลที่เกิดขึ้นจริงอาจมีความแตกต่างไปจากจำนวนที่ประมาณไว้', '', '', '', ''],
+      
+      ['4.8', 'ผลประโยชน์พนักงาน', '', '', '', ''],
+      ['', 'ผลประโยชน์พนักงานจะรับรู้เมื่อห้าง มีภาระหนี้สินตามกฏหมายที่เกิดขึ้นในปัจจุบันอันเป็นผลมาจากเหตุการณ์ในอดีต และมีความเป็นไปได้ค่อนข้างแน่ว่า ประโยชน์เชิงเศรษฐกิจ จะต้องถูกจ่ายไปเพื่อชำระภาระหนี้สินดังกล่าว', '', '', '', ''],
+      
+      ['4.9', 'ภาษีเงินได้', '', '', '', ''],
+      ['', 'กิจการคำนวณภาษีเงินได้ตามเกณฑ์ที่กำหนดไว้ในประมวลรัษฎากร และบันทึกภาษีเงินได้ตามเกณฑ์คงค้าง ห้างฯมิได้บันทึก ภาษีเงินได้ค้างจ่าย หรือค้างรับ สำหรับผลต่างทางบัญชีกับทางภาษี ที่เป็นผลต่างชั่วคราวในอนาคต', '', '', '', ''],
+      
+      ['5.1', 'การจัดประเภทรายการงบการเงิน', '', '', '', ''],
+      ['', 'กิจการได้มีการจัดประเภทรายการทางการเงินใหม่เพื่อให้สอดคล้องกับมาตรฐานการบัญชีของสภาวิชาชีพบัญชี และเพื่อเป็นประโยชน์ต่อการตัดสินใจเชิงเศรษฐกิจของผู้ใช้งบการเงิน', '', '', '', '']
+    );
+
+    return worksheetData;
+  }
+
+  private generateAccountingNotes(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[]
+  ): any[][] {
+    const notes: any[][] = [
+      [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
+      ['หมายเหตุประกอบงบการเงิน (ต่อ)', '', '', '', '', '', '', '', ''],
+      [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
+    ];
+
+    let noteNumber = 3;
+    
+    // Generate specific notes based on VBA code pattern
+    this.addCashNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addTradeReceivablesNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addBankOverdraftsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addTradePayablesNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addShortTermBorrowingsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addOtherIncomeNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addExpensesByNatureNote(notes, companyInfo, processingType, noteNumber++);
+    if (companyInfo.type === 'บริษัทจำกัด') {
+      this.addFinancialApprovalNote(notes, companyInfo, noteNumber++);
+    }
+
+    return notes;
+  }
+
+  private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {
+    const detailNotes: any[][] = [];
+    
+    // Add header
+    detailNotes.push([`${companyInfo.name}`, '', '', '', '', '', '', '', '']);
+    detailNotes.push(['รายละเอียดประกอบหมายเหตุประกอบงบการเงิน', '', '', '', '', '', '', '', '']);
+    detailNotes.push([`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', '']);
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    
+    // Add DT1 - Cost of goods sold / Service costs
+    this.addDetailOne(detailNotes, trialBalanceData);
+    
+    // Add some spacing
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    
+    // Add DT2 - Selling and administrative expenses
+    this.addDetailTwo(detailNotes, trialBalanceData);
+    
+    return detailNotes;
+  }
+
+  private addDetailOne(detailNotes: any[][], trialBalanceData: TrialBalanceEntry[]): void {
+    const hasInventory = this.checkHasInventory(trialBalanceData);
+    
+    detailNotes.push(['รายละเอียดประกอบที่ 1', '', '', '', '', '', '', '', 'หน่วย:บาท']);
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    
+    if (!hasInventory) {
+      // Service business
+      detailNotes.push(['ต้นทุนการให้บริการ', '', '', '', '', '', '', '', '']);
+      detailNotes.push(['', 'ค่าใช้จ่ายอื่นๆ ในการให้บริการ', '', '', '', '', '', '', '...']);
+      detailNotes.push(['', 'รวม', '', '', '', '', '', '', { f: 'I' + (detailNotes.length) }]);
+      return;
+    }
+
+    // Inventory-based business
+    detailNotes.push(['ต้นทุนสินค้าที่ขาย', '', '', '', '', '', '', '', '']);
+    
+    // Get beginning inventory
+    const inventoryAccount = trialBalanceData.find(entry => entry.accountCode === '1510');
+    const beginningInventory = inventoryAccount ? Math.abs(inventoryAccount.previousBalance || 0) : 0;
+    
+    detailNotes.push(['', 'สินค้าคงเหลือต้นงวด', '', '', '', '', '', '', beginningInventory]);
+    
+    // Process purchases and related accounts
+    let totalPurchases = 0;
+    
+    // Main purchases (5010)
+    const purchaseAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5010, 5010));
+    if (purchaseAmount > 0) {
+      detailNotes.push(['', 'บวก', 'ซื้อสินค้า', '', '', '', '', '', purchaseAmount]);
+      totalPurchases += purchaseAmount;
+    }
+    
+    // Purchase returns (5010.1) - debit, shown as negative
+    const returnAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.1']));
+    if (returnAmount > 0) {
+      detailNotes.push(['', 'หัก', 'ส่งคืนสินค้า', '', '', '', '', '', returnAmount]);
+      totalPurchases -= returnAmount;
+    }
+    
+    // Purchase discounts (5010.2) - debit, shown as negative  
+    const discountAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.2']));
+    if (discountAmount > 0) {
+      detailNotes.push(['', 'หัก', 'ส่วนลดรับ', '', '', '', '', '', discountAmount]);
+      totalPurchases -= discountAmount;
+    }
+    
+    // Transportation costs (5010.3) - debit, shown as positive
+    const transportAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.3']));
+    if (transportAmount > 0) {
+      detailNotes.push(['', 'บวก', 'ค่าขนส่งเข้า', '', '', '', '', '', transportAmount]);
+      totalPurchases += transportAmount;
+    }
+    
+    // Direct labor (5010.4) - debit, shown as positive
+    const laborAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.4']));
+    if (laborAmount > 0) {
+      detailNotes.push(['', '', 'ค่าแรงงานทางตรง', '', '', '', '', '', laborAmount]);
+      totalPurchases += laborAmount;
+    }
+    
+    // Net purchases total
+    detailNotes.push(['', '', 'รวมซื้อสุทธิ', '', '', '', '', '', totalPurchases]);
+    
+    // Goods available for sale
+    const goodsAvailable = beginningInventory + totalPurchases;
+    detailNotes.push(['', 'สินค้ามีไว้เพื่อขาย', '', '', '', '', '', '', goodsAvailable]);
+    
+    // Ending inventory
+    const endingInventory = inventoryAccount ? Math.abs(inventoryAccount.debitAmount - inventoryAccount.creditAmount) : 0;
+    detailNotes.push(['', 'หัก', 'สินค้าคงเหลือปลายงวด', '', '', '', '', '', endingInventory]);
+    
+    // Cost of goods sold
+    const costOfGoodsSold = goodsAvailable - endingInventory;
+    detailNotes.push(['', 'ต้นทุนสินค้าที่ขาย', '', '', '', '', '', '', costOfGoodsSold]);
+  }
+
+  private addDetailTwo(detailNotes: any[][], trialBalanceData: TrialBalanceEntry[]): void {
+    detailNotes.push(['รายละเอียดประกอบที่ 2', '', '', '', '', '', '', '', 'หน่วย:บาท']);
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    
+    // Headers for the three columns
+    detailNotes.push(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', 'ค่าใช้จ่ายในการขาย', 'ค่าใช้จ่ายในการบริหาร', 'ค่าใช้จ่ายอื่น']);
+    
+    const dataStartRow = detailNotes.length + 1; // +1 because Excel is 1-indexed
+    let financialCosts = 0;
+    
+    // Process accounts 5300-5999 excluding 5910 and 5360-5364
+    for (const entry of trialBalanceData) {
+      const accountCode = entry.accountCode;
+      const accountName = entry.accountName;
+      const amount = Math.abs(entry.debitAmount || entry.creditAmount || 0);
+      
+      if (accountCode && accountCode >= '5300' && accountCode <= '5999' && 
+          accountCode !== '5910' && amount > 0) {
+        
+        // Check if it's financial costs (5360-5364) - handle separately
+        if (accountCode >= '5360' && accountCode <= '5364') {
+          financialCosts += amount;
+          continue;
+        }
+        
+        // Determine which column the expense goes to
+        let sellingCost = 0;
+        let adminCost = 0;
+        let otherCost = 0;
+        
+        const codePrefix = accountCode.substring(0, 4);
+        if (codePrefix >= '5300' && codePrefix <= '5311') {
+          sellingCost = amount;
+        } else if (codePrefix >= '5312' && codePrefix <= '5350') {
+          adminCost = amount;
+        } else if ((codePrefix >= '5351' && codePrefix <= '5359') || 
+                   (codePrefix >= '5365' && codePrefix <= '5999')) {
+          otherCost = amount;
+        }
+        
+        detailNotes.push([accountName, '', '', '', '', '', sellingCost, adminCost, otherCost]);
+      }
+    }
+    
+    // Add total row with formulas
+    const totalRowIndex = detailNotes.length + 1;
+    detailNotes.push(['รวม', '', '', '', '', '', 
+      { f: `SUM(G${dataStartRow}:G${totalRowIndex - 1})` },
+      { f: `SUM(H${dataStartRow}:H${totalRowIndex - 1})` },
+      { f: `SUM(I${dataStartRow}:I${totalRowIndex - 1})` }
+    ]);
+    
+    // Add financial costs row if any
+    if (financialCosts > 0) {
+      detailNotes.push(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCosts]);
+    }
+  }
+
+  private checkHasInventory(trialBalanceData: TrialBalanceEntry[]): boolean {
+    // Check for inventory account 1510
+    const inventoryAccount = trialBalanceData.find(entry => entry.accountCode === '1510');
+    if (inventoryAccount && (inventoryAccount.debitAmount !== 0 || inventoryAccount.creditAmount !== 0)) {
+      return true;
+    }
+
+    // Check for purchase accounts 5010
+    const purchaseAccounts = trialBalanceData.filter(entry => 
+      entry.accountCode?.startsWith('5010') && 
+      (entry.debitAmount !== 0 || entry.creditAmount !== 0)
+    );
+    return purchaseAccounts.length > 0;
+  }
+
+  // ============================================================================
+  // NOTES_ACCOUNTING HELPER METHODS (VBA-COMPLIANT)
+  // ============================================================================
+
+  private addCashNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 3
+  ): void {
+    // Calculate cash amounts (1010-1019) and bank deposits (1020-1099)
+    const cashAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1010, 1019));
+    const bankAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1020, 1099));
+    const totalAmount = cashAmount + bankAmount;
+    
+    // Use previousBalance field from trialBalanceData for previous year amounts
+    const prevCashAmount = processingType === 'multi-year' ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1010, 1019)) : 0;
+    const prevBankAmount = processingType === 'multi-year' ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099)) : 0;
+    const prevTotalAmount = prevCashAmount + prevBankAmount;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      // Cash line - only show if has balance
+      if (cashAmount !== 0 || prevCashAmount !== 0) {
+        notes.push(['', '', 'เงินสด', '', '', '', 
+          cashAmount, '', 
+          processingType === 'multi-year' ? prevCashAmount : '']);
+      }
+      
+      // Bank deposits line - only show if has balance
+      if (bankAmount !== 0 || prevBankAmount !== 0) {
+        notes.push(['', '', 'เงินฝากธนาคาร', '', '', '', 
+          bankAmount, '', 
+          processingType === 'multi-year' ? prevBankAmount : '']);
+      }
+      
+      // Total line - use Excel formulas instead of calculated values
+      const currentRowIndex = notes.length + 1; // Excel is 1-indexed
+      const startRowIndex = currentRowIndex - (cashAmount !== 0 || prevCashAmount !== 0 ? 1 : 0) - (bankAmount !== 0 || prevBankAmount !== 0 ? 1 : 0);
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${startRowIndex}:G${currentRowIndex - 1})` }, '', 
+          { f: `SUM(I${startRowIndex}:I${currentRowIndex - 1})` }]);
+      } else {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${startRowIndex}:G${currentRowIndex - 1})` }, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addTradeReceivablesNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 4
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
+    // Use previousBalance field from trialBalanceData for previous year amounts
+    const prevTotalAmount = processingType === 'multi-year' ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215)) : 0;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      // Trade receivables line
+      notes.push(['', '', 'ลูกหนี้การค้า', '', '', '', 
+        totalAmount, '', 
+        processingType === 'multi-year' ? prevTotalAmount : '']);
+      
+      // Total line - use Excel formula
+      const currentRowIndex = notes.length + 1; // Excel is 1-indexed
+      if (processingType === 'multi-year') {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `G${currentRowIndex - 1}` }, '', // Reference the line above for current year
+          { f: `I${currentRowIndex - 1}` }]); // Reference the line above for previous year
+      } else {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `G${currentRowIndex - 1}` }, '', '']); // Reference the line above
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addShortTermLoansNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 5
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1141, 1141));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1141, 1141)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินให้กู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added (0-based array length = 1-based Excel row - 1)
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addPPENote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 6
+  ): void {
+    // Get all PPE asset accounts (1610-1659 without decimal points)
+    const assetAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode);
+      return code >= 1610 && code <= 1659 && !entry.accountCode.includes('.');
+    });
+
+    // Get all accumulated depreciation accounts (1610-1659 with decimal points)
+    const depreciationAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode);
+      return code >= 1610 && code <= 1659 && entry.accountCode.includes('.');
+    });
+
+    // Only create note if there are any PPE accounts with balances
+    if (assetAccounts.length === 0 && depreciationAccounts.length === 0) {
+      return;
+    }
+
+    // Check if any accounts have non-zero balances
+    const hasAssetBalances = assetAccounts.some(acc => 
+      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
+    );
+    const hasDepreciationBalances = depreciationAccounts.some(acc => 
+      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
+    );
+
+    if (!hasAssetBalances && !hasDepreciationBalances) {
+      return;
+    }
+
+    // Create note header
+    notes.push([noteNumber.toString(), 'ที่ดิน อาคารและอุปกรณ์', '', '', '', '', '', '', 'หน่วย:บาท']);
+    
+    // Add column headers
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear - 1}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+    }
+    
+    // Add asset cost section
+    notes.push(['', '', 'ราคาทุนเดิม', '', '', '', '', '', '']);
+    
+    let assetTotalCurrent = 0;
+    let assetTotalPrevious = 0;
+    let assetTotalPurchases = 0;
+    const assetStartRow = notes.length + 1; // Track start of asset details (Excel 1-indexed)
+
+    // Process individual asset accounts
+    assetAccounts.forEach(account => {
+      const currentAmount = Math.abs(account.balance);
+      const previousAmount = Math.abs(account.previousBalance || 0);
+      const purchases = Math.max(0, currentAmount - previousAmount); // Only positive purchases
+      
+      if (currentAmount !== 0 || previousAmount !== 0) {
+        if (processingType === 'multi-year') {
+          notes.push(['', '', account.accountName, 
+            previousAmount, '', // Column D (index 3): Previous amount
+            purchases > 0 ? purchases : '', '', // Column F (index 5): Purchases
+            '', currentAmount]); // Column I (index 8): Current amount
+        } else {
+          notes.push(['', '', account.accountName, '', '', '', '', '', currentAmount]); // Column I (index 8): Current amount only
+        }
+        
+        assetTotalCurrent += currentAmount;
+        assetTotalPrevious += previousAmount;
+        assetTotalPurchases += purchases;
+      }
+    });
+
+    // Add asset totals with Excel formulas
+    const assetEndRow = notes.length; // Last row of asset details (Excel 1-indexed)
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'รวม', 
+        { f: `SUM(D${assetStartRow}:D${assetEndRow})` }, '', // Column D (index 3): Previous total formula
+        { f: `SUM(F${assetStartRow}:F${assetEndRow})` }, '', // Column F (index 5): Total purchases formula
+        '', { f: `SUM(I${assetStartRow}:I${assetEndRow})` }]); // Column I (index 8): Current total formula
+    } else {
+      notes.push(['', '', 'รวม', '', '', '', '', '', 
+        { f: `SUM(I${assetStartRow}:I${assetEndRow})` }]); // Column I (index 8): Current total formula only
+    }
+    
+    // Add space before depreciation section
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    
+    // Add accumulated depreciation section
+    notes.push(['', '', 'ค่าเสื่อมราคาสะสม', '', '', '', '', '', '']);
+    
+    let depreciationTotalCurrent = 0;
+    let depreciationTotalPrevious = 0;
+    let depreciationExpense = 0;
+    const depreciationStartRow = notes.length + 1; // Track start of depreciation details (Excel 1-indexed)
+
+    // Process individual depreciation accounts
+    depreciationAccounts.forEach(account => {
+      const currentAmount = Math.abs(account.balance); // Convert to positive
+      const previousAmount = Math.abs(account.previousBalance || 0); // Convert to positive
+      const expenseAmount = Math.max(0, currentAmount - previousAmount); // Depreciation expense for the year
+      
+      if (currentAmount !== 0 || previousAmount !== 0) {
+        if (processingType === 'multi-year') {
+          notes.push(['', '', account.accountName, 
+            previousAmount, '', // Column D (index 3): Previous depreciation
+            expenseAmount > 0 ? expenseAmount : '', '', // Column F (index 5): Depreciation expense
+            '', currentAmount]); // Column I (index 8): Current depreciation
+        } else {
+          notes.push(['', '', account.accountName, '', '', '', '', '', currentAmount]); // Column I (index 8): Current depreciation only
+        }
+        
+        depreciationTotalCurrent += currentAmount;
+        depreciationTotalPrevious += previousAmount;
+        depreciationExpense += expenseAmount;
+      }
+    });
+
+    // Add depreciation totals with Excel formulas
+    const depreciationEndRow = notes.length; // Last row of depreciation details (Excel 1-indexed)
+    
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'รวม', 
+        { f: `SUM(D${depreciationStartRow}:D${depreciationEndRow})` }, '', // Column D (index 3): Previous depreciation total formula
+        { f: `SUM(F${depreciationStartRow}:F${depreciationEndRow})` }, '', // Column F (index 5): Total depreciation expense formula
+        '', { f: `SUM(I${depreciationStartRow}:I${depreciationEndRow})` }]); // Column I (index 8): Current depreciation total formula
+    } else {
+      notes.push(['', '', 'รวม', '', '', '', '', '', 
+        { f: `SUM(I${depreciationStartRow}:I${depreciationEndRow})` }]); // Column I (index 8): Current depreciation total formula only
+    }
+
+    // Add net book value with formulas referencing the totals above
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    const assetTotalRowIndex = assetEndRow + 1; // Row number of asset totals
+    const depreciationTotalRowIndex = notes.length - 1; // Row number of depreciation totals (just added above)
+    
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'มูลค่าสุทธิ', 
+        { f: `D${assetTotalRowIndex}-D${depreciationTotalRowIndex}` }, '', '', '', // Column D (index 3): Previous net value formula
+        '', { f: `I${assetTotalRowIndex}-I${depreciationTotalRowIndex}` }]); // Column I (index 8): Current net value formula
+    } else {
+      notes.push(['', '', 'มูลค่าสุทธิ', '', '', '', '', '', 
+        { f: `I${assetTotalRowIndex}-I${depreciationTotalRowIndex}` }]); // Column I (index 8): Current net value formula only
+    }
+
+    // Add depreciation expense summary - reference the depreciation expense total
+    if (depreciationExpense > 0) {
+      notes.push(['', '', 'ค่าเสื่อมราคา', '', '', '', '', '', 
+        { f: `F${depreciationTotalRowIndex}` }]); // Column I (index 8): Reference depreciation expense total
+    }
+    
+    notes.push(['', '', '', '', '', '', '', '', '']);
+  }
+
+  private addOtherAssetsNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 7
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1660, 1700)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'สินทรัพย์อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'สินทรัพย์อื่น', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addBankOverdraftsNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 8
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2001, 2009)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินเบิกเกินบัญชี', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addTradePayablesNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 9
+  ): void {
+    // Calculate trade payables (2010-2999) excluding specific account codes
+    const totalCurrentPayablesRange = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999));
+    const excludeShortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
+    const excludeIncomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
+    const excludeLongTermCurrent = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
+    const excludeLongTermFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
+    
+    const totalAmount = totalCurrentPayablesRange - excludeShortTermBorrowings - 
+                       excludeIncomeTax - excludeLongTermCurrent - excludeLongTermFI;
+
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2010, 2999)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เจ้าหนี้การค้า', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addShortTermBorrowingsNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 10
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2030, 2030)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะสั้นจากบุคคลหรือกิจการที่เกี่ยวข้องกัน', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addLongTermLoansNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 11
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
+                       Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2120, 2123)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      
+      // Add current portion detail - this would normally be user input in VBA
+      const currentPortion = Math.round(totalAmount * 0.1); // Placeholder: 10% as current portion
+      notes.push(['', '', 'หัก ส่วนของหนี้สินระยะยาวที่ถึงกำหนดชำระภายในหนึ่งปี', '', '', '', currentPortion, '', '']);
+      notes.push(['', '', 'เงินกู้ยืมระยะยาวสุทธิจากส่วนที่ถึงกำหนดชำระคืนภายในหนึ่งปี', '', '', '', totalAmount - currentPortion, '', '']);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addOtherLongTermLoansNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 12
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2050, 2052)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาว', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินกู้ยืมระยะยาว', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addRelatedPartyLoansNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 13
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2100));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2100, 2100)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากบุคคลหรือกิจการที่เกี่ยวข้องกัน', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'เงินกู้ยืมระยะยาวจากบุคคลที่เกี่ยวข้อง', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addOtherIncomeNote(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 14
+  ): void {
+    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4020, 4999));
+    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
+      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 4020, 4999)) : 0;
+
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'รายได้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+      }
+      
+      notes.push(['', '', 'รายได้อื่น', '', '', '', 
+        processingType === 'multi-year' ? totalAmount : '', '', 
+        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
+      
+      const dataRowIndex = notes.length; // The data row we just added
+      notes.push(['', '', 'รวม', '', '', '', 
+        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
+        {f: `I${dataRowIndex}`}]);
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  private addExpensesByNatureNote(
+    notes: any[][], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    noteNumber: number = 15
+  ): void {
+    notes.push([noteNumber.toString(), 'ค่าใช้จ่ายจำแนกตามธรรมชาติของค่าใช้จ่าย', '', '', '', '', '', '', 'หน่วย:บาท']);
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
+    }
+    
+    notes.push(['', '', 'การเปลี่ยนแปลงในสินค้าสำเร็จรูปและงานระหว่างทำ', '', '', '', '', '', '']);
+    notes.push(['', '', 'งานที่ทำโดยกิจการและบันทึกเป็นรายจ่ายฝ่ายทุน', '', '', '', '', '', '']);
+    notes.push(['', '', 'วัตถุดิบและวัสดุสิ้นเปลืองใช้ไป', '', '', '', '', '', '']);
+    notes.push(['', '', 'ค่าใช้จ่ายผลประโยชน์พนักงาน', '', '', '', '', '', '']);
+    notes.push(['', '', 'ค่าเสื่อมราคาและค่าตัดจำหน่าย', '', '', '', '', '', '']);
+    notes.push(['', '', 'ค่าใช้จ่ายอื่น', '', '', '', '', '', '']);
+    notes.push(['', '', 'รวม', '', '', '', '', '', '']);
+    notes.push(['', '', '', '', '', '', '', '', '']);
+  }
+
+  private addFinancialApprovalNote(
+    notes: any[][], 
+    companyInfo: CompanyInfo, 
+    noteNumber: number = 16
+  ): void {
+    notes.push([noteNumber.toString(), 'การอนุมัติงบการเงิน', '', '', '', '', '', '', '']);
+    notes.push(['', '', 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้ว', '', '', '', '', '', '']);
+    notes.push(['', '', '', '', '', '', '', '', '']);
+  }
+}
