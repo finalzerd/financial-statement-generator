@@ -8,7 +8,17 @@ export class CompanyController {
    */
   static async createCompany(req: Request, res: Response) {
     try {
-      const { name, type, registrationNumber, address, businessDescription, taxId, defaultReportingYear } = req.body;
+      const { 
+        name, 
+        type, 
+        registrationNumber, 
+        address, 
+        businessDescription, 
+        taxId, 
+        defaultReportingYear,
+        numberOfShares,
+        shareValue
+      } = req.body;
 
       // Validation
       if (!name || !type) {
@@ -34,7 +44,9 @@ export class CompanyController {
         address: address?.trim(),
         businessDescription: businessDescription?.trim(),
         taxId: taxId?.trim(),
-        defaultReportingYear: defaultReportingYear || new Date().getFullYear()
+        defaultReportingYear: defaultReportingYear || new Date().getFullYear(),
+        numberOfShares: type === 'บริษัทจำกัด' ? numberOfShares : undefined,
+        shareValue: type === 'บริษัทจำกัด' ? shareValue : undefined
       });
 
       res.status(201).json({ 

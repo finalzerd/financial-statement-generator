@@ -627,6 +627,11 @@ export class FinancialStatementGenerator {
     _companyInfo: any,
     processingType: 'single-year' | 'multi-year'
   ) {
+    // Get share information from company info
+    const numberOfShares = _companyInfo?.shares || registeredCapital; // fallback to registeredCapital
+    const shareValue = _companyInfo?.shareValue || 1; // fallback to 1 baht per share
+    const numberOfPaidShares = paidUpCapital / shareValue; // calculate based on share value
+    
     // Equity Section header
     worksheetData.push(['', equityTerm, '', '', '', '', '', '', '', '']);
     cellTracker.currentRow++;
@@ -648,11 +653,11 @@ export class FinancialStatementGenerator {
       // Limited company equity structure - Remove ทุนเรือนหุ้น row
 
       worksheetData.push(['', '', 'ทุนจดทะเบียน', '', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', `หุ้นสามัญ ${registeredCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${shareValue} บาท`, '', '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
       cellTracker.currentRow += 2;
 
       worksheetData.push(['', '', 'ทุนที่ออกและชำระแล้ว', '', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', `หุ้นสามัญ ${paidUpCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', '24', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfPaidShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${shareValue} บาท`, '', '24', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
       cellTracker.equityDataRows.push(cellTracker.currentRow + 1);
       cellTracker.currentRow += 2;
 

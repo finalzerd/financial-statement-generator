@@ -27,7 +27,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     registrationNumber: '',
     address: '',
     businessDescription: '',
-    taxId: ''
+    taxId: '',
+    numberOfShares: 1000000,
+    shareValue: 1
   });
 
   const [editForm, setEditForm] = useState({
@@ -36,7 +38,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     registrationNumber: '',
     address: '',
     businessDescription: '',
-    taxId: ''
+    taxId: '',
+    numberOfShares: 1000000,
+    shareValue: 1
   });
 
   // Load companies on component mount
@@ -76,7 +80,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
         registrationNumber: '',
         address: '',
         businessDescription: '',
-        taxId: ''
+        taxId: '',
+        numberOfShares: 1000000,
+        shareValue: 1
       });
       setShowNewCompanyForm(false);
       
@@ -98,7 +104,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       registrationNumber: '', 
       address: '', 
       businessDescription: '',
-      taxId: '' 
+      taxId: '',
+      numberOfShares: 1000000,
+      shareValue: 1
     });
     setShowNewCompanyForm(false);
     setError(null);
@@ -140,7 +148,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       registrationNumber: company.registrationNumber || '',
       address: company.address || '',
       businessDescription: company.businessDescription || '',
-      taxId: company.taxId || ''
+      taxId: company.taxId || '',
+      numberOfShares: company.numberOfShares || 1000000,
+      shareValue: company.shareValue || 1
     });
     setShowNewCompanyForm(false);
   };
@@ -153,7 +163,9 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       registrationNumber: '',
       address: '',
       businessDescription: '',
-      taxId: ''
+      taxId: '',
+      numberOfShares: 1000000,
+      shareValue: 1
     });
   };
 
@@ -350,6 +362,40 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
               />
             </div>
             
+            {/* Share information - only for บริษัทจำกัด */}
+            {editForm.type === 'บริษัทจำกัด' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="edit-number-of-shares">จำนวนหุ้นสามัญ (หุ้น) *</label>
+                  <input
+                    type="number"
+                    id="edit-number-of-shares"
+                    value={editForm.numberOfShares}
+                    onChange={e => setEditForm({...editForm, numberOfShares: Number(e.target.value) || 1000000})}
+                    disabled={isUpdating}
+                    min="1"
+                    required
+                  />
+                  <small className="form-help">จำนวนหุ้นที่จดทะเบียนและออกจำหน่าย</small>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="edit-share-value">มูลค่าหุ้นสามัญ (บาทต่อหุ้น) *</label>
+                  <input
+                    type="number"
+                    id="edit-share-value"
+                    value={editForm.shareValue}
+                    onChange={e => setEditForm({...editForm, shareValue: Number(e.target.value) || 1})}
+                    disabled={isUpdating}
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
+                  <small className="form-help">มูลค่าต่อหุ้น (Par Value) ตามหนังสือรับรอง</small>
+                </div>
+              </>
+            )}
+            
             <div className="form-actions">
               <button
                 type="submit"
@@ -451,6 +497,40 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                 disabled={isCreating}
               />
             </div>
+            
+            {/* Share information - only for บริษัทจำกัด */}
+            {newCompany.type === 'บริษัทจำกัด' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="number-of-shares">จำนวนหุ้นสามัญ (หุ้น) *</label>
+                  <input
+                    type="number"
+                    id="number-of-shares"
+                    value={newCompany.numberOfShares}
+                    onChange={e => setNewCompany({...newCompany, numberOfShares: Number(e.target.value) || 1000000})}
+                    disabled={isCreating}
+                    min="1"
+                    required
+                  />
+                  <small className="form-help">จำนวนหุ้นที่จดทะเบียนและออกจำหน่าย</small>
+                </div>
+                
+                <div className="form-group">
+                  <label htmlFor="share-value">มูลค่าหุ้นสามัญ (บาทต่อหุ้น) *</label>
+                  <input
+                    type="number"
+                    id="share-value"
+                    value={newCompany.shareValue}
+                    onChange={e => setNewCompany({...newCompany, shareValue: Number(e.target.value) || 1})}
+                    disabled={isCreating}
+                    min="0.01"
+                    step="0.01"
+                    required
+                  />
+                  <small className="form-help">มูลค่าต่อหุ้น (Par Value) ตามหนังสือรับรอง</small>
+                </div>
+              </>
+            )}
             
             <div className="form-actions">
               <button

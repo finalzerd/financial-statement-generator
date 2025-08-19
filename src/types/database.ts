@@ -10,6 +10,9 @@ export interface Company {
   businessDescription?: string; // Business type/description
   taxId?: string;
   defaultReportingYear: number;
+  // Share information for บริษัทจำกัด
+  numberOfShares?: number; // จำนวนหุ้นสามัญ
+  shareValue?: number; // มูลค่าหุ้นสามัญ (บาทต่อหุ้น)
   createdAt: Date;
   updatedAt: Date;
 }

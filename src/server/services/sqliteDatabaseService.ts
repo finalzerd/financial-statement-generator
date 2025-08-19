@@ -9,10 +9,11 @@ export class SQLiteDatabaseService {
     const db = SQLiteConfig.getDatabase();
     
     const result = await (db as any).runAsync(
-      `INSERT INTO companies (name, thai_name, registration_number, company_type, address, business_type, phone, email)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO companies (name, thai_name, registration_number, company_type, address, business_type, phone, email, number_of_shares, share_value)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [company.name, company.type, company.registrationNumber, company.type, 
-       company.address, company.businessDescription, '', '']
+       company.address, company.businessDescription, '', '', 
+       company.numberOfShares, company.shareValue]
     );
 
     const insertedCompany = await (db as any).getAsync(
@@ -24,6 +25,8 @@ export class SQLiteDatabaseService {
       ...insertedCompany,
       id: insertedCompany.id.toString(),
       businessDescription: insertedCompany.business_type,
+      numberOfShares: insertedCompany.number_of_shares,
+      shareValue: insertedCompany.share_value,
       createdAt: new Date(insertedCompany.created_at),
       updatedAt: new Date(insertedCompany.updated_at)
     } as Company;
@@ -43,6 +46,8 @@ export class SQLiteDatabaseService {
       ...company,
       id: company.id.toString(),
       businessDescription: company.business_type,
+      numberOfShares: company.number_of_shares,
+      shareValue: company.share_value,
       createdAt: new Date(company.created_at),
       updatedAt: new Date(company.updated_at)
     } as Company;
@@ -56,6 +61,8 @@ export class SQLiteDatabaseService {
       ...company,
       id: company.id.toString(),
       businessDescription: company.business_type,
+      numberOfShares: company.number_of_shares,
+      shareValue: company.share_value,
       createdAt: new Date(company.created_at),
       updatedAt: new Date(company.updated_at)
     })) as Company[];

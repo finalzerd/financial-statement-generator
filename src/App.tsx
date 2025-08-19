@@ -136,7 +136,9 @@ function App() {
         reportingYear: parseInt(formData.reportingPeriod) || new Date().getFullYear(),
         registrationNumber: formData.registrationNumber,
         address: formData.address,
-        businessDescription: formData.businessDescription
+        businessDescription: formData.businessDescription,
+        shares: formData.numberOfShares,
+        shareValue: formData.shareValue
       }
       console.log('Processing file with company info:', companyInfo)
       

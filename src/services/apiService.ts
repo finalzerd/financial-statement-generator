@@ -38,6 +38,8 @@ export class ApiService {
     businessDescription?: string;
     taxId?: string;
     defaultReportingYear?: number;
+    numberOfShares?: number;
+    shareValue?: number;
   }) {
     const response = await fetch(`${this.BASE_URL}/companies`, {
       method: 'POST',
@@ -62,6 +64,8 @@ export class ApiService {
     businessDescription?: string;
     taxId?: string;
     defaultReportingYear?: number;
+    numberOfShares?: number;
+    shareValue?: number;
   }) {
     const response = await fetch(`${this.BASE_URL}/companies/${companyId}`, {
       method: 'PUT',

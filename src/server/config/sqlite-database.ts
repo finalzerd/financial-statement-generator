@@ -54,10 +54,25 @@ export class SQLiteConfig {
           phone TEXT,
           email TEXT,
           business_type TEXT,
+          number_of_shares INTEGER,
+          share_value REAL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
+
+      // Add share fields to existing companies table if they don't exist
+      try {
+        await (this.db as any).runAsync('ALTER TABLE companies ADD COLUMN number_of_shares INTEGER');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
+      
+      try {
+        await (this.db as any).runAsync('ALTER TABLE companies ADD COLUMN share_value REAL');
+      } catch (e) {
+        // Column already exists, ignore error
+      }
 
       // Trial Balance Sets table
       await (this.db as any).runAsync(`

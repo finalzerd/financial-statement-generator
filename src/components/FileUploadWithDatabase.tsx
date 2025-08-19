@@ -118,7 +118,9 @@ const FileUploadWithDatabase: React.FC<FileUploadProps> = ({
         reportingYear: selectedCompany.defaultReportingYear || new Date().getFullYear(),
         registrationNumber: selectedCompany.registrationNumber,
         address: selectedCompany.address,
-        businessDescription: selectedCompany.businessDescription
+        businessDescription: selectedCompany.businessDescription,
+        shares: selectedCompany.numberOfShares,
+        shareValue: selectedCompany.shareValue
       };
 
       // Step 2: Process CSV data

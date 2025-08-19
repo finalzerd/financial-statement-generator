@@ -7,6 +7,9 @@ interface CompanyInfoFormData {
   registrationNumber?: string;
   address?: string;
   businessDescription?: string;
+  // Share information for บริษัทจำกัด
+  numberOfShares?: number; // จำนวนหุ้นสามัญ
+  shareValue?: number; // มูลค่าหุ้นสามัญ (บาทต่อหุ้น)
 }
 
 interface CompanyInfoFormProps {
@@ -18,7 +21,9 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onSubmit, onCancel })
   const [formData, setFormData] = useState<CompanyInfoFormData>({
     companyName: '',
     companyType: 'บริษัทจำกัด',
-    reportingPeriod: '2024'
+    reportingPeriod: '2024',
+    numberOfShares: 1000000, // Default 1 million shares
+    shareValue: 1 // Default 1 baht per share
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -92,6 +97,36 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onSubmit, onCancel })
             rows={3}
           />
         </div>
+        
+        {/* Share information - only for บริษัทจำกัด */}
+        {formData.companyType === 'บริษัทจำกัด' && (
+          <>
+            <div className="form-group">
+              <label>จำนวนหุ้นสามัญ (หุ้น) *</label>
+              <input
+                type="number"
+                value={formData.numberOfShares || ''}
+                onChange={(e) => setFormData({...formData, numberOfShares: Number(e.target.value) || undefined})}
+                placeholder="เช่น 1000000"
+                min="1"
+                required
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>มูลค่าหุ้นสามัญ (บาทต่อหุ้น) *</label>
+              <input
+                type="number"
+                value={formData.shareValue || ''}
+                onChange={(e) => setFormData({...formData, shareValue: Number(e.target.value) || undefined})}
+                placeholder="เช่น 1"
+                min="0.01"
+                step="0.01"
+                required
+              />
+            </div>
+          </>
+        )}
         
         <div className="form-actions">
           <button type="submit">ตกลง</button>
