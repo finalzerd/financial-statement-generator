@@ -14,6 +14,15 @@ const PORT = process.env.PORT || 3001;
 const dbPath = './financial_statements.db';
 const db = new sqlite3.Database(dbPath);
 
+// Add share columns to companies table if they don't exist
+db.run('ALTER TABLE companies ADD COLUMN number_of_shares INTEGER', (err) => {
+  // Ignore error if column already exists
+});
+
+db.run('ALTER TABLE companies ADD COLUMN share_value REAL', (err) => {
+  // Ignore error if column already exists
+});
+
 // Helper function to convert database row to Company format
 const mapDbRowToCompany = (row) => ({
   id: row.id.toString(),
@@ -23,6 +32,8 @@ const mapDbRowToCompany = (row) => ({
   address: row.address,
   businessDescription: row.business_type,
   taxId: row.tax_id,
+  numberOfShares: row.number_of_shares,
+  shareValue: row.share_value,
   defaultReportingYear: new Date().getFullYear(), // Default to current year
   createdAt: new Date(row.created_at),
   updatedAt: new Date(row.updated_at || row.created_at)
@@ -70,7 +81,17 @@ app.get('/api/companies', (req, res) => {
 
 // Create new company
 app.post('/api/companies', (req, res) => {
-  const { name, type, registrationNumber, address, businessDescription, taxId, defaultReportingYear } = req.body;
+  const { 
+    name, 
+    type, 
+    registrationNumber, 
+    address, 
+    businessDescription, 
+    taxId, 
+    defaultReportingYear,
+    numberOfShares,
+    shareValue
+  } = req.body;
   
   if (!name || !type) {
     res.status(400).json({ 
@@ -83,11 +104,22 @@ app.post('/api/companies', (req, res) => {
 
   const now = new Date().toISOString();
   const query = `
-    INSERT INTO companies (name, thai_name, company_type, registration_number, address, business_type, phone, email, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)
+    INSERT INTO companies (name, thai_name, company_type, registration_number, address, business_type, phone, email, number_of_shares, share_value, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
   `;
 
-  db.run(query, [name, name, type, registrationNumber, address, businessDescription, now, now], function(err) {
+  db.run(query, [
+    name, 
+    name, 
+    type, 
+    registrationNumber, 
+    address, 
+    businessDescription, 
+    type === 'บริษัทจำกัด' ? numberOfShares : null,
+    type === 'บริษัทจำกัด' ? shareValue : null,
+    now, 
+    now
+  ], function(err) {
     if (err) {
       console.error('Database error:', err);
       res.status(500).json({ 
@@ -123,7 +155,16 @@ app.post('/api/companies', (req, res) => {
 // Update existing company
 app.put('/api/companies/:id', (req, res) => {
   const companyId = req.params.id;
-  const { name, type, registrationNumber, address, businessDescription, taxId } = req.body;
+  const { 
+    name, 
+    type, 
+    registrationNumber, 
+    address, 
+    businessDescription, 
+    taxId,
+    numberOfShares,
+    shareValue
+  } = req.body;
   
   if (!name || !type) {
     res.status(400).json({ 
@@ -138,11 +179,22 @@ app.put('/api/companies/:id', (req, res) => {
   const query = `
     UPDATE companies 
     SET name = ?, thai_name = ?, company_type = ?, registration_number = ?, 
-        address = ?, business_type = ?, updated_at = ?
+        address = ?, business_type = ?, number_of_shares = ?, share_value = ?, updated_at = ?
     WHERE id = ?
   `;
 
-  db.run(query, [name, name, type, registrationNumber, address, businessDescription, now, companyId], function(err) {
+  db.run(query, [
+    name, 
+    name, 
+    type, 
+    registrationNumber, 
+    address, 
+    businessDescription, 
+    type === 'บริษัทจำกัด' ? numberOfShares : null,
+    type === 'บริษัทจำกัด' ? shareValue : null,
+    now, 
+    companyId
+  ], function(err) {
     if (err) {
       console.error('Database error:', err);
       res.status(500).json({ 
