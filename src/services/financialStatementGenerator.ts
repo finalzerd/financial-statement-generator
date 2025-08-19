@@ -751,6 +751,10 @@ export class FinancialStatementGenerator {
     const incomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
     const previousIncomeTax = processingType === 'multi-year' ? 0 : 0;
     
+    // Calculate financial costs (5920-5929)
+    const financialCosts = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5920, 5929));
+    const previousFinancialCosts = processingType === 'multi-year' ? 0 : 0;
+    
     console.log('Calculated values:', {
       revenue,
       otherIncome,
@@ -768,19 +772,21 @@ export class FinancialStatementGenerator {
       ['', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท'],
       ['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : ''],
-      ['รายได้', '', '', '', '', '', '', '', ''],
+      ['', 'รายได้', '', '', '', '', '', '', ''],
       ['', '', 'รายได้จากการขายหรือการให้บริการ', '', '', '1', revenue, '', processingType === 'multi-year' ? previousRevenue : ''],
       ['', '', 'รายได้อื่น', '', '', '2', otherIncome, '', processingType === 'multi-year' ? previousOtherIncome : ''],
       ['', 'รวมรายได้', '', '', '', '', { f: 'SUM(G8:G9)' }, '', processingType === 'multi-year' ? { f: 'SUM(I8:I9)' } : ''],
       ['', '', '', '', '', '', '', '', ''],
-      ['ค่าใช้จ่าย', '', '', '', '', '', '', '', ''],
+      ['', 'ค่าใช้จ่าย', '', '', '', '', '', '', ''],
       ['', '', 'ต้นทุนขายหรือต้นทุนการให้บริการ', '', '', '3', costOfServices, '', processingType === 'multi-year' ? previousCostOfServices : ''],
       ['', '', 'ค่าใช้จ่ายในการบริหาร', '', '', '4', adminExpenses, '', processingType === 'multi-year' ? previousAdminExpenses : ''],
       ['', '', 'ค่าใช้จ่ายอื่น', '', '', '5', otherExpenses, '', processingType === 'multi-year' ? previousOtherExpenses : ''],
       ['', 'รวมค่าใช้จ่าย', '', '', '', '', { f: 'SUM(G13:G15)' }, '', processingType === 'multi-year' ? { f: 'SUM(I13:I15)' } : ''],
-      ['', 'กำไรก่อนภาษีเงินได้', '', '', '', '', { f: 'G10-G16' }, '', processingType === 'multi-year' ? { f: 'I10-I16' } : ''],
-      ['', '', 'ภาษีเงินได้', '', '', '6', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
-      ['', 'กำไร(ขาดทุน)สุทธิ', '', '', '', '', { f: 'G17-G18' }, '', processingType === 'multi-year' ? { f: 'I17-I18' } : ''],
+      ['', 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้', '', '', '', '', { f: 'G10-G16' }, '', processingType === 'multi-year' ? { f: 'I10-I16' } : ''],
+      ['', 'ต้นทุนทางการเงิน', '', '', '', '7', financialCosts, '', processingType === 'multi-year' ? previousFinancialCosts : ''],
+      ['', 'กำไรก่อนภาษีเงินได้', '', '', '', '', { f: 'G17-G18' }, '', processingType === 'multi-year' ? { f: 'I17-I18' } : ''],
+      ['', 'ภาษีเงินได้', '', '', '', '6', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
+      ['', 'กำไร(ขาดทุน)สุทธิ', '', '', '', '', { f: 'G19-G20' }, '', processingType === 'multi-year' ? { f: 'I19-I20' } : ''],
       ['', '', '', '', '', '', '', '', ''],
       ['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']
     ];

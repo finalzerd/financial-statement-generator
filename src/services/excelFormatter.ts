@@ -541,14 +541,15 @@ export class ExcelJSFormatter {
    */
   private static formatTotalLinesProfessional(worksheet: ExcelJS.Worksheet): void {
     // We'll dynamically detect and format total lines and section headers
-    for (let row = 6; row <= 40; row++) {
+    for (let row = 6; row <= 60; row++) {
       const cell = worksheet.getCell(`B${row}`);
       if (cell.value && typeof cell.value === 'string') {
         const value = cell.value.toString().trim();
         
-        // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน)
+        // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
-            value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน') {
+            value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
+            value === 'รายได้' || value === 'ค่าใช้จ่าย') {
           this.formatMainSectionHeader(worksheet, row);
         }
         // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
