@@ -433,36 +433,67 @@ export class ExcelJSFormatter {
    * Format column headers - Professional Thai style matching the image
    */
   private static formatColumnHeadersProfessional(worksheet: ExcelJS.Worksheet): void {
-    // Row 5: Clear F5 (no หมายเหตุ header for detail sheets)
-    const headerCells: { cell: string; text: string }[] = [];
+    // Row 5: Format หมายเหตุ in F5 (bold + underline) and หน่วย:บาท in I5 (bold)
+    const headerCells: { cell: string; text: string; bold: boolean; underline?: boolean }[] = [
+      { cell: 'F5', text: 'หมายเหตุ', bold: true, underline: true },
+      { cell: 'I5', text: 'หน่วย:บาท', bold: true }
+    ];
     
-    headerCells.forEach(({ cell, text }) => {
+    headerCells.forEach(({ cell, text, bold, underline }) => {
       const headerCell = worksheet.getCell(cell);
       headerCell.value = text;
       headerCell.font = {
         name: this.THAI_FONT_NAME,
         size: 14,
-        bold: true,
+        bold: bold,
+        underline: underline || false,
         color: { argb: 'FF000000' }
       };
       headerCell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
+
+    // Row 6: Format สินทรัพย์ in B6 (bold) and year columns in general format
+    const b6Cell = worksheet.getCell('B6');
+    b6Cell.font = {
+      name: this.THAI_FONT_NAME,
+      size: 14,
+      bold: true,
+      color: { argb: 'FF000000' }
+    };
+    b6Cell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+    // Year columns in G6 and I6 - MUST be general format (not bold) and center aligned
+    const yearCells = ['G6', 'I6'];
+    yearCells.forEach(cellAddress => {
+      const cell = worksheet.getCell(cellAddress);
+      // Format regardless of content to ensure General format is applied
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: false, // General format - not bold
+        color: { argb: 'FF000000' }
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      // Force General format - this is critical for proper display
+      cell.numFmt = 'General';
+      
+      console.log(`Applied General format to ${cellAddress}: numFmt = ${cell.numFmt}`);
+    });
     
-    // Clear column D5 (remove หมายเหตุ from original position)
-    const clearCellD = worksheet.getCell('D5');
-    clearCellD.value = '';
-    
-    // Clear column E5 (remove any content from E5)
-    const clearCellE = worksheet.getCell('E5');
-    clearCellE.value = '';
+    // Clear old positions that might have been set incorrectly
+    const clearCells = ['D5', 'E5', 'G5'];
+    clearCells.forEach(cellAddress => {
+      const clearCell = worksheet.getCell(cellAddress);
+      clearCell.value = '';
+    });
   }
   
   /**
    * Format account detail lines - Professional Thai style with proper indentation
    */
   private static formatAccountLinesProfessional(worksheet: ExcelJS.Worksheet): void {
-    // Apply base formatting to all data rows (6-40)
-    for (let row = 6; row <= 40; row++) {
+    // Apply base formatting to all data rows (7-40) - Skip row 6 to preserve header formatting
+    for (let row = 7; row <= 40; row++) {
       // Account names (Columns B through E)
       ['B', 'C', 'D', 'E'].forEach(col => {
         const nameCell = worksheet.getCell(`${col}${row}`);
@@ -483,7 +514,7 @@ export class ExcelJSFormatter {
       };
       noteCell.alignment = { horizontal: 'center', vertical: 'middle' };
       
-      // Amount columns (G and I)
+      // Amount columns (G and I) - Apply number format but exclude row 6 (headers)
       ['G', 'I'].forEach(col => {
         const amountCell = worksheet.getCell(`${col}${row}`);
         amountCell.font = { 
@@ -515,8 +546,9 @@ export class ExcelJSFormatter {
       if (cell.value && typeof cell.value === 'string') {
         const value = cell.value.toString().trim();
         
-        // Main section headers (สินทรัพย์)
-        if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น') {
+        // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน)
+        if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
+            value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน') {
           this.formatMainSectionHeader(worksheet, row);
         }
         // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
@@ -543,7 +575,16 @@ export class ExcelJSFormatter {
         bold: true,
         color: { argb: 'FF000000' }
       };
-      cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Special handling for year columns in row 6 (G6 and I6) - keep center alignment
+      if (row === 6 && (col === 'G' || col === 'I')) {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.numFmt = 'General'; // Ensure General format for year columns
+        cell.font.bold = false; // Year columns should not be bold
+        console.log(`Preserved center alignment and General format for ${col}${row}`);
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
     });
   }
   
@@ -560,7 +601,7 @@ export class ExcelJSFormatter {
         color: { argb: 'FF000000' }
       };
       if (col === 'B') {
-        cell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
       } else if (col === 'F') {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
@@ -585,7 +626,7 @@ export class ExcelJSFormatter {
       };
       
       if (col === 'B') {
-        cell.alignment = { horizontal: 'left', vertical: 'middle', indent: 2 };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
       } else if (col === 'F') {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
@@ -955,8 +996,9 @@ export class ExcelJSFormatter {
       if (cell.value && typeof cell.value === 'string') {
         const value = cell.value.toString().trim();
         
-        // Main section headers (สินทรัพย์)
-        if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น') {
+        // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน)
+        if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
+            value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน') {
           this.formatMainSectionHeaderAccountingNotes(worksheet, row);
         }
         // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
@@ -1000,7 +1042,7 @@ export class ExcelJSFormatter {
         color: { argb: 'FF000000' }
       };
       if (col === 'B') {
-        cell.alignment = { horizontal: 'left', vertical: 'middle', indent: 1 };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
       } else if (col === 'F') {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
@@ -1025,7 +1067,7 @@ export class ExcelJSFormatter {
       };
       
       if (col === 'B') {
-        cell.alignment = { horizontal: 'left', vertical: 'middle', indent: 2 };
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
       } else if (col === 'F') {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {

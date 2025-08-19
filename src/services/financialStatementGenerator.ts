@@ -21,6 +21,7 @@ interface CellTracker {
   equityDataRows: number[];
   currentLiabilitiesTotalRow: number;
   nonCurrentLiabilitiesTotalRow: number;
+  totalLiabilitiesRow?: number; // Track total liabilities row for grand total calculation
 }
 
 // ============================================================================
@@ -257,8 +258,8 @@ export class FinancialStatementGenerator {
       ['งบแสดงฐานะการเงิน', '', '', '', '', '', '', '', '', ''],
       [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
       ['', '', '', '', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', '', '', '', ''],
-      ['สินทรัพย์', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']
+      ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท', ''], // Row 5: หมายเหตุ (bold + underline) and หน่วย:บาท (bold)
+      ['', 'สินทรัพย์', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', ''] // Row 6: สินทรัพย์ (bold), years (general format)
     ];
 
     // Track current row and data rows for formulas
@@ -266,7 +267,7 @@ export class FinancialStatementGenerator {
     const currentAssetRows: number[] = [];
 
     // Current Assets section
-    worksheetData.push(['', 'สินทรัพย์หมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
+    worksheetData.push(['', 'สินทรัพย์หมุนเวียน', '', '', '', '', '', '', '', '']);
     currentRow++;
 
     // Add current assets
@@ -383,7 +384,54 @@ export class FinancialStatementGenerator {
     const otherLongTermLoans = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
     const registeredCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
     const paidUpCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3010, 3019));
-    const retainedEarnings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3020, 3029));
+    
+    // CORRECTED RETAINED EARNINGS CALCULATION
+    // 1. Get opening retained earnings from account 3020 only
+    // Note: Retained earnings typically has credit balance in trial balance, so we flip the sign
+    const openingRetainedEarningsRaw = this.sumAccountsByNumericRange(trialBalanceData, 3020, 3020);
+    const openingRetainedEarnings = -openingRetainedEarningsRaw; // Flip sign for credit balance
+    console.log('=== RETAINED EARNINGS DEBUG ===');
+    console.log('1. Opening Retained Earnings (3020):');
+    console.log(`   Raw balance from trial balance: ${openingRetainedEarningsRaw}`);
+    console.log(`   Adjusted for credit balance: ${openingRetainedEarnings}`);
+    
+    // 2. Calculate current year revenue (4xxxx accounts: credit - debit)
+    const revenueAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('4'));
+    console.log('2. Revenue accounts found:', revenueAccounts.map(acc => ({
+      code: acc.accountCode,
+      name: acc.accountName,
+      debit: acc.debitAmount,
+      credit: acc.creditAmount,
+      calculation: (acc.creditAmount || 0) - (acc.debitAmount || 0)
+    })));
+    
+    const currentYearRevenue = revenueAccounts
+      .reduce((sum, entry) => sum + ((entry.creditAmount || 0) - (entry.debitAmount || 0)), 0);
+    console.log('2. Total Current Year Revenue:', currentYearRevenue);
+    
+    // 3. Calculate current year expenses (5xxxx accounts: debit - credit)  
+    const expenseAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('5'));
+    console.log('3. Expense accounts found:', expenseAccounts.map(acc => ({
+      code: acc.accountCode,
+      name: acc.accountName,
+      debit: acc.debitAmount,
+      credit: acc.creditAmount,
+      calculation: (acc.debitAmount || 0) - (acc.creditAmount || 0)
+    })));
+    
+    const currentYearExpenses = expenseAccounts
+      .reduce((sum, entry) => sum + ((entry.debitAmount || 0) - (entry.creditAmount || 0)), 0);
+    console.log('3. Total Current Year Expenses:', currentYearExpenses);
+    
+    // 4. Calculate current year profit
+    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    console.log('4. Current Year Profit (Revenue - Expenses):', currentYearProfit);
+    
+    // 5. Final retained earnings = opening + current year profit
+    const retainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
+    console.log('5. Final Retained Earnings (Opening + Profit):', openingRetainedEarnings, '+', currentYearProfit, '=', retainedEarnings);
+    console.log('=== END RETAINED EARNINGS DEBUG ===');
+    
     const legalReserve = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039));
 
     // Previous year balance calculations using previousBalance field
@@ -403,7 +451,7 @@ export class FinancialStatementGenerator {
     const prevOtherLongTermLoans = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052);
     const prevRegisteredCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3000, 3009);
     const prevPaidUpCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3019);
-    const prevRetainedEarnings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3029);
+    const prevRetainedEarnings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020);
     const prevLegalReserve = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039);
 
     // Initialize worksheet data with headers
@@ -413,7 +461,7 @@ export class FinancialStatementGenerator {
       [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
       ['', '', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', '', ''],
-      [liabilityAndEquityTerm, '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']
+      ['', liabilityAndEquityTerm, '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']
     ];
 
     // Initialize cell tracker for VBA-compliant formula generation
@@ -503,9 +551,7 @@ export class FinancialStatementGenerator {
     cellTracker.currentLiabilitiesTotalRow = cellTracker.currentRow;
     cellTracker.currentRow++;
 
-    // Spacer
-    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
-    cellTracker.currentRow++;
+    // No spacer - directly continue with non-current liabilities
   }
 
   private buildNonCurrentLiabilitiesSection(
@@ -559,6 +605,7 @@ export class FinancialStatementGenerator {
       { f: totalLiabilitiesFormula }, 
       '', 
       processingType === 'multi-year' ? { f: totalLiabilitiesFormulaPrev } : '', '']);
+    cellTracker.totalLiabilitiesRow = cellTracker.currentRow; // Track total liabilities row
     cellTracker.currentRow++;
 
     // Spacer
@@ -598,16 +645,14 @@ export class FinancialStatementGenerator {
       cellTracker.equityDataRows.push(cellTracker.currentRow);
       cellTracker.currentRow++;
     } else {
-      // Limited company equity structure
-      worksheetData.push(['', '', 'ทุนเรือนหุ้น', '', '', '', '', '', '', '']);
-      cellTracker.currentRow++;
+      // Limited company equity structure - Remove ทุนเรือนหุ้น row
 
-      worksheetData.push(['', '', '', 'ทุนจดทะเบียน', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', '', `หุ้นสามัญ ${registeredCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
+      worksheetData.push(['', '', 'ทุนจดทะเบียน', '', '', '', '', '', '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${registeredCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
       cellTracker.currentRow += 2;
 
-      worksheetData.push(['', '', '', 'ทุนที่ออกและชำระแล้ว', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', '', `หุ้นสามัญ ${paidUpCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '24', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
+      worksheetData.push(['', '', 'ทุนที่ออกและชำระแล้ว', '', '', '', '', '', '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${paidUpCapital.toLocaleString()} หุ้น มูลค่าหุ้นละ 1 บาท`, '', '24', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
       cellTracker.equityDataRows.push(cellTracker.currentRow + 1);
       cellTracker.currentRow += 2;
 
@@ -634,9 +679,20 @@ export class FinancialStatementGenerator {
     cellTracker.currentRow++;
 
     // Grand Total (Liabilities + Equity) - VBA compliant: simple addition of totals
-    const totalLiabilitiesRow = totalEquityRow - 1; // Total liabilities is right before equity section
-    const grandTotalFormula = `G${totalLiabilitiesRow - cellTracker.equityDataRows.length - 2}+G${totalEquityRow}`;
-    const grandTotalFormulaPrev = processingType === 'multi-year' ? `I${totalLiabilitiesRow - cellTracker.equityDataRows.length - 2}+I${totalEquityRow}` : '';
+    // Use the tracked row numbers for accurate calculation
+    const grandTotalFormula = cellTracker.totalLiabilitiesRow 
+      ? `G${cellTracker.totalLiabilitiesRow}+G${totalEquityRow}`
+      : `G${totalEquityRow - cellTracker.equityDataRows.length - 2}+G${totalEquityRow}`; // Fallback to old calculation
+    const grandTotalFormulaPrev = processingType === 'multi-year' 
+      ? (cellTracker.totalLiabilitiesRow 
+          ? `I${cellTracker.totalLiabilitiesRow}+I${totalEquityRow}`
+          : `I${totalEquityRow - cellTracker.equityDataRows.length - 2}+I${totalEquityRow}`)
+      : '';
+    
+    console.log('=== GRAND TOTAL DEBUG ===');
+    console.log('Total Liabilities Row:', cellTracker.totalLiabilitiesRow);
+    console.log('Total Equity Row:', totalEquityRow);
+    console.log('Grand Total Formula:', grandTotalFormula);
     
     worksheetData.push(['', `รวม${'หนี้สินและส่วนของผู้ถือหุ้น'}`, '', '', '', '', 
       { f: grandTotalFormula }, 
@@ -746,9 +802,53 @@ export class FinancialStatementGenerator {
   ): any[][] {
     // Calculate partnership equity values
     const totalCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3010, 3019));
-    const retainedEarnings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3020, 3029));
-    const currentYearProfit = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999)) - 
-                             Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999));
+    
+    // CORRECTED RETAINED EARNINGS CALCULATION for Partnership
+    // 1. Get opening retained earnings from account 3020 only
+    // Note: Retained earnings typically has credit balance in trial balance, so we flip the sign
+    const openingRetainedEarningsRaw = this.sumAccountsByNumericRange(trialBalanceData, 3020, 3020);
+    const openingRetainedEarnings = -openingRetainedEarningsRaw; // Flip sign for credit balance
+    console.log('=== PARTNERSHIP RETAINED EARNINGS DEBUG ===');
+    console.log('1. Opening Retained Earnings (3020):');
+    console.log(`   Raw balance from trial balance: ${openingRetainedEarningsRaw}`);
+    console.log(`   Adjusted for credit balance: ${openingRetainedEarnings}`);
+    
+    // 2. Calculate current year revenue (4xxxx accounts: credit - debit)
+    const revenueAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('4'));
+    console.log('2. Revenue accounts found:', revenueAccounts.map(acc => ({
+      code: acc.accountCode,
+      name: acc.accountName,
+      debit: acc.debitAmount,
+      credit: acc.creditAmount,
+      calculation: (acc.creditAmount || 0) - (acc.debitAmount || 0)
+    })));
+    
+    const currentYearRevenue = revenueAccounts
+      .reduce((sum, entry) => sum + ((entry.creditAmount || 0) - (entry.debitAmount || 0)), 0);
+    console.log('2. Total Current Year Revenue:', currentYearRevenue);
+    
+    // 3. Calculate current year expenses (5xxxx accounts: debit - credit)  
+    const expenseAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('5'));
+    console.log('3. Expense accounts found:', expenseAccounts.map(acc => ({
+      code: acc.accountCode,
+      name: acc.accountName,
+      debit: acc.debitAmount,
+      credit: acc.creditAmount,
+      calculation: (acc.debitAmount || 0) - (acc.creditAmount || 0)
+    })));
+    
+    const currentYearExpenses = expenseAccounts
+      .reduce((sum, entry) => sum + ((entry.debitAmount || 0) - (entry.creditAmount || 0)), 0);
+    console.log('3. Total Current Year Expenses:', currentYearExpenses);
+    
+    // 4. Calculate current year profit
+    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    console.log('4. Current Year Profit (Revenue - Expenses):', currentYearProfit);
+    
+    // 5. Final retained earnings = opening + current year profit
+    const retainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
+    console.log('5. Final Retained Earnings (Opening + Profit):', openingRetainedEarnings, '+', currentYearProfit, '=', retainedEarnings);
+    console.log('=== END PARTNERSHIP RETAINED EARNINGS DEBUG ===');
     
     // Split capital equally between partners
     const partner1Capital = totalCapital / 2;
@@ -1186,37 +1286,66 @@ export class FinancialStatementGenerator {
     trialBalancePrevious?: TrialBalanceEntry[], 
     noteNumber: number = 4
   ): void {
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
-    // Use previousBalance field from trialBalanceData for previous year amounts
-    const prevTotalAmount = processingType === 'multi-year' ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215)) : 0;
+    // Get all individual trade receivable accounts (1140-1215)
+    const tradeReceivableAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= 1140 && code <= 1215;
+    });
 
-    // Only add note if there are actual balances
-    if (totalAmount !== 0 || prevTotalAmount !== 0) {
-      notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
-      if (processingType === 'multi-year') {
-        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-      } else {
-        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
-      }
-      
-      // Trade receivables line
-      notes.push(['', '', 'ลูกหนี้การค้า', '', '', '', 
-        totalAmount, '', 
-        processingType === 'multi-year' ? prevTotalAmount : '']);
-      
-      // Total line - use Excel formula
-      const currentRowIndex = notes.length + 1; // Excel is 1-indexed
-      if (processingType === 'multi-year') {
-        notes.push(['', '', 'รวม', '', '', '', 
-          { f: `G${currentRowIndex - 1}` }, '', // Reference the line above for current year
-          { f: `I${currentRowIndex - 1}` }]); // Reference the line above for previous year
-      } else {
-        notes.push(['', '', 'รวม', '', '', '', 
-          { f: `G${currentRowIndex - 1}` }, '', '']); // Reference the line above
-      }
-      notes.push(['', '', '', '', '', '', '', '', '']);
+    // Check if any accounts have balances
+    const hasBalances = tradeReceivableAccounts.some(account => 
+      Math.abs((account.debitAmount || 0) - (account.creditAmount || 0)) !== 0 ||
+      Math.abs(account.previousBalance || 0) !== 0
+    );
+
+    if (!hasBalances) {
+      return; // Don't create note if no balances
     }
+
+    // Add note header
+    notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    
+    // Add column headers based on processing type
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+
+    const dataStartRow = notes.length + 1; // Track start of individual account details
+    let hasDetailLines = false;
+
+    // Process each individual account that has balances
+    tradeReceivableAccounts.forEach(account => {
+      const currentBalance = Math.abs((account.debitAmount || 0) - (account.creditAmount || 0));
+      const previousBalance = Math.abs(account.previousBalance || 0);
+      
+      // Only show accounts with non-zero balances
+      if (currentBalance !== 0 || previousBalance !== 0) {
+        notes.push(['', '', account.accountName, '', '', '', 
+          currentBalance, '', 
+          processingType === 'multi-year' ? previousBalance : '']);
+        hasDetailLines = true;
+      }
+    });
+
+    // Add total row with Excel formulas if there are detail lines
+    if (hasDetailLines) {
+      const currentRowIndex = notes.length + 1; // Excel 1-indexed
+      const endRowIndex = currentRowIndex - 1; // Last detail row
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${dataStartRow}:G${endRowIndex})` }, '', 
+          { f: `SUM(I${dataStartRow}:I${endRowIndex})` }]);
+      } else {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${dataStartRow}:G${endRowIndex})` }, '', '']);
+      }
+    }
+    
+    // Add spacing after the note
+    notes.push(['', '', '', '', '', '', '', '', '']);
   }
 
   private addShortTermLoansNote(
@@ -1481,37 +1610,76 @@ export class FinancialStatementGenerator {
     trialBalancePrevious?: TrialBalanceEntry[], 
     noteNumber: number = 9
   ): void {
-    // Calculate trade payables (2010-2999) excluding specific account codes
-    const totalCurrentPayablesRange = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999));
-    const excludeShortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
-    const excludeIncomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
-    const excludeLongTermCurrent = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
-    const excludeLongTermFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
-    
-    const totalAmount = totalCurrentPayablesRange - excludeShortTermBorrowings - 
-                       excludeIncomeTax - excludeLongTermCurrent - excludeLongTermFI;
+    // Get all accounts in the trade payables range (2010-2999)
+    const allPayableAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= 2010 && code <= 2999;
+    });
 
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2010, 2999)) : 0;
+    // Define excluded account codes that appear as separate line items
+    const excludedCodes = ['2030', '2045', '2050', '2051', '2052'];
+    const excludedRangeCodes = Array.from({length: 24}, (_, i) => (2100 + i).toString()); // 2100-2123
 
-    if (totalAmount !== 0 || prevTotalAmount !== 0) {
-      notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
-      if (processingType === 'multi-year') {
-        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-      } else {
-        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
-      }
-      
-      notes.push(['', '', 'เจ้าหนี้การค้า', '', '', '', 
-        processingType === 'multi-year' ? totalAmount : '', '', 
-        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
-      
-      const dataRowIndex = notes.length; // The data row we just added
-      notes.push(['', '', 'รวม', '', '', '', 
-        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
-        {f: `I${dataRowIndex}`}]);
-      notes.push(['', '', '', '', '', '', '', '', '']);
+    // Filter to get only trade payables accounts (excluding the specific items)
+    const tradePayableAccounts = allPayableAccounts.filter(account => 
+      !excludedCodes.includes(account.accountCode) && 
+      !excludedRangeCodes.includes(account.accountCode)
+    );
+
+    // Check if any trade payable accounts have balances
+    const hasBalances = tradePayableAccounts.some(account => 
+      Math.abs((account.debitAmount || 0) - (account.creditAmount || 0)) !== 0 ||
+      Math.abs(account.previousBalance || 0) !== 0
+    );
+
+    if (!hasBalances) {
+      return; // Don't create note if no balances
     }
+
+    // Add note header
+    notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    
+    // Add column headers based on processing type
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+
+    const dataStartRow = notes.length + 1; // Track start of individual account details
+    let hasDetailLines = false;
+
+    // Process each individual trade payable account that has balances
+    tradePayableAccounts.forEach(account => {
+      const currentBalance = Math.abs((account.debitAmount || 0) - (account.creditAmount || 0));
+      const previousBalance = Math.abs(account.previousBalance || 0);
+      
+      // Only show accounts with non-zero balances
+      if (currentBalance !== 0 || previousBalance !== 0) {
+        notes.push(['', '', account.accountName, '', '', '', 
+          currentBalance, '', 
+          processingType === 'multi-year' ? previousBalance : '']);
+        hasDetailLines = true;
+      }
+    });
+
+    // Add total row with Excel formulas if there are detail lines
+    if (hasDetailLines) {
+      const currentRowIndex = notes.length + 1; // Excel 1-indexed
+      const endRowIndex = currentRowIndex - 1; // Last detail row
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${dataStartRow}:G${endRowIndex})` }, '', 
+          { f: `SUM(I${dataStartRow}:I${endRowIndex})` }]);
+      } else {
+        notes.push(['', '', 'รวม', '', '', '', 
+          { f: `SUM(G${dataStartRow}:G${endRowIndex})` }, '', '']);
+      }
+    }
+    
+    // Add spacing after the note
+    notes.push(['', '', '', '', '', '', '', '', '']);
   }
 
   private addShortTermBorrowingsNote(
