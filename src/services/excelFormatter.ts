@@ -39,7 +39,7 @@ export class ExcelJSFormatter {
   /**
    * Add data to worksheet and return the worksheet
    */
-  static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string})[][]): ExcelJS.Worksheet {
+  static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string} | {text: string, bold?: boolean})[][]): ExcelJS.Worksheet {
     const worksheet = workbook.addWorksheet(worksheetName);
     
     // Add data row by row
@@ -47,9 +47,20 @@ export class ExcelJSFormatter {
       row.forEach((cellValue, colIndex) => {
         const cell = worksheet.getCell(rowIndex + 1, colIndex + 1);
         
-        if (typeof cellValue === 'object' && cellValue.f) {
+        if (typeof cellValue === 'object' && 'f' in cellValue && cellValue.f) {
           // Handle Excel formulas
           cell.value = { formula: cellValue.f };
+        } else if (typeof cellValue === 'object' && 'text' in cellValue) {
+          // Handle text objects with formatting
+          cell.value = cellValue.text;
+          if (cellValue.bold) {
+            cell.font = {
+              name: this.THAI_FONT_NAME,
+              size: 14,
+              bold: true,
+              color: { argb: 'FF000000' }
+            };
+          }
         } else if (typeof cellValue === 'number') {
           // Direct numeric value - no conversion needed
           cell.value = cellValue;
