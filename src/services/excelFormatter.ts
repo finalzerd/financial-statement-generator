@@ -271,20 +271,21 @@ export class ExcelJSFormatter {
     console.log('Applying SCE-specific formatting (no green background)');
     
     // Set column widths based on VBA specification for Statement of Changes in Equity
-    // VBA: A=30, B=2, C=14, D:E=2, F=14, G:H=2, I=14
+    // Adjusted from original VBA: A=30, B=2, C=14, D:E=2, F=14, G:H=2, I=14
+    // Current custom sizes: A=28, B=2, C=14, D:E=2, F=14, G:H=2, I=14
     worksheet.columns = [
-      { width: 30 },  // A = 30
+      { width: 28 },  // A = 28 (slightly reduced from 30)
       { width: 2 },   // B = 2  
-      { width: 14 },  // C = 14
+      { width: 14 },  // C = 14 (kept original)
       { width: 2 },   // D = 2
       { width: 2 },   // E = 2
-      { width: 14 },  // F = 14
+      { width: 14 },  // F = 14 (kept original)
       { width: 2 },   // G = 2
       { width: 2 },   // H = 2
-      { width: 14 }   // I = 14
+      { width: 14 }   // I = 14 (kept original)
     ];
     
-    console.log('Applied SCE Column Widths: A=30, B=2, C=14, D=2, E=2, F=14, G=2, H=2, I=14');
+    console.log('Applied SCE Column Widths (Custom): A=28, B=2, C=14, D=2, E=2, F=14, G=2, H=2, I=14');
     
     // Merge row 5 from column C to I
     worksheet.mergeCells('C5:I5');
