@@ -782,11 +782,11 @@ export class FinancialStatementGenerator {
       ['', '', 'ค่าใช้จ่ายในการบริหาร', '', '', '4', adminExpenses, '', processingType === 'multi-year' ? previousAdminExpenses : ''],
       ['', '', 'ค่าใช้จ่ายอื่น', '', '', '5', otherExpenses, '', processingType === 'multi-year' ? previousOtherExpenses : ''],
       ['', 'รวมค่าใช้จ่าย', '', '', '', '', { f: 'SUM(G13:G15)' }, '', processingType === 'multi-year' ? { f: 'SUM(I13:I15)' } : ''],
-      ['', { text: 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้', bold: true }, '', '', '', '', { f: 'G10-G16' }, '', processingType === 'multi-year' ? { f: 'I10-I16' } : ''],
+      ['', 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้', '', '', '', '', { f: 'G10-G16' }, '', processingType === 'multi-year' ? { f: 'I10-I16' } : ''],
       ['', 'ต้นทุนทางการเงิน', '', '', '', '7', financialCosts, '', processingType === 'multi-year' ? previousFinancialCosts : ''],
-      ['', { text: 'กำไรก่อนภาษีเงินได้', bold: true }, '', '', '', '', { f: 'G17-G18' }, '', processingType === 'multi-year' ? { f: 'I17-I18' } : ''],
+      ['', 'กำไรก่อนภาษีเงินได้', '', '', '', '', { f: 'G17-G18' }, '', processingType === 'multi-year' ? { f: 'I17-I18' } : ''],
       ['', 'ภาษีเงินได้', '', '', '', '6', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
-      ['', { text: 'กำไร(ขาดทุน)สุทธิ', bold: true }, '', '', '', '', { f: 'G19-G20' }, '', processingType === 'multi-year' ? { f: 'I19-I20' } : ''],
+      ['', 'กำไร(ขาดทุน)สุทธิ', '', '', '', '', { f: 'G19-G20' }, '', processingType === 'multi-year' ? { f: 'I19-I20' } : ''],
       ['', '', '', '', '', '', '', '', ''],
       ['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']
     ];

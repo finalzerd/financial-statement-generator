@@ -39,7 +39,7 @@ export class ExcelJSFormatter {
   /**
    * Add data to worksheet and return the worksheet
    */
-  static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string} | {text: string, bold?: boolean})[][]): ExcelJS.Worksheet {
+  static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string})[][]): ExcelJS.Worksheet {
     const worksheet = workbook.addWorksheet(worksheetName);
     
     // Add data row by row
@@ -50,17 +50,6 @@ export class ExcelJSFormatter {
         if (typeof cellValue === 'object' && 'f' in cellValue && cellValue.f) {
           // Handle Excel formulas
           cell.value = { formula: cellValue.f };
-        } else if (typeof cellValue === 'object' && 'text' in cellValue) {
-          // Handle text objects with formatting
-          cell.value = cellValue.text;
-          if (cellValue.bold) {
-            cell.font = {
-              name: this.THAI_FONT_NAME,
-              size: 14,
-              bold: true,
-              color: { argb: 'FF000000' }
-            };
-          }
         } else if (typeof cellValue === 'number') {
           // Direct numeric value - no conversion needed
           cell.value = cellValue;
@@ -563,6 +552,12 @@ export class ExcelJSFormatter {
             value === 'รายได้' || value === 'ค่าใช้จ่าย') {
           this.formatMainSectionHeader(worksheet, row);
         }
+        // Key profit line items (should be bold)
+        else if (value === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้' || 
+                 value === 'กำไรก่อนภาษีเงินได้' || 
+                 value === 'กำไร(ขาดทุน)สุทธิ') {
+          this.formatKeyProfitLine(worksheet, row);
+        }
         // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
         else if (value.includes('หมุนเวียน') || value.includes('ไม่หมุนเวียน')) {
           this.formatSubSectionHeader(worksheet, row);
@@ -628,6 +623,32 @@ export class ExcelJSFormatter {
    * Format total lines (รวม...)
    */
   private static formatTotalLine(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: true,
+        color: { argb: 'FF000000' }
+      };
+      
+      if (col === 'B') {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      } else if (col === 'F') {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+    });
+  }
+  
+  /**
+   * Format key profit line items (should be bold)
+   */
+  private static formatKeyProfitLine(worksheet: ExcelJS.Worksheet, row: number): void {
     ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
       cell.font = {

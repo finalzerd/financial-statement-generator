@@ -48,6 +48,36 @@ This is a comprehensive React TypeScript web application that processes Excel/CS
 - **Multi-Worksheet Output**: Generates 6+ worksheets per financial statement package
 - **Error Recovery**: Comprehensive error handling with fallback mechanisms
 
+## Excel Formatting Architecture
+
+### **Critical Pattern: Separation of Data and Formatting**
+- **Data Generation**: FinancialStatementGenerator creates plain string/number data arrays
+- **Formatting Application**: ExcelJSFormatter handles ALL visual formatting via pattern recognition
+- **Bold Text Implementation**: Use `formatTotalLinesProfessional()` with text pattern matching
+
+### **Bold Formatting Pattern**
+```typescript
+// In formatTotalLinesProfessional() - ADD specific Thai text patterns:
+else if (value === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้' || 
+         value === 'กำไรก่อนภาษีเงินได้' || 
+         value === 'กำไร(ขาดทุน)สุทธิ') {
+  this.formatKeyProfitLine(worksheet, row);
+}
+
+// Create corresponding formatting function:
+private static formatKeyProfitLine(worksheet: ExcelJS.Worksheet, row: number): void {
+  // Apply bold font formatting to entire row
+}
+```
+
+### **Why This Pattern Works**
+- **Maintainability**: All formatting logic centralized in ExcelJSFormatter
+- **Flexibility**: Easy to add new bold patterns without touching data generation
+- **Performance**: Single pass formatting after data insertion
+- **Separation of Concerns**: Data logic separate from presentation logic
+
+**IMPORTANT**: Never add `{text: string, bold: true}` objects in FinancialStatementGenerator. Always use plain strings and handle formatting in ExcelJSFormatter pattern recognition.
+
 ## Financial Statement Components
 
 ### **Balance Sheet (BS_Assets & BS_Liabilities)**
