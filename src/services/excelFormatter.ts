@@ -271,27 +271,24 @@ export class ExcelJSFormatter {
     console.log('Applying SCE-specific formatting (no green background)');
     
     // Set column widths based on VBA specification for Statement of Changes in Equity
-    // VBA: A=30, B=2, C=14, D=2, E=2, F=14, G=2, H=2, I=14
-    const vbaWidths = [30, 2, 14, 2, 2, 14, 2, 2, 14];
-    console.log('SCE VBA Target Widths:', vbaWidths);
-    
-    // Apply the exact VBA widths without font adjustment for SCE format
+    // VBA: A=30, B=2, C=14, D:E=2, F=14, G:H=2, I=14
     worksheet.columns = [
-      { width: vbaWidths[0] },    // A = 30
-      { width: vbaWidths[1] },    // B = 2  
-      { width: vbaWidths[2] },    // C = 14
-      { width: vbaWidths[3] },    // D = 2
-      { width: vbaWidths[4] },    // E = 2
-      { width: vbaWidths[5] },    // F = 14
-      { width: vbaWidths[6] },    // G = 2
-      { width: vbaWidths[7] },    // H = 2
-      { width: vbaWidths[8] }     // I = 14
+      { width: 30 },  // A = 30
+      { width: 2 },   // B = 2  
+      { width: 14 },  // C = 14
+      { width: 2 },   // D = 2
+      { width: 2 },   // E = 2
+      { width: 14 },  // F = 14
+      { width: 2 },   // G = 2
+      { width: 2 },   // H = 2
+      { width: 14 }   // I = 14
     ];
     
-    console.log('Applied SCE Column Widths:', vbaWidths);
+    console.log('Applied SCE Column Widths: A=30, B=2, C=14, D=2, E=2, F=14, G=2, H=2, I=14');
     
-    // Debug width calculations with SCE targets
-    this.debugWidthCalculationsSCE(worksheet);
+    // Merge row 5 from column C to I
+    worksheet.mergeCells('C5:I5');
+    console.log('Merged cells C5:I5');
     
     // Apply all formatting sections
     this.formatCompanyHeaderNoBackground(worksheet);
@@ -300,8 +297,8 @@ export class ExcelJSFormatter {
     this.formatTotalLinesProfessional(worksheet);
     this.setRowHeightsProfessional(worksheet);
     
-    // Debug height calculations after setting heights
-    this.debugHeightCalculations(worksheet);
+    // Special formatting for Statement of Changes in Equity
+    this.formatStatementOfChangesInEquitySpecific(worksheet);
     
     // Set consistent font across worksheet
     this.setWorksheetDefaultFont(worksheet);
@@ -309,7 +306,7 @@ export class ExcelJSFormatter {
     // Clear all empty cells to prevent text cutoff issues
     this.clearEmptyCells(worksheet);
     
-    console.log('Professional Thai formatting completed (SCE format with no green background)');
+    console.log('Professional Thai formatting completed (SCE format with specific formatting)');
   }
 
   /**
@@ -683,6 +680,41 @@ export class ExcelJSFormatter {
     console.log('All other rows will use autofit (no height set)');
     
     console.log('=== ROW HEIGHTS SET COMPLETE (AUTOFIT ENABLED) ===');
+  }
+  
+  /**
+   * Special formatting for Statement of Changes in Equity
+   */
+  private static formatStatementOfChangesInEquitySpecific(worksheet: ExcelJS.Worksheet): void {
+    // Format C6, F6, I6 with wrapped text and bottom border
+    const columnsToFormat = ['C', 'F', 'I'];
+    const row = 6;
+    
+    columnsToFormat.forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      
+      // Set wrapped text
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle',
+        wrapText: true
+      };
+      
+      // Set bottom border
+      cell.border = {
+        bottom: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+      
+      // Ensure font formatting
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: true,
+        color: { argb: 'FF000000' }
+      };
+    });
+    
+    console.log('Applied SCE-specific formatting: C6, F6, I6 with wrapped text and bottom border');
   }
   
   /**

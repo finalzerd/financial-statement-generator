@@ -86,7 +86,7 @@ export class FinancialStatementGenerator {
 
     // Create Statement of Changes in Equity
     const equityWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Changes_in_Equity', statements.changesInEquity);
-    ExcelJSFormatter.formatBalanceSheetAssets(equityWs); // Use available formatter
+    ExcelJSFormatter.formatStatementOfChangesInEquity(equityWs); // Use correct SCE formatter
 
     // Create Notes to Financial Statements (Policy Notes)
     const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Policy', statements.notes);
@@ -870,7 +870,7 @@ export class FinancialStatementGenerator {
       ['งบแสดงการเปลี่ยนแปลงส่วนของผู้เป็นหุ้นส่วน', '', '', '', '', '', ''],
       [`สำหรับรอบระยะเวลาบัญชี สิ้นสุด วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', ''],
       ['', '', '', '', '', '', ''],
-      ['', '', '', '', '', '', 'หน่วย:บาท'],
+      ['', '', '', '', '', '', ''],
       ['', 'ผู้เป็นหุ้นส่วน คนที่ 1', 'ผู้เป็นหุ้นส่วน คนที่ 2', 'กำไรสะสม', 'รวม', '', ''],
       ['ยอดคงเหลือ ณ วันต้นปี', partner1Capital, partner2Capital, retainedEarnings, { f: 'B7+C7+D7' }, '', ''],
       ['กำไรสุทธิสำหรับปี', '', '', currentYearProfit, currentYearProfit, '', ''],
@@ -903,7 +903,7 @@ export class FinancialStatementGenerator {
       ['งบแสดงการเปลี่ยนแปลงส่วนของผู้ถือหุ้น', '', '', '', '', '', '', '', ''],
       [`สำหรับรอบระยะเวลาบัญชี สิ้นสุด วันที่ 31 ธันวาคม ${currentYear}`, '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
-      ['', '', 'หน่วย:บาท', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', '', ''],
       ['', '', 'ทุนเรือนหุ้นที่ออกและชำระแล้ว', '', '', 'กำไร(ขาดทุน)สะสม', '', '', 'รวม'],
       ['', '', '', '', '', '', '', '', '']
     ];
