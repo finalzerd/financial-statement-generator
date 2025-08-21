@@ -893,6 +893,16 @@ export class FinancialStatementGenerator {
     const paidUpCapitalCurrent = this.getSingleAccountBalance(trialBalanceData, '3010');
     const retainedEarningsCurrent = this.getSingleAccountBalance(trialBalanceData, '3020');
     
+    // Get previous year values from trial balance
+    const paidUpCapitalPrevious = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010);
+    
+    console.log('=== CAPITAL DEBUG ===');
+    console.log('paidUpCapitalCurrent:', paidUpCapitalCurrent);
+    console.log('paidUpCapitalPrevious:', paidUpCapitalPrevious);
+    console.log('Account 3010 details:', trialBalanceData.find(entry => entry.accountCode === '3010'));
+    console.log('All equity accounts (3xxx):', trialBalanceData.filter(entry => entry.accountCode?.startsWith('3')));
+    console.log('=== END CAPITAL DEBUG ===');
+    
     // Calculate current year net profit from account ranges
     const currentYearRevenue = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999));
     const currentYearExpenses = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999));
@@ -913,23 +923,25 @@ export class FinancialStatementGenerator {
     if (isMultiYear) {
       // Previous year section
       const openingRetainedEarningsPrevious = retainedEarningsCurrent - currentYearProfit;
-      const openingTotalPrevious = paidUpCapitalCurrent + openingRetainedEarningsPrevious;
+      const openingTotalPrevious = paidUpCapitalPrevious + openingRetainedEarningsPrevious;
       
-      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarningsPrevious, '', '', openingTotalPrevious]);
+      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalPrevious, '', '', openingRetainedEarningsPrevious, '', '', openingTotalPrevious]);
       result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
-      result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: 'C10+F10' }]);
+      result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', { f: 'C8+C9' }, '', '', retainedEarningsCurrent, '', '', { f: 'C10+F10' }]);
       result.push(['', '', '', '', '', '', '', '', '']);
       result.push(['', '', '', '', '', '', '', '', '']);
       rowIndex = 12;
     }
 
     // Current year section
+    // For opening balance: use previousBalance if available, otherwise use currentBalance for single-year
+    const paidUpCapitalCurrentOpening = paidUpCapitalPrevious > 0 ? paidUpCapitalPrevious : paidUpCapitalCurrent;
     const openingRetainedEarningsCurrent = isMultiYear ? retainedEarningsCurrent : 0;
-    const openingTotalCurrent = paidUpCapitalCurrent + openingRetainedEarningsCurrent;
+    const openingTotalCurrent = paidUpCapitalCurrentOpening + openingRetainedEarningsCurrent;
     
-    result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarningsCurrent, '', '', openingTotalCurrent]);
+    result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrentOpening, '', '', openingRetainedEarningsCurrent, '', '', openingTotalCurrent]);
     result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
-    result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 2}+F${rowIndex + 2}` }]);
+    result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 3}+F${rowIndex + 3}` }]);
     
     result.push(['', '', '', '', '', '', '', '', '']);
     result.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']);
@@ -939,7 +951,11 @@ export class FinancialStatementGenerator {
 
   private getSingleAccountBalance(trialBalanceData: TrialBalanceEntry[], accountCode: string): number {
     const account = trialBalanceData.find(entry => entry.accountCode === accountCode);
-    return account ? Math.abs(account.currentBalance || 0) : 0;
+    console.log(`Looking for account ${accountCode}:`, account);
+    // Use balance field if currentBalance is 0, taking absolute value for equity accounts
+    const value = account ? Math.abs(account.currentBalance || account.balance || 0) : 0;
+    console.log(`Final value for ${accountCode}:`, value);
+    return value;
   }
 
   private generateNotesToFinancialStatements(
