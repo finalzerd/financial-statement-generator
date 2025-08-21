@@ -38,6 +38,7 @@ interface ExtractedFinancialData {
   equity: {
     paidUpCapital: { current: number; previous: number };
     retainedEarnings: { current: number; previous: number };
+    openingRetainedEarnings: number; // Opening balance from account 3020 (credit - debit)
     legalReserve: { current: number; previous: number };
   };
   
@@ -176,19 +177,21 @@ export class FinancialStatementGenerator {
     
     const currentYearProfit = currentYearRevenue - currentYearExpenses;
     
-    // Get opening retained earnings from account 3020 and flip sign for credit balance
-    const openingRetainedEarningsRaw = this.sumAccountsByNumericRange(trialBalanceData, 3020, 3020);
-    const openingRetainedEarnings = -openingRetainedEarningsRaw; // Flip sign for credit balance
+    // CORRECTED: Get opening retained earnings from account 3020 using credit - debit
+    const retainedEarningsAccount = trialBalanceData.find(entry => entry.accountCode === '3020');
+    const openingRetainedEarnings = retainedEarningsAccount ? 
+      ((retainedEarningsAccount.creditAmount || 0) - (retainedEarningsAccount.debitAmount || 0)) : 0;
     
-    // Final retained earnings = opening + current year profit (matching old calculation exactly)
+    // Final retained earnings = opening + current year profit (VBA-compliant)
     const finalRetainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
     
-    console.log('=== GLOBAL RETAINED EARNINGS CALCULATION ===');
+    console.log('=== GLOBAL RETAINED EARNINGS CALCULATION (CORRECTED) ===');
     console.log('Current Year Revenue:', currentYearRevenue);
     console.log('Current Year Expenses:', currentYearExpenses);
     console.log('Current Year Profit:', currentYearProfit);
-    console.log('Opening Retained Earnings (3020 raw):', openingRetainedEarningsRaw);
-    console.log('Opening Retained Earnings (adjusted):', openingRetainedEarnings);
+    console.log('Account 3020 Credit:', retainedEarningsAccount?.creditAmount || 0);
+    console.log('Account 3020 Debit:', retainedEarningsAccount?.debitAmount || 0);
+    console.log('Opening Retained Earnings (Credit - Debit):', openingRetainedEarnings);
     console.log('Final Retained Earnings:', finalRetainedEarnings);
     console.log('=== END GLOBAL RETAINED EARNINGS CALCULATION ===');
 
@@ -201,6 +204,7 @@ export class FinancialStatementGenerator {
         current: finalRetainedEarnings, // Use corrected calculation
         previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020))
       },
+      openingRetainedEarnings: openingRetainedEarnings, // Store opening balance separately
       legalReserve: {
         current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
         previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
@@ -1100,12 +1104,14 @@ export class FinancialStatementGenerator {
     console.log('=== CHANGES IN EQUITY USING GLOBAL DATA ===');
     console.log('Paid-up Capital (Global):', globalData.equity.paidUpCapital);
     console.log('Retained Earnings (Global):', globalData.equity.retainedEarnings);
+    console.log('Opening Retained Earnings (Global):', globalData.equity.openingRetainedEarnings);
     console.log('Net Profit (Global):', globalData.income.netProfit);
     
     // Use global values directly - consistent across all statements!
     const paidUpCapitalCurrent = globalData.equity.paidUpCapital.current;
     const paidUpCapitalPrevious = globalData.equity.paidUpCapital.previous;
     const retainedEarningsCurrent = globalData.equity.retainedEarnings.current;
+    const openingRetainedEarnings = globalData.equity.openingRetainedEarnings;
     const currentYearProfit = globalData.income.netProfit;
     
     const result: any[][] = [
@@ -1121,25 +1127,24 @@ export class FinancialStatementGenerator {
     let rowIndex = 7;
 
     if (isMultiYear) {
-      // Previous year section
-      const openingRetainedEarningsPrevious = retainedEarningsCurrent - currentYearProfit;
-      const openingTotalPrevious = paidUpCapitalPrevious + openingRetainedEarningsPrevious;
+      // F8, F9 - Leave blank if no previous year data in trial balance
+      const prevYearOpeningRetained = ''; // As requested - leave blank
+      const prevYearProfit = ''; // As requested - leave blank
+      const prevYearTotalEquity = paidUpCapitalPrevious > 0 ? paidUpCapitalPrevious + (openingRetainedEarnings || 0) : '';
       
-      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalPrevious, '', '', openingRetainedEarningsPrevious, '', '', openingTotalPrevious]);
-      result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
-      result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', { f: 'C8+C9' }, '', '', retainedEarningsCurrent, '', '', { f: 'C10+F10' }]);
+      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalPrevious || '', '', '', prevYearOpeningRetained, '', '', prevYearTotalEquity]);
+      result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', prevYearProfit, '', '', '']);
+      result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', { f: 'C8+C9' }, '', '', { f: 'F8+F9' }, '', '', { f: 'C10+F10' }]);
       result.push(['', '', '', '', '', '', '', '', '']);
       result.push(['', '', '', '', '', '', '', '', '']);
       rowIndex = 12;
     }
 
     // Current year section
-    // For opening balance: use previousBalance if available, otherwise use currentBalance for single-year
-    const paidUpCapitalCurrentOpening = paidUpCapitalPrevious > 0 ? paidUpCapitalPrevious : paidUpCapitalCurrent;
-    const openingRetainedEarningsCurrent = isMultiYear ? retainedEarningsCurrent : 0;
-    const openingTotalCurrent = paidUpCapitalCurrentOpening + openingRetainedEarningsCurrent;
+    // F10 should be openingRetainedEarnings (from account 3020 credit-debit)
+    const openingTotalCurrent = paidUpCapitalCurrent + openingRetainedEarnings;
     
-    result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrentOpening, '', '', openingRetainedEarningsCurrent, '', '', openingTotalCurrent]);
+    result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarnings, '', '', openingTotalCurrent]);
     result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
     result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 3}+F${rowIndex + 3}` }]);
     
@@ -1253,7 +1258,7 @@ export class FinancialStatementGenerator {
     let noteNumber = 3;
     
     // Generate specific notes using global data where possible
-    this.addCashNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
+    this.addCashNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
     this.addTradeReceivablesNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
     this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
@@ -1456,6 +1461,7 @@ export class FinancialStatementGenerator {
   private addCashNoteWithGlobalData(
     notes: any[][], 
     globalData: ExtractedFinancialData,
+    trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year',
     noteNumber: number = 3
@@ -1472,11 +1478,28 @@ export class FinancialStatementGenerator {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
       }
       
-      // Note: For detailed breakdown, we still need individual account calculations
-      // This is acceptable as it's detailed breakdown, not summary totals
-      notes.push(['', 'เงินสดในมือ', '', '', '', '', '...', '', '...']);
-      notes.push(['', 'เงินฝากธนาคาร', '', '', '', '', '...', '', '...']);
+      // Calculate detailed breakdown for audit trail (individual calculations are fine)
+      const cashAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1010, 1019));
+      const bankAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1020, 1099));
+      const prevCashAmount = processingType === 'multi-year' ? 
+        Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1010, 1019)) : 0;
+      const prevBankAmount = processingType === 'multi-year' ? 
+        Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099)) : 0;
       
+      // Show individual breakdown with actual amounts
+      if (cashAmount !== 0 || prevCashAmount !== 0) {
+        notes.push(['', 'เงินสดในมือ', '', '', '', '', 
+          cashAmount, '', 
+          processingType === 'multi-year' ? prevCashAmount : '']);
+      }
+      
+      if (bankAmount !== 0 || prevBankAmount !== 0) {
+        notes.push(['', 'เงินฝากธนาคาร', '', '', '', '', 
+          bankAmount, '', 
+          processingType === 'multi-year' ? prevBankAmount : '']);
+      }
+      
+      // Use global data for total (eliminates redundant calculation at summary level)
       if (processingType === 'multi-year') {
         notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
