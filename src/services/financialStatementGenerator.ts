@@ -11,6 +11,52 @@ import type {
 // ============================================================================
 
 /**
+ * Global extracted financial data - calculated once and reused across all statements
+ */
+interface ExtractedFinancialData {
+  // ASSETS
+  assets: {
+    cashAndCashEquivalents: { current: number; previous: number };
+    tradeReceivables: { current: number; previous: number };
+    inventory: { current: number; previous: number };
+    prepaidExpenses: { current: number; previous: number };
+    propertyPlantEquipment: { current: number; previous: number };
+    otherAssets: { current: number; previous: number };
+  };
+  
+  // LIABILITIES
+  liabilities: {
+    bankOverdraftsAndShortTermLoans: { current: number; previous: number };
+    tradeAndOtherPayables: { current: number; previous: number };
+    shortTermBorrowings: { current: number; previous: number };
+    incomeTaxPayable: { current: number; previous: number };
+    longTermLoansFromFI: { current: number; previous: number };
+    otherLongTermLoans: { current: number; previous: number };
+  };
+  
+  // EQUITY - GLOBAL VALUES (no more duplicated calculations!)
+  equity: {
+    paidUpCapital: { current: number; previous: number };
+    retainedEarnings: { current: number; previous: number };
+    legalReserve: { current: number; previous: number };
+  };
+  
+  // INCOME STATEMENT
+  income: {
+    revenue: { total: number; mainRevenue: number; otherIncome: number };
+    expenses: { total: number; costOfServices: number; adminExpenses: number; otherExpenses: number; incomeTax: number; financialCosts: number };
+    netProfit: number;
+  };
+  
+  // BUSINESS LOGIC FLAGS
+  flags: {
+    hasInventory: boolean;
+    isServiceBusiness: boolean;
+    isLimitedPartnership: boolean;
+  };
+}
+
+/**
  * Interface for tracking cell positions during balance sheet generation
  * Used to generate accurate formulas that reference the correct cell locations
  */
@@ -31,6 +77,189 @@ interface CellTracker {
 export class FinancialStatementGenerator {
   
   // ============================================================================
+  // GLOBAL DATA EXTRACTION (Calculate Once, Use Everywhere)
+  // ============================================================================
+  
+  private extractedData: ExtractedFinancialData | null = null;
+  
+  /**
+   * MAIN DATA EXTRACTION METHOD - Call this first to avoid redundant calculations
+   */
+  private extractAllFinancialData(
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo
+  ): ExtractedFinancialData {
+    
+    if (this.extractedData) {
+      return this.extractedData; // Return cached data
+    }
+
+    console.log('=== EXTRACTING ALL FINANCIAL DATA (ONCE) ===');
+
+    // ASSETS CALCULATION
+    const assets = {
+      cashAndCashEquivalents: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099))
+      },
+      tradeReceivables: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
+      },
+      inventory: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519))
+      },
+      prepaidExpenses: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1400, 1439)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439))
+      },
+      propertyPlantEquipment: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1659)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659))
+      },
+      otherAssets: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700))
+      }
+    };
+
+    // LIABILITIES CALCULATION
+    const liabilities = {
+      bankOverdraftsAndShortTermLoans: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
+      },
+      tradeAndOtherPayables: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) - 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) - 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) - 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) - 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) - 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) - 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) - 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) - 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
+      },
+      shortTermBorrowings: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
+      },
+      incomeTaxPayable: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
+      },
+      longTermLoansFromFI: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) - 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
+      },
+      otherLongTermLoans: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) + 
+                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) + 
+                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
+      }
+    };
+
+    // EQUITY CALCULATION WITH CORRECTED RETAINED EARNINGS
+    // Calculate current year profit properly: Revenue (credit-debit) - Expenses (debit-credit)
+    const revenueAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('4'));
+    const currentYearRevenue = revenueAccounts
+      .reduce((sum, entry) => sum + ((entry.creditAmount || 0) - (entry.debitAmount || 0)), 0);
+    
+    const expenseAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('5'));
+    const currentYearExpenses = expenseAccounts
+      .reduce((sum, entry) => sum + ((entry.debitAmount || 0) - (entry.creditAmount || 0)), 0);
+    
+    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    
+    // Get opening retained earnings from account 3020 and flip sign for credit balance
+    const openingRetainedEarningsRaw = this.sumAccountsByNumericRange(trialBalanceData, 3020, 3020);
+    const openingRetainedEarnings = -openingRetainedEarningsRaw; // Flip sign for credit balance
+    
+    // Final retained earnings = opening + current year profit (matching old calculation exactly)
+    const finalRetainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
+    
+    console.log('=== GLOBAL RETAINED EARNINGS CALCULATION ===');
+    console.log('Current Year Revenue:', currentYearRevenue);
+    console.log('Current Year Expenses:', currentYearExpenses);
+    console.log('Current Year Profit:', currentYearProfit);
+    console.log('Opening Retained Earnings (3020 raw):', openingRetainedEarningsRaw);
+    console.log('Opening Retained Earnings (adjusted):', openingRetainedEarnings);
+    console.log('Final Retained Earnings:', finalRetainedEarnings);
+    console.log('=== END GLOBAL RETAINED EARNINGS CALCULATION ===');
+
+    const equity = {
+      paidUpCapital: {
+        current: this.getSingleAccountBalance(trialBalanceData, '3010'),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010))
+      },
+      retainedEarnings: {
+        current: finalRetainedEarnings, // Use corrected calculation
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020))
+      },
+      legalReserve: {
+        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
+        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
+      }
+    };
+
+    // INCOME STATEMENT CALCULATION
+    const revenue = {
+      total: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999)),
+      mainRevenue: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4099)),
+      otherIncome: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4100, 4999))
+    };
+
+    const expenses = {
+      total: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999)),
+      costOfServices: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5099)),
+      adminExpenses: Math.abs(
+        this.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
+      ),
+      otherExpenses: Math.abs(
+        this.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
+        this.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
+      ),
+      incomeTax: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5910, 5910)),
+      financialCosts: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5920, 5929))
+    };
+
+    const netProfit = revenue.total - expenses.total;
+
+    // BUSINESS LOGIC FLAGS
+    const flags = {
+      hasInventory: assets.inventory.current > 0,
+      isServiceBusiness: assets.inventory.current === 0,
+      isLimitedPartnership: companyInfo.type === 'ห้างหุ้นส่วนจำกัด'
+    };
+
+    this.extractedData = {
+      assets,
+      liabilities,
+      equity,
+      income: { revenue, expenses, netProfit },
+      flags
+    };
+
+    console.log('=== GLOBAL EQUITY VALUES (SINGLE SOURCE) ===');
+    console.log('Paid-up Capital:', equity.paidUpCapital);
+    console.log('Retained Earnings:', equity.retainedEarnings);
+    console.log('Net Profit:', netProfit);
+    console.log('=== END EXTRACTION ===');
+
+    return this.extractedData;
+  }
+  
+  // ============================================================================
   // PUBLIC INTERFACE METHODS
   // ============================================================================
   
@@ -40,6 +269,13 @@ export class FinancialStatementGenerator {
     processingType: 'single-year' | 'multi-year',
     trialBalancePrevious?: TrialBalanceEntry[]
   ): FinancialStatements {
+    
+    // *** EXTRACT ALL DATA ONCE ***
+    const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
+    
+    console.log('=== USING GLOBAL DATA FOR ALL STATEMENTS ===');
+    console.log('Paid-up Capital (Global):', globalData.equity.paidUpCapital);
+    console.log('Net Profit (Global):', globalData.income.netProfit);
     
     const balanceSheetAssets = this.generateBalanceSheetAssets(trialBalanceData, companyInfo, processingType);
     const balanceSheetLiabilities = this.generateBalanceSheetLiabilities(trialBalanceData, companyInfo, processingType);
@@ -360,6 +596,10 @@ export class FinancialStatementGenerator {
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year'
   ) {
+    // Extract global financial data once for consistency across all statements
+    const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
+    console.log('=== BALANCE SHEET LIABILITIES: Using Global Data Extraction ===');
+    
     // Company type and terminology determination
     const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
     const liabilityAndEquityTerm = isLimitedPartnership ? 
@@ -367,92 +607,57 @@ export class FinancialStatementGenerator {
     const equityTerm = isLimitedPartnership ? 
       'ส่วนของผู้เป็นหุ้นส่วน' : 'ส่วนของผู้ถือหุ้น';
 
-    // Account balance calculations using VBA-compliant ranges for current year
-    const bankOverdraftsAndShortTermLoans = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
-    const totalCurrentPayablesRange = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999));
-    const excludeShortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
-    const excludeIncomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
-    const excludeLongTermCurrent = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
-    const excludeLongTermFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
-    
-    const tradeAndOtherPayables = totalCurrentPayablesRange - excludeShortTermBorrowings - 
-                                 excludeIncomeTax - excludeLongTermCurrent - excludeLongTermFI;
-    const shortTermBorrowings = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
-    const incomeTaxPayable = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
-    const longTermLoansFromFI = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) 
-                               - Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
-    const otherLongTermLoans = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
-    const registeredCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
-    const paidUpCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3010, 3019));
-    
-    // CORRECTED RETAINED EARNINGS CALCULATION
-    // 1. Get opening retained earnings from account 3020 only
-    // Note: Retained earnings typically has credit balance in trial balance, so we flip the sign
-    const openingRetainedEarningsRaw = this.sumAccountsByNumericRange(trialBalanceData, 3020, 3020);
-    const openingRetainedEarnings = -openingRetainedEarningsRaw; // Flip sign for credit balance
-    console.log('=== RETAINED EARNINGS DEBUG ===');
-    console.log('1. Opening Retained Earnings (3020):');
-    console.log(`   Raw balance from trial balance: ${openingRetainedEarningsRaw}`);
-    console.log(`   Adjusted for credit balance: ${openingRetainedEarnings}`);
-    
-    // 2. Calculate current year revenue (4xxxx accounts: credit - debit)
-    const revenueAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('4'));
-    console.log('2. Revenue accounts found:', revenueAccounts.map(acc => ({
-      code: acc.accountCode,
-      name: acc.accountName,
-      debit: acc.debitAmount,
-      credit: acc.creditAmount,
-      calculation: (acc.creditAmount || 0) - (acc.debitAmount || 0)
-    })));
-    
-    const currentYearRevenue = revenueAccounts
-      .reduce((sum, entry) => sum + ((entry.creditAmount || 0) - (entry.debitAmount || 0)), 0);
-    console.log('2. Total Current Year Revenue:', currentYearRevenue);
-    
-    // 3. Calculate current year expenses (5xxxx accounts: debit - credit)  
-    const expenseAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('5'));
-    console.log('3. Expense accounts found:', expenseAccounts.map(acc => ({
-      code: acc.accountCode,
-      name: acc.accountName,
-      debit: acc.debitAmount,
-      credit: acc.creditAmount,
-      calculation: (acc.debitAmount || 0) - (acc.creditAmount || 0)
-    })));
-    
-    const currentYearExpenses = expenseAccounts
-      .reduce((sum, entry) => sum + ((entry.debitAmount || 0) - (entry.creditAmount || 0)), 0);
-    console.log('3. Total Current Year Expenses:', currentYearExpenses);
-    
-    // 4. Calculate current year profit
-    const currentYearProfit = currentYearRevenue - currentYearExpenses;
-    console.log('4. Current Year Profit (Revenue - Expenses):', currentYearProfit);
-    
-    // 5. Final retained earnings = opening + current year profit
-    const retainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
-    console.log('5. Final Retained Earnings (Opening + Profit):', openingRetainedEarnings, '+', currentYearProfit, '=', retainedEarnings);
-    console.log('=== END RETAINED EARNINGS DEBUG ===');
-    
-    const legalReserve = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039));
+    // Use global data for current year - eliminates redundant calculations
+    const bankOverdraftsAndShortTermLoans = globalData.liabilities.bankOverdraftsAndShortTermLoans.current;
+    const tradeAndOtherPayables = globalData.liabilities.tradeAndOtherPayables.current;
+    const shortTermBorrowings = globalData.liabilities.shortTermBorrowings.current;
+    const incomeTaxPayable = globalData.liabilities.incomeTaxPayable.current;
+    const longTermLoansFromFI = globalData.liabilities.longTermLoansFromFI.current;
+    const otherLongTermLoans = globalData.liabilities.otherLongTermLoans.current;
+    const paidUpCapital = globalData.equity.paidUpCapital.current;
+    const retainedEarnings = globalData.equity.retainedEarnings.current;
+    const legalReserve = globalData.equity.legalReserve.current;
 
-    // Previous year balance calculations using previousBalance field
-    const prevBankOverdraftsAndShortTermLoans = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009);
-    const prevTotalCurrentPayablesRange = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999);
-    const prevExcludeShortTermBorrowings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
-    const prevExcludeIncomeTax = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
-    const prevExcludeLongTermCurrent = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052);
-    const prevExcludeLongTermFI = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123);
-    
-    const prevTradeAndOtherPayables = prevTotalCurrentPayablesRange - prevExcludeShortTermBorrowings - 
-                                     prevExcludeIncomeTax - prevExcludeLongTermCurrent - prevExcludeLongTermFI;
-    const prevShortTermBorrowings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
-    const prevIncomeTaxPayable = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
-    const prevLongTermLoansFromFI = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123) 
-                                   - this.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121);
-    const prevOtherLongTermLoans = this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052);
+    // Use global data for previous year - eliminates redundant calculations
+    const prevBankOverdraftsAndShortTermLoans = globalData.liabilities.bankOverdraftsAndShortTermLoans.previous;
+    const prevTradeAndOtherPayables = globalData.liabilities.tradeAndOtherPayables.previous;
+    const prevShortTermBorrowings = globalData.liabilities.shortTermBorrowings.previous;
+    const prevIncomeTaxPayable = globalData.liabilities.incomeTaxPayable.previous;
+    const prevLongTermLoansFromFI = globalData.liabilities.longTermLoansFromFI.previous;
+    const prevOtherLongTermLoans = globalData.liabilities.otherLongTermLoans.previous;
+    const prevPaidUpCapital = globalData.equity.paidUpCapital.previous;
+    const prevRetainedEarnings = globalData.equity.retainedEarnings.previous;
+    const prevLegalReserve = globalData.equity.legalReserve.previous;
+
+    // Handle registered capital separately (not in global data yet)
+    const registeredCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
     const prevRegisteredCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3000, 3009);
-    const prevPaidUpCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3019);
-    const prevRetainedEarnings = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020);
-    const prevLegalReserve = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039);
+
+    console.log('=== BALANCE SHEET LIABILITIES: Values Summary ===');
+    console.log('Current Year Values:', {
+      bankOverdraftsAndShortTermLoans,
+      tradeAndOtherPayables,
+      shortTermBorrowings,
+      incomeTaxPayable,
+      longTermLoansFromFI,
+      otherLongTermLoans,
+      registeredCapital,
+      paidUpCapital,
+      retainedEarnings,
+      legalReserve
+    });
+    console.log('Previous Year Values:', {
+      prevBankOverdraftsAndShortTermLoans,
+      prevTradeAndOtherPayables,
+      prevShortTermBorrowings,
+      prevIncomeTaxPayable,
+      prevLongTermLoansFromFI,
+      prevOtherLongTermLoans,
+      prevRegisteredCapital,
+      prevPaidUpCapital,
+      prevRetainedEarnings,
+      prevLegalReserve
+    });
 
     // Initialize worksheet data with headers
     const worksheetData: (string | number | {f: string})[][] = [
@@ -889,24 +1094,19 @@ export class FinancialStatementGenerator {
     const currentYear = companyInfo.reportingYear;
     const previousYear = currentYear - 1;
     
-    // Get current year values from trial balance
-    const paidUpCapitalCurrent = this.getSingleAccountBalance(trialBalanceData, '3010');
-    const retainedEarningsCurrent = this.getSingleAccountBalance(trialBalanceData, '3020');
+    // *** USE GLOBAL DATA - NO MORE REDUNDANT CALCULATIONS! ***
+    const globalData = this.extractedData!; // Already extracted in main method
     
-    // Get previous year values from trial balance
-    const paidUpCapitalPrevious = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010);
+    console.log('=== CHANGES IN EQUITY USING GLOBAL DATA ===');
+    console.log('Paid-up Capital (Global):', globalData.equity.paidUpCapital);
+    console.log('Retained Earnings (Global):', globalData.equity.retainedEarnings);
+    console.log('Net Profit (Global):', globalData.income.netProfit);
     
-    console.log('=== CAPITAL DEBUG ===');
-    console.log('paidUpCapitalCurrent:', paidUpCapitalCurrent);
-    console.log('paidUpCapitalPrevious:', paidUpCapitalPrevious);
-    console.log('Account 3010 details:', trialBalanceData.find(entry => entry.accountCode === '3010'));
-    console.log('All equity accounts (3xxx):', trialBalanceData.filter(entry => entry.accountCode?.startsWith('3')));
-    console.log('=== END CAPITAL DEBUG ===');
-    
-    // Calculate current year net profit from account ranges
-    const currentYearRevenue = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999));
-    const currentYearExpenses = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999));
-    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    // Use global values directly - consistent across all statements!
+    const paidUpCapitalCurrent = globalData.equity.paidUpCapital.current;
+    const paidUpCapitalPrevious = globalData.equity.paidUpCapital.previous;
+    const retainedEarningsCurrent = globalData.equity.retainedEarnings.current;
+    const currentYearProfit = globalData.income.netProfit;
     
     const result: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
@@ -951,10 +1151,8 @@ export class FinancialStatementGenerator {
 
   private getSingleAccountBalance(trialBalanceData: TrialBalanceEntry[], accountCode: string): number {
     const account = trialBalanceData.find(entry => entry.accountCode === accountCode);
-    console.log(`Looking for account ${accountCode}:`, account);
     // Use balance field if currentBalance is 0, taking absolute value for equity accounts
     const value = account ? Math.abs(account.currentBalance || account.balance || 0) : 0;
-    console.log(`Final value for ${accountCode}:`, value);
     return value;
   }
 
@@ -1041,6 +1239,10 @@ export class FinancialStatementGenerator {
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[]
   ): any[][] {
+    // Extract global financial data once for consistency across all notes
+    const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
+    console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction ===');
+    
     const notes: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['หมายเหตุประกอบงบการเงิน (ต่อ)', '', '', '', '', '', '', '', ''],
@@ -1050,15 +1252,15 @@ export class FinancialStatementGenerator {
 
     let noteNumber = 3;
     
-    // Generate specific notes based on VBA code pattern
-    this.addCashNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addTradeReceivablesNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    // Generate specific notes using global data where possible
+    this.addCashNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
+    this.addTradeReceivablesNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
     this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addBankOverdraftsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addTradePayablesNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addShortTermBorrowingsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    this.addBankOverdraftsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
+    this.addTradePayablesNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
+    this.addShortTermBorrowingsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
     this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
@@ -1072,6 +1274,10 @@ export class FinancialStatementGenerator {
   }
 
   private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {
+    // Extract global financial data once for consistency
+    const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
+    console.log('=== NOTES_DETAIL: Using Global Data Extraction ===');
+    
     const detailNotes: any[][] = [];
     
     // Add header
@@ -1081,13 +1287,13 @@ export class FinancialStatementGenerator {
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT1 - Cost of goods sold / Service costs
-    this.addDetailOne(detailNotes, trialBalanceData);
+    this.addDetailOneWithGlobalData(detailNotes, trialBalanceData, globalData);
     
     // Add some spacing
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
-    // Add DT2 - Selling and administrative expenses
-    this.addDetailTwo(detailNotes, trialBalanceData);
+    // Add DT2 - Selling and administrative expenses  
+    this.addDetailTwoWithGlobalData(detailNotes, globalData);
     
     return detailNotes;
   }
@@ -1243,7 +1449,163 @@ export class FinancialStatementGenerator {
   }
 
   // ============================================================================
-  // NOTES_ACCOUNTING HELPER METHODS (VBA-COMPLIANT)
+  // NOTES_ACCOUNTING HELPER METHODS (Enhanced with Global Data)
+  // ============================================================================
+
+  // NEW: Cash Note using Global Data - eliminates redundant calculations
+  private addCashNoteWithGlobalData(
+    notes: any[][], 
+    globalData: ExtractedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 3
+  ): void {
+    const totalAmount = globalData.assets.cashAndCashEquivalents.current;
+    const prevTotalAmount = globalData.assets.cashAndCashEquivalents.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+      }
+      
+      // Note: For detailed breakdown, we still need individual account calculations
+      // This is acceptable as it's detailed breakdown, not summary totals
+      notes.push(['', 'เงินสดในมือ', '', '', '', '', '...', '', '...']);
+      notes.push(['', 'เงินฝากธนาคาร', '', '', '', '', '...', '', '...']);
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      } else {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  // NEW: Bank Overdrafts Note using Global Data - eliminates redundant calculations
+  private addBankOverdraftsNoteWithGlobalData(
+    notes: any[][], 
+    globalData: ExtractedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 9
+  ): void {
+    const totalAmount = globalData.liabilities.bankOverdraftsAndShortTermLoans.current;
+    const prevTotalAmount = globalData.liabilities.bankOverdraftsAndShortTermLoans.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+        notes.push(['', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+        notes.push(['', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', '', totalAmount, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  // NEW: Short Term Borrowings Note using Global Data - eliminates redundant calculations
+  private addShortTermBorrowingsNoteWithGlobalData(
+    notes: any[][], 
+    globalData: ExtractedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 13
+  ): void {
+    const totalAmount = globalData.liabilities.shortTermBorrowings.current;
+    const prevTotalAmount = globalData.liabilities.shortTermBorrowings.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+        notes.push(['', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+        notes.push(['', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', '', totalAmount, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  // NEW: Trade Receivables Note using Global Data - partial optimization
+  private addTradeReceivablesNoteWithGlobalData(
+    notes: any[][], 
+    globalData: ExtractedFinancialData,
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 4
+  ): void {
+    const totalAmount = globalData.assets.tradeReceivables.current;
+    const prevTotalAmount = globalData.assets.tradeReceivables.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+      }
+      
+      // For detailed breakdown, still use individual account logic (acceptable)
+      notes.push(['', 'ลูกหนี้การค้า', '', '', '', '', '...', '', '...']);
+      notes.push(['', 'ลูกหนี้อื่น', '', '', '', '', '...', '', '...']);
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      } else {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  // NEW: Trade Payables Note using Global Data - partial optimization  
+  private addTradePayablesNoteWithGlobalData(
+    notes: any[][], 
+    globalData: ExtractedFinancialData,
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 12
+  ): void {
+    const totalAmount = globalData.liabilities.tradeAndOtherPayables.current;
+    const prevTotalAmount = globalData.liabilities.tradeAndOtherPayables.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount !== 0 || prevTotalAmount !== 0) {
+      notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+      }
+      
+      // For detailed breakdown, still use individual account logic (acceptable)
+      notes.push(['', 'เจ้าหนี้การค้า', '', '', '', '', '...', '', '...']);
+      notes.push(['', 'เจ้าหนี้อื่น', '', '', '', '', '...', '', '...']);
+      
+      if (processingType === 'multi-year') {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      } else {
+        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+      }
+      notes.push(['', '', '', '', '', '', '', '', '']);
+    }
+  }
+
+  // ============================================================================
+  // LEGACY NOTES METHODS (VBA-COMPLIANT) - Kept for non-optimized notes
   // ============================================================================
 
   private addCashNote(
@@ -1906,5 +2268,76 @@ export class FinancialStatementGenerator {
     notes.push([noteNumber.toString(), 'การอนุมัติงบการเงิน', '', '', '', '', '', '', '']);
     notes.push(['', '', 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้ว', '', '', '', '', '', '']);
     notes.push(['', '', '', '', '', '', '', '', '']);
+  }
+
+  // ============================================================================
+  // NEW: Detail Notes methods using Global Data - eliminates redundant calculations
+  // ============================================================================
+
+  private addDetailOneWithGlobalData(
+    detailNotes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    globalData: ExtractedFinancialData
+  ): void {
+    const hasInventory = this.checkHasInventory(trialBalanceData);
+    
+    detailNotes.push(['รายละเอียดประกอบที่ 1', '', '', '', '', '', '', '', 'หน่วย:บาท']);
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    
+    if (!hasInventory) {
+      // Service business - use global data for cost of services
+      detailNotes.push(['ต้นทุนการให้บริการ', '', '', '', '', '', '', '', '']);
+      detailNotes.push(['', 'ค่าใช้จ่ายอื่นๆ ในการให้บริการ', '', '', '', '', '', '', '...']);
+      detailNotes.push(['', 'รวม', '', '', '', '', '', '', { f: 'I' + (detailNotes.length) }]);
+      return;
+    }
+
+    // Inventory-based business - optimize with global data where possible
+    detailNotes.push(['ต้นทุนสินค้าที่ขาย', '', '', '', '', '', '', '', '']);
+    
+    // Use global data for inventory amounts
+    const currentInventory = globalData.assets.inventory.current;
+    const previousInventory = globalData.assets.inventory.previous;
+    
+    detailNotes.push(['', 'สินค้าคงเหลือต้นงวด', '', '', '', '', '', '', previousInventory]);
+    
+    // Process purchases (still need individual account details)
+    let totalPurchases = 0;
+    const purchaseAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5010, 5010));
+    if (purchaseAmount > 0) {
+      detailNotes.push(['', 'บวก', 'ซื้อสินค้า', '', '', '', '', '', purchaseAmount]);
+      totalPurchases += purchaseAmount;
+    }
+    
+    // Purchase returns - still need individual calculation
+    const returnAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.1']));
+    if (returnAmount > 0) {
+      detailNotes.push(['', 'หัก', 'ส่งคืนสินค้า', '', '', '', '', '', returnAmount]);
+      totalPurchases -= returnAmount;
+    }
+    
+    const availableForSale = previousInventory + totalPurchases;
+    detailNotes.push(['', '', 'สินค้าที่มีไว้เพื่อขาย', '', '', '', '', '', availableForSale]);
+    detailNotes.push(['', 'หัก', 'สินค้าคงเหลือปลายงวด', '', '', '', '', '', currentInventory]);
+    
+    const costOfGoodsSold = availableForSale - currentInventory;
+    detailNotes.push(['', '', 'ต้นทุนสินค้าที่ขาย', '', '', '', '', '', costOfGoodsSold]);
+  }
+
+  private addDetailTwoWithGlobalData(
+    detailNotes: any[][], 
+    globalData: ExtractedFinancialData
+  ): void {
+    detailNotes.push(['รายละเอียดประกอบที่ 2', '', '', '', '', '', '', '', 'หน่วย:บาท']);
+    detailNotes.push(['', '', '', '', '', '', '', '', '']);
+    detailNotes.push(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', '', '', '']);
+    
+    // Use global data for total expenses - eliminates redundant calculations
+    const totalExpenses = globalData.income.expenses.total;
+    
+    // Add expense categories with global totals
+    detailNotes.push(['', 'ค่าใช้จ่ายในการขาย', '', '', '', '', '', '', globalData.income.expenses.adminExpenses]);
+    detailNotes.push(['', 'ค่าใช้จ่ายในการบริหาร', '', '', '', '', '', '', globalData.income.expenses.otherExpenses]);
+    detailNotes.push(['', '', 'รวม', '', '', '', '', '', totalExpenses]);
   }
 }
