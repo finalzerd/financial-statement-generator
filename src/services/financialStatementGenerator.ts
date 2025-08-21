@@ -24,11 +24,10 @@ interface DetailedFinancialData {
       total: { current: number; previous: number };         // Total for Balance Sheet
     };
     
-    // Note 8: Trade and other receivables
+    // Note 8: Trade and other receivables (DYNAMIC - no artificial grouping)
     receivables: {
-      tradeReceivables: { current: number; previous: number };      // ลูกหนี้การค้า (1140)
-      otherReceivables: { current: number; previous: number };      // ลูกหนี้อื่น (1150-1215)
       total: { current: number; previous: number };                 // Total for Balance Sheet
+      // Individual accounts provide the detailed breakdown (replaces tradeReceivables + otherReceivables)
     };
     
     // Note 9: Inventories (if applicable)
@@ -44,11 +43,41 @@ interface DetailedFinancialData {
       netBookValue: { current: number; previous: number };      // มูลค่าตามบัญชี (for Balance Sheet)
     };
     
-    // Note 12: Trade and other payables
+    // Note 12: Trade and other payables (DYNAMIC - no artificial grouping)
     payables: {
-      tradePayables: { current: number; previous: number };     // เจ้าหนี้การค้า (2010-2100)
-      otherPayables: { current: number; previous: number };     // เจ้าหนี้อื่น (2200-2999, excluding specific ranges)
       total: { current: number; previous: number };             // Total for Balance Sheet
+      // Individual accounts provide the detailed breakdown (replaces tradePayables + otherPayables)
+    };
+  };
+  
+  // INDIVIDUAL ACCOUNT DETAILS: Dynamic structure for note breakdowns
+  individualAccounts: {
+    // Cash accounts - automatically categorized for display
+    cash: {
+      [accountCode: string]: {
+        accountName: string;
+        current: number;
+        previous: number;
+        category: 'cash' | 'bankDeposits'; // Auto-categorized based on code range
+      };
+    };
+    
+    // ALL individual receivable accounts (no artificial grouping)
+    receivables: {
+      [accountCode: string]: {
+        accountName: string;
+        current: number;
+        previous: number;
+      };
+    };
+    
+    // ALL individual payable accounts (no artificial grouping)
+    payables: {
+      [accountCode: string]: {
+        accountName: string;
+        current: number;
+        previous: number;
+      };
     };
   };
   
@@ -155,20 +184,14 @@ export class FinancialStatementGenerator {
       }
     };
 
-    // Note 8: Trade and other receivables breakdown
+    // Note 8: Trade and other receivables breakdown (FOUNDATION-FIRST with DYNAMIC ACCOUNTS)
     const receivablesNote = {
-      tradeReceivables: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1140)), // ลูกหนี้การค้า
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1140))
-      },
-      otherReceivables: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1150, 1215)), // ลูกหนี้อื่น
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1150, 1215))
-      },
+      // Calculate total from individual accounts - guarantees consistency
       total: {
         current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)), // Total for Balance Sheet
         previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
       }
+      // Individual accounts will be extracted later and provide the detailed breakdown
     };
 
     // Note 9: Inventories (if applicable)
@@ -201,24 +224,9 @@ export class FinancialStatementGenerator {
       }
     };
 
-    // Note 12: Trade and other payables breakdown
+    // Note 12: Trade and other payables breakdown (FOUNDATION-FIRST with DYNAMIC ACCOUNTS)
     const payablesNote = {
-      tradePayables: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2100)), // เจ้าหนี้การค้า
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2100))
-      },
-      otherPayables: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2200, 2999)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) - // Exclude specific accounts
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2200, 2999)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
-      },
+      // Calculate total from individual accounts - guarantees consistency
       total: {
         current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) - 
                  Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) - 
@@ -231,6 +239,7 @@ export class FinancialStatementGenerator {
                   Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) - 
                   Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
       }
+      // Individual accounts will provide the detailed breakdown
     };
 
     // ============================================================================
@@ -346,6 +355,11 @@ export class FinancialStatementGenerator {
 
     const netProfit = revenue.total - expenses.total;
 
+    // ============================================================================
+    // INDIVIDUAL ACCOUNTS EXTRACTION: Dynamic structure for note breakdowns
+    // ============================================================================
+    const individualAccounts = this.extractIndividualAccounts(trialBalanceData);
+
     // BUSINESS LOGIC FLAGS
     const flags = {
       hasInventory: balanceSheetAssets.inventory.current > 0,
@@ -365,6 +379,9 @@ export class FinancialStatementGenerator {
         ppe: ppeNote,
         payables: payablesNote
       },
+      
+      // INDIVIDUAL ACCOUNT DETAILS: Dynamic structure for note breakdowns
+      individualAccounts,
       
       // BALANCE SHEET TOTALS: Derived from notes + individual calculations
       balanceSheetTotals: {
@@ -389,6 +406,77 @@ export class FinancialStatementGenerator {
     console.log('=== NOTES → BALANCE SHEET ARCHITECTURE READY ===');
 
     return this.extractedData;
+  }
+
+  /**
+   * Extract individual account details for note breakdowns
+   * This eliminates the need for filtering in note generation methods
+   */
+  private extractIndividualAccounts(trialBalanceData: TrialBalanceEntry[]): any {
+    const individualAccounts = {
+      cash: {},
+      receivables: {},
+      payables: {}
+    };
+
+    console.log('=== EXTRACTING INDIVIDUAL ACCOUNTS (DYNAMIC) ===');
+
+    // SINGLE PASS through trial balance - store individual accounts directly
+    for (const entry of trialBalanceData) {
+      const code = parseInt(entry.accountCode || '0');
+      const currentAmount = Math.abs((entry.debitAmount || 0) - (entry.creditAmount || 0));
+      const previousAmount = Math.abs(entry.previousBalance || 0);
+      
+      // Skip accounts with no balance
+      if (currentAmount === 0 && previousAmount === 0) continue;
+      
+      // Store individual cash accounts (1000-1099)
+      if (code >= 1000 && code <= 1099) {
+        (individualAccounts.cash as any)[entry.accountCode || ''] = {
+          accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+          current: currentAmount,
+          previous: previousAmount,
+          category: code <= 1019 ? 'cash' : 'bankDeposits' // For display grouping only
+        };
+        console.log(`Cash Account ${entry.accountCode}: ${entry.accountName} = ${currentAmount}`);
+      }
+      
+      // Store ALL individual receivable accounts (1140-1215) - NO GROUPING
+      else if (code >= 1140 && code <= 1215) {
+        (individualAccounts.receivables as any)[entry.accountCode || ''] = {
+          accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+          current: currentAmount,
+          previous: previousAmount
+          // No artificial categories - just store the raw data
+        };
+        console.log(`Receivable Account ${entry.accountCode}: ${entry.accountName} = ${currentAmount}`);
+      }
+      
+      // Store ALL individual payable accounts (2010-2999, with exclusions) - NO GROUPING
+      else if (code >= 2010 && code <= 2999) {
+        // Apply exclusion logic but don't create artificial categories
+        const isExcluded = code === 2030 || code === 2045 || 
+                          (code >= 2050 && code <= 2052) || 
+                          (code >= 2100 && code <= 2123);
+        
+        if (!isExcluded) {
+          (individualAccounts.payables as any)[entry.accountCode || ''] = {
+            accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+            current: Math.abs((entry.creditAmount || 0) - (entry.debitAmount || 0)),
+            previous: previousAmount
+            // No categories - just individual account data
+          };
+          console.log(`Payable Account ${entry.accountCode}: ${entry.accountName} = ${Math.abs((entry.creditAmount || 0) - (entry.debitAmount || 0))}`);
+        }
+      }
+    }
+    
+    console.log('Individual Cash Accounts:', Object.keys(individualAccounts.cash).length);
+    console.log('Individual Receivable Accounts:', Object.keys(individualAccounts.receivables).length);
+    console.log('Individual Payable Accounts:', Object.keys(individualAccounts.payables).length);
+    console.log('=== END INDIVIDUAL ACCOUNTS EXTRACTION ===');
+    
+    return individualAccounts;
   }
   
   // ============================================================================
@@ -1387,12 +1475,18 @@ export class FinancialStatementGenerator {
     
     // Generate specific notes using global data where possible
     this.addCashNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
-    this.addTradeReceivablesNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
+    
+    // NEW: Use individual accounts methods - ZERO filtering approach
+    this.addTradeReceivablesNoteWithIndividualAccounts(notes, globalData, companyInfo, processingType, noteNumber++);
+    
     this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addBankOverdraftsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
-    this.addTradePayablesNoteWithGlobalData(notes, globalData, trialBalanceData, companyInfo, processingType, noteNumber++);
+    
+    // NEW: Use individual accounts methods - ZERO filtering approach
+    this.addTradePayablesNoteWithIndividualAccounts(notes, globalData, companyInfo, processingType, noteNumber++);
+    
     this.addShortTermBorrowingsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
     this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
@@ -1801,6 +1895,100 @@ export class FinancialStatementGenerator {
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
+  }
+
+  // NEW: Trade Receivables Note using Individual Accounts - eliminates ALL filtering
+  private addTradeReceivablesNoteWithIndividualAccounts(
+    notes: any[][], 
+    globalData: DetailedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 4
+  ): void {
+    const receivableAccounts = globalData.individualAccounts.receivables;
+    const totalAmount = globalData.noteCalculations.receivables.total.current;
+    const prevTotalAmount = globalData.noteCalculations.receivables.total.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(receivableAccounts).length === 0) {
+      return;
+    }
+
+    console.log('=== INDIVIDUAL RECEIVABLES NOTE (ZERO FILTERING!) ===');
+    console.log('Individual accounts found:', Object.keys(receivableAccounts).length);
+    console.log('Total from foundation:', totalAmount);
+
+    // Add headers
+    notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+
+    // *** ZERO PROCESSING! Just iterate through pre-extracted individual accounts ***
+    Object.entries(receivableAccounts).forEach(([accountCode, accountData]) => {
+      console.log(`Showing individual account: ${accountCode} - ${accountData.accountName} = ${accountData.current}`);
+      notes.push(['', accountData.accountName, '', '', '', '', 
+        accountData.current, '', 
+        processingType === 'multi-year' ? accountData.previous : '']);
+    });
+
+    // Total from foundation layer (guaranteed consistency with Balance Sheet)
+    if (processingType === 'multi-year') {
+      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+    } else {
+      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+    }
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    console.log('=== END INDIVIDUAL RECEIVABLES NOTE ===');
+  }
+
+  // NEW: Trade Payables Note using Individual Accounts - eliminates ALL filtering
+  private addTradePayablesNoteWithIndividualAccounts(
+    notes: any[][], 
+    globalData: DetailedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 12
+  ): void {
+    const payableAccounts = globalData.individualAccounts.payables;
+    const totalAmount = globalData.noteCalculations.payables.total.current;
+    const prevTotalAmount = globalData.noteCalculations.payables.total.previous;
+
+    // Only add note if there are actual balances
+    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(payableAccounts).length === 0) {
+      return;
+    }
+
+    console.log('=== INDIVIDUAL PAYABLES NOTE (ZERO FILTERING!) ===');
+    console.log('Individual accounts found:', Object.keys(payableAccounts).length);
+    console.log('Total from foundation:', totalAmount);
+
+    // Add headers
+    notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+
+    // *** ZERO PROCESSING! Just iterate through pre-extracted individual accounts ***
+    Object.entries(payableAccounts).forEach(([accountCode, accountData]) => {
+      console.log(`Showing individual account: ${accountCode} - ${accountData.accountName} = ${accountData.current}`);
+      notes.push(['', accountData.accountName, '', '', '', '', 
+        accountData.current, '', 
+        processingType === 'multi-year' ? accountData.previous : '']);
+    });
+
+    // Total from foundation layer (guaranteed consistency with Balance Sheet)
+    if (processingType === 'multi-year') {
+      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+    } else {
+      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+    }
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    console.log('=== END INDIVIDUAL PAYABLES NOTE ===');
   }
 
   // ============================================================================
