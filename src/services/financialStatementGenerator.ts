@@ -424,7 +424,7 @@ export class FinancialStatementGenerator {
     // SINGLE PASS through trial balance - store individual accounts directly
     for (const entry of trialBalanceData) {
       const code = parseInt(entry.accountCode || '0');
-      const currentAmount = Math.abs((entry.debitAmount || 0) - (entry.creditAmount || 0));
+      const currentAmount = Math.abs(entry.balance || 0);
       const previousAmount = Math.abs(entry.previousBalance || 0);
       
       // Skip accounts with no balance
@@ -462,11 +462,11 @@ export class FinancialStatementGenerator {
         if (!isExcluded) {
           (individualAccounts.payables as any)[entry.accountCode || ''] = {
             accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
-            current: Math.abs((entry.creditAmount || 0) - (entry.debitAmount || 0)),
+            current: currentAmount,
             previous: previousAmount
             // No categories - just individual account data
           };
-          console.log(`Payable Account ${entry.accountCode}: ${entry.accountName} = ${Math.abs((entry.creditAmount || 0) - (entry.debitAmount || 0))}`);
+          console.log(`Payable Account ${entry.accountCode}: ${entry.accountName} = ${currentAmount}`);
         }
       }
     }
@@ -655,7 +655,7 @@ export class FinancialStatementGenerator {
     return Math.abs(matchingEntries.reduce((sum, entry) => {
       const balance = dataType === 'previous' 
         ? (entry.previousBalance || 0)
-        : ((entry.debitAmount || 0) - (entry.creditAmount || 0));
+        : (entry.balance || 0);
       return sum + balance;
     }, 0));
   }
@@ -667,7 +667,7 @@ export class FinancialStatementGenerator {
     });
     
     return matchingEntries.reduce((sum, entry) => {
-      const balance = (entry.debitAmount || 0) - (entry.creditAmount || 0);
+      const balance = entry.balance || 0;
       return sum + balance;
     }, 0);
   }
@@ -1594,7 +1594,7 @@ export class FinancialStatementGenerator {
     detailNotes.push(['', 'สินค้ามีไว้เพื่อขาย', '', '', '', '', '', '', goodsAvailable]);
     
     // Ending inventory
-    const endingInventory = inventoryAccount ? Math.abs(inventoryAccount.debitAmount - inventoryAccount.creditAmount) : 0;
+    const endingInventory = inventoryAccount ? Math.abs(inventoryAccount.balance || 0) : 0;
     detailNotes.push(['', 'หัก', 'สินค้าคงเหลือปลายงวด', '', '', '', '', '', endingInventory]);
     
     // Cost of goods sold
@@ -1616,7 +1616,7 @@ export class FinancialStatementGenerator {
     for (const entry of trialBalanceData) {
       const accountCode = entry.accountCode;
       const accountName = entry.accountName;
-      const amount = Math.abs(entry.debitAmount || entry.creditAmount || 0);
+      const amount = Math.abs(entry.balance || 0);
       
       if (accountCode && accountCode >= '5300' && accountCode <= '5999' && 
           accountCode !== '5910' && amount > 0) {
@@ -1663,14 +1663,14 @@ export class FinancialStatementGenerator {
   private checkHasInventory(trialBalanceData: TrialBalanceEntry[]): boolean {
     // Check for inventory account 1510
     const inventoryAccount = trialBalanceData.find(entry => entry.accountCode === '1510');
-    if (inventoryAccount && (inventoryAccount.debitAmount !== 0 || inventoryAccount.creditAmount !== 0)) {
+    if (inventoryAccount && (inventoryAccount.balance !== 0)) {
       return true;
     }
 
     // Check for purchase accounts 5010
     const purchaseAccounts = trialBalanceData.filter(entry => 
       entry.accountCode?.startsWith('5010') && 
-      (entry.debitAmount !== 0 || entry.creditAmount !== 0)
+      (entry.balance !== 0)
     );
     return purchaseAccounts.length > 0;
   }
@@ -1818,9 +1818,9 @@ export class FinancialStatementGenerator {
       });
       
       for (const account of receivableAccounts) {
-        const currentAmount = Math.abs((account.debitAmount || 0) - (account.creditAmount || 0));
+        const currentAmount = Math.abs(account.balance || 0);
         const previousAmount = processingType === 'multi-year' ? 
-          Math.abs((account.previousBalance || 0)) : 0;
+          Math.abs(account.previousBalance || 0) : 0;
           
         // Only show accounts with non-zero balances
         if (currentAmount !== 0 || previousAmount !== 0) {
@@ -1876,9 +1876,9 @@ export class FinancialStatementGenerator {
       });
       
       for (const account of payableAccounts) {
-        const currentAmount = Math.abs((account.creditAmount || 0) - (account.debitAmount || 0));
+        const currentAmount = Math.abs(account.balance || 0);
         const previousAmount = processingType === 'multi-year' ? 
-          Math.abs((account.previousBalance || 0)) : 0;
+          Math.abs(account.previousBalance || 0) : 0;
           
         // Only show accounts with non-zero balances
         if (currentAmount !== 0 || previousAmount !== 0) {
@@ -2070,7 +2070,7 @@ export class FinancialStatementGenerator {
 
     // Check if any accounts have balances
     const hasBalances = tradeReceivableAccounts.some(account => 
-      Math.abs((account.debitAmount || 0) - (account.creditAmount || 0)) !== 0 ||
+      Math.abs(account.balance || 0) !== 0 ||
       Math.abs(account.previousBalance || 0) !== 0
     );
 
