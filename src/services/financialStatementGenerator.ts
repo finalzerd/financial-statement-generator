@@ -1,5 +1,6 @@
 import { saveAs } from 'file-saver';
 import { ExcelJSFormatter } from './excelFormatter';
+import { FinancialCalculations } from './financialCalculations';
 import type { 
   TrialBalanceEntry, 
   CompanyInfo, 
@@ -171,16 +172,16 @@ export class FinancialStatementGenerator {
     // Note 7: Cash and cash equivalents breakdown
     const cashNote = {
       cash: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1000, 1019)), // เงินสดในมือ (includes 1010)
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1019))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1019)), // เงินสดในมือ (includes 1010)
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1019))
       },
       bankDeposits: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1020, 1099)), // เงินฝากธนาคาร
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1020, 1099)), // เงินฝากธนาคาร
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099))
       },
       total: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)), // Total for Balance Sheet
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)), // Total for Balance Sheet
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099))
       }
     };
 
@@ -188,8 +189,8 @@ export class FinancialStatementGenerator {
     const receivablesNote = {
       // Calculate total from individual accounts - guarantees consistency
       total: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)), // Total for Balance Sheet
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)), // Total for Balance Sheet
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
       }
       // Individual accounts will be extracted later and provide the detailed breakdown
     };
@@ -228,16 +229,16 @@ export class FinancialStatementGenerator {
     const payablesNote = {
       // Calculate total from individual accounts - guarantees consistency
       total: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)), // Total for Balance Sheet
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)), // Total for Balance Sheet
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
       }
       // Individual accounts will provide the detailed breakdown
     };
@@ -293,20 +294,12 @@ export class FinancialStatementGenerator {
 
     // EQUITY CALCULATION WITH CORRECTED RETAINED EARNINGS
     // Calculate current year profit properly: Revenue (credit-debit) - Expenses (debit-credit)
-    const revenueAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('4'));
-    const currentYearRevenue = revenueAccounts
-      .reduce((sum, entry) => sum + ((entry.creditAmount || 0) - (entry.debitAmount || 0)), 0);
-    
-    const expenseAccounts = trialBalanceData.filter(entry => entry.accountCode?.startsWith('5'));
-    const currentYearExpenses = expenseAccounts
-      .reduce((sum, entry) => sum + ((entry.debitAmount || 0) - (entry.creditAmount || 0)), 0);
-    
-    const currentYearProfit = currentYearRevenue - currentYearExpenses;
+    const currentYearRevenue = FinancialCalculations.calculateCurrentYearRevenue(trialBalanceData);
+    const currentYearExpenses = FinancialCalculations.calculateCurrentYearExpenses(trialBalanceData);
+    const currentYearProfit = FinancialCalculations.calculateCurrentYearProfit(trialBalanceData);
     
     // CORRECTED: Get opening retained earnings from account 3020 using credit - debit
-    const retainedEarningsAccount = trialBalanceData.find(entry => entry.accountCode === '3020');
-    const openingRetainedEarnings = retainedEarningsAccount ? 
-      ((retainedEarningsAccount.creditAmount || 0) - (retainedEarningsAccount.debitAmount || 0)) : 0;
+    const openingRetainedEarnings = FinancialCalculations.getOpeningRetainedEarnings(trialBalanceData);
     
     // Final retained earnings = opening + current year profit (VBA-compliant)
     const finalRetainedEarnings = Math.abs(openingRetainedEarnings + currentYearProfit);
@@ -1526,7 +1519,7 @@ export class FinancialStatementGenerator {
   }
 
   private addDetailOne(detailNotes: any[][], trialBalanceData: TrialBalanceEntry[]): void {
-    const hasInventory = this.checkHasInventory(trialBalanceData);
+    const hasInventory = FinancialCalculations.checkHasInventory(trialBalanceData);
     
     detailNotes.push(['รายละเอียดประกอบที่ 1', '', '', '', '', '', '', '', 'หน่วย:บาท']);
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
@@ -2666,7 +2659,7 @@ export class FinancialStatementGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     globalData: DetailedFinancialData
   ): void {
-    const hasInventory = this.checkHasInventory(trialBalanceData);
+    const hasInventory = FinancialCalculations.checkHasInventory(trialBalanceData);
     
     detailNotes.push(['รายละเอียดประกอบที่ 1', '', '', '', '', '', '', '', 'หน่วย:บาท']);
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
