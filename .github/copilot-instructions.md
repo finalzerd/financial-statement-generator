@@ -37,10 +37,12 @@ This is a comprehensive React TypeScript web application that processes Excel/CS
 ## Technical Architecture
 
 ### **Core Services**
-- **FinancialStatementGenerator**: Main engine with 2300+ lines of VBA-compliant logic and global data architecture
-- **ExcelJSFormatter**: Professional Excel formatting with Thai accounting standards
-- **CSVProcessor**: Flexible CSV parsing with auto-detection capabilities
-- **ExcelProcessor**: Legacy Excel file processing support
+- **FinancialStatementGenerator**: Main engine with 3000+ lines of VBA-compliant logic and global data architecture
+- **ExcelJSFormatter**: Professional Excel formatting with Thai accounting standards and row tracking architecture
+- **CSVProcessor**: Flexible CSV parsing with auto-detection capabilities and multi-year support
+- **FinancialCalculations**: Pure calculation utility methods for financial computations
+- **ApiService**: REST API client for backend communication and file upload operations
+- **ExcelProcessor**: Legacy Excel file processing support (currently empty, ready for future implementation)
 
 ### **Global Data Architecture (Performance Optimization)**
 - **DetailedFinancialData Interface**: Single source of truth for all financial calculations
@@ -52,21 +54,63 @@ This is a comprehensive React TypeScript web application that processes Excel/CS
 - **Performance Boost**: Eliminated 70% of redundant calculations across statements
 
 ### **Advanced Features**
+- **Row Tracking Architecture**: Precise row-by-row formatting with NoteRowTracker interface
 - **Formula Integration**: Excel formulas for dynamic calculations (SUM, cell references)
 - **Professional Formatting**: Bold headers, underlines, number formatting, column widths
 - **Multi-Worksheet Output**: Generates 6+ worksheets per financial statement package
 - **Error Recovery**: Comprehensive error handling with fallback mechanisms
 - **Global Data Caching**: Intelligent caching prevents recalculation of same account ranges
 - **Dynamic Individual Account Structure**: Automatic discovery and processing of all trial balance accounts
+- **Backend Integration**: Full-stack architecture with SQLite database and REST API
 
 ## Excel Formatting Architecture
 
+### **Row Tracking Architecture (Latest Implementation)**
+- **NoteRowTracker Interface**: Precise tracking of header rows, year headers, detail rows, total rows, and unit rows
+- **NoteFormatter Interface**: Links note types to their trackers for specific formatting application
+- **Function-Specific Formatting**: Each note type has dedicated row tracking for exact bold text placement
+- **Enhanced Blank Cell Clearing**: Comprehensive cleanup for professional Notes_Accounting appearance
+
+### **Critical Pattern: Row Tracking vs Pattern Detection**
+- **Row Tracking (NEW)**: Uses NoteRowTracker to mark exact rows during generation, then applies precise formatting
+- **Pattern Detection (LEGACY)**: Searches for text patterns after generation to apply formatting
+- **Best Practice**: Use row tracking for new notes, maintain pattern detection for fallback compatibility
+
+### **Row Tracking Implementation Pattern**
+```typescript
+// During note generation - track specific rows:
+const tracker: NoteRowTracker = {
+  currentRow: notes.length + 1,
+  noteStartRow: notes.length + 1,
+  headerRows: [],        // Bold note headers
+  yearHeaderRows: [],    // Year headers with underline
+  detailRows: [],        // Account detail rows
+  totalRows: [],         // "รวม" rows with bold text
+  unitRows: []           // "หน่วย:บาท" rows
+};
+
+// During formatting - apply exact styling:
+tracker.headerRows.forEach(row => {
+  worksheet.getRow(row).font = { bold: true };
+});
+```
+
+### **Notes Using Row Tracking (Enhanced Formatting)**
+- **Cash Note** (`addCashNoteWithRowTracking`) - Bold headers, proper "รวม" formatting
+- **Trade Receivables Note** (`addTradeReceivablesNoteWithRowTracking`) - Bold headers, year formatting  
+- **Trade Payables Note** (`addTradePayablesNoteWithRowTracking`) - Bold headers, "รวม" formatting
+- **Other Income Note** (`addOtherIncomeNoteWithRowTracking`) - Bold headers, professional formatting
+
+### **Notes Using Pattern Detection (Fallback)**
+- **PPE Note** (`addPPENote`) - Original method with reliable formatting
+- **Other Notes** - Short-term loans, long-term loans, etc. using original pattern detection
+
 ### **Critical Pattern: Separation of Data and Formatting**
 - **Data Generation**: FinancialStatementGenerator creates plain string/number data arrays
-- **Formatting Application**: ExcelJSFormatter handles ALL visual formatting via pattern recognition
-- **Bold Text Implementation**: Use `formatTotalLinesProfessional()` with text pattern matching
+- **Formatting Application**: ExcelJSFormatter handles ALL visual formatting via row tracking or pattern recognition
+- **Bold Text Implementation**: Use row tracking for new notes, pattern matching for legacy notes
 
-### **Bold Formatting Pattern**
+### **Bold Formatting Pattern (Legacy)**
 ```typescript
 // In formatTotalLinesProfessional() - ADD specific Thai text patterns:
 else if (value === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้' || 
@@ -81,13 +125,30 @@ private static formatKeyProfitLine(worksheet: ExcelJS.Worksheet, row: number): v
 }
 ```
 
+### **Row Tracking Pattern (PREFERRED)**
+```typescript
+// During note generation:
+notes.push([noteNumber.toString(), 'ชื่อหมายเหตุ', '', '', 'หน่วย:บาท']);
+tracker.headerRows.push(tracker.currentRow);
+tracker.unitRows.push(tracker.currentRow);
+tracker.currentRow++;
+
+// During formatting:
+formatters.push({ type: 'noteType', tracker: tracker });
+
+// In ExcelJSFormatter:
+case 'noteType':
+  this.formatNoteType(worksheet, formatter.tracker);
+```
+
 ### **Why This Pattern Works**
 - **Maintainability**: All formatting logic centralized in ExcelJSFormatter
 - **Flexibility**: Easy to add new bold patterns without touching data generation
 - **Performance**: Single pass formatting after data insertion
 - **Separation of Concerns**: Data logic separate from presentation logic
+- **Precision**: Row tracking provides exact row-by-row control vs pattern matching
 
-**IMPORTANT**: Never add `{text: string, bold: true}` objects in FinancialStatementGenerator. Always use plain strings and handle formatting in ExcelJSFormatter pattern recognition.
+**IMPORTANT**: Never add `{text: string, bold: true}` objects in FinancialStatementGenerator. Always use plain strings and handle formatting in ExcelJSFormatter pattern recognition or row tracking.
 
 ## Global Data Architecture Implementation
 
@@ -183,6 +244,32 @@ Object.entries(globalData.individualAccounts.receivables).forEach(([accountCode,
 - **Transparency**: Complete individual account breakdown without performance penalty
 - **Maintainability**: Single source of truth with zero duplication
 - **Flexibility**: Handles any trial balance structure dynamically
+
+## Service Layer Architecture
+
+### **ApiService (Full-Stack Integration)**
+- **Company Management**: CRUD operations for company data with SQLite database
+- **File Upload**: Progress tracking with XMLHttpRequest for real-time feedback
+- **Trial Balance Storage**: Persistent storage with metadata tracking
+- **Financial Statement Management**: Generated statement storage and retrieval
+- **Health Monitoring**: API health checks and error recovery
+- **Backend Communication**: RESTful API client with comprehensive error handling
+
+### **FinancialCalculations (Pure Calculation Engine)**
+- **Account Balance Calculations**: Optimized numeric range summations and filtering
+- **Business Logic Helpers**: Inventory detection, company type classification, service business identification
+- **P&L Calculations**: Revenue/expense processing with proper debit-credit logic
+- **Validation Utilities**: Trial balance validation, statistical analysis, balance verification
+- **Formatting Utilities**: Thai locale formatting, currency formatting, Excel formula generation
+- **Account Filtering**: Specialized filters for cash, receivables, payables with smart categorization
+
+### **CSVProcessor (Flexible Data Ingestion)**
+- **Auto-Detection**: Delimiter detection, column mapping, header analysis
+- **Multi-Year Support**: Automatic detection and processing of comparative data
+- **Flexible Column Mapping**: Handles various CSV formats with intelligent field matching
+- **Balance Calculation**: Account-type-aware balance calculations (P&L vs Balance Sheet logic)
+- **Account Classification**: Automatic separation of Balance Sheet and P&L accounts
+- **Business Intelligence**: Inventory detection, purchase analysis, expense categorization
 
 ## Financial Statement Components
 
@@ -296,3 +383,28 @@ Object.entries(globalData.individualAccounts.receivables).forEach(([accountCode,
 - **User Experience**: Professional UI with progress indicators and error feedback
 
 This system represents a complete migration from Excel VBA to modern web technology while maintaining 100% compatibility with the original business logic and financial statement requirements.
+
+## Current Implementation Status
+
+### **Production-Ready Features**
+- ✅ **Row Tracking Architecture**: 4 major notes (Cash, Receivables, Payables, Other Income) using precise row-by-row formatting
+- ✅ **Global Data Architecture**: Complete foundation-first consistency with dynamic individual accounts
+- ✅ **Full-Stack Integration**: SQLite database, REST API, file upload, progress tracking
+- ✅ **Multi-Year Processing**: Comparative financial statements with previous year data integration
+- ✅ **CSV Auto-Detection**: Flexible column mapping, delimiter detection, multi-format support
+- ✅ **Professional Excel Output**: 6+ worksheets with Thai accounting standards compliance
+- ✅ **VBA-Compliant Logic**: Exact replication of original Excel VBA business rules
+
+### **Recent Architecture Improvements**
+- **Enhanced Notes_Accounting Formatting**: Row tracking provides exact bold header placement and professional formatting
+- **Zero-Filtering Performance**: Pre-extracted individual accounts eliminate redundant trial balance operations
+- **Comprehensive Error Handling**: TypeScript type safety with user-friendly error messages
+- **Modular Service Architecture**: Clean separation of concerns across 6 specialized services
+- **Database Integration**: Persistent company data, trial balance storage, statement management
+
+### **Technical Excellence**
+- **3000+ Lines of Business Logic**: Complete financial statement generation engine
+- **TypeScript Type Safety**: Comprehensive interfaces and strict compilation
+- **Pattern Recognition + Row Tracking**: Dual formatting approaches for maximum reliability
+- **Formula Transparency**: Excel formulas maintain audit trail and calculation verification
+- **Professional UI**: React frontend with progress indicators and responsive design

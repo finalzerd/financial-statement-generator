@@ -55,6 +55,7 @@ export interface FinancialStatements {
   profitLossStatement: any;
   notes: (string | number | {f: string})[][];
   accountingNotes: (string | number | {f: string})[][];
+  accountingNotesFormatters?: any[]; // Row tracking formatters for specific note formatting
   changesInEquity?: any;
   detailNotes?: {
     detail1?: (string | number | {f: string})[][];

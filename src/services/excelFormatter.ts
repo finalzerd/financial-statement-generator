@@ -102,14 +102,21 @@ export class ExcelJSFormatter {
    * Set default worksheet font to ensure consistent width calculations
    */
   private static setWorksheetDefaultFont(worksheet: ExcelJS.Worksheet): void {
-    // Set default font for the entire worksheet
+    // Set default font for the entire worksheet - ensure ALL cells use TH Sarabun New
     worksheet.eachRow((row) => {
       row.eachCell((cell) => {
+        // Always ensure the font name is TH Sarabun New, preserve other properties
         if (!cell.font) {
           cell.font = {
             name: this.THAI_FONT_NAME,
             size: 14,
             color: { argb: 'FF000000' }
+          };
+        } else {
+          // Update existing font to ensure it uses TH Sarabun New
+          cell.font = {
+            ...cell.font,
+            name: this.THAI_FONT_NAME
           };
         }
       });
@@ -315,6 +322,9 @@ export class ExcelJSFormatter {
    */
   static formatOtherStatements(worksheet: ExcelJS.Worksheet): void {
     console.log('Applying professional Thai formatting (with green background)');
+    
+    // Set TH Sarabun New font for all cells
+    this.setWorksheetDefaultFont(worksheet);
     
     // Set column widths to match the professional format
     worksheet.columns = [
@@ -722,23 +732,28 @@ export class ExcelJSFormatter {
    * Clear all empty cells to prevent text cutoff issues
    */
   private static clearEmptyCells(worksheet: ExcelJS.Worksheet): void {
-    // Clear all cells that don't have meaningful content (from A1 to I50 to be thorough)
-    for (let row = 1; row <= 50; row++) {
-      for (let col = 1; col <= 9; col++) { // A to I columns
+    // Clear all cells that don't have meaningful content - Extended range for Notes_Accounting
+    // Cover up to row 100 and column K (11) to be thorough for notes
+    for (let row = 1; row <= 100; row++) {
+      for (let col = 1; col <= 11; col++) { // A to K columns
         const cell = worksheet.getCell(row, col);
         
-        // Check if cell is effectively empty
+        // Check if cell is effectively empty or contains only whitespace
         if (!cell.value || 
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
-            (typeof cell.value === 'number' && cell.value === 0)) {
+            (typeof cell.value === 'string' && /^\s*$/.test(cell.value)) ||
+            (typeof cell.value === 'number' && cell.value === 0 && row > 10)) { // Don't clear legitimate 0 amounts in data rows
           
-          // Clear the cell value only
+          // Clear the cell value completely
           cell.value = null;
+          
+          // Also clear any formatting that might cause display issues
+          cell.style = {};
         }
       }
     }
     
-    console.log('Cleared all empty cells to prevent text cutoff');
+    console.log('Cleared all empty cells and whitespace-only cells (extended range for Notes_Accounting)');
   }
   
   /**
@@ -790,6 +805,45 @@ export class ExcelJSFormatter {
   }
 
   /**
+   * Enhanced blank space clearing specifically for Notes_Accounting
+   */
+  static clearNotesAccountingBlanks(worksheet: ExcelJS.Worksheet): void {
+    console.log('Performing enhanced blank space clearing for Notes_Accounting');
+    
+    // Step 1: Use the standard clearBlankSpaces
+    this.clearBlankSpaces(worksheet);
+    
+    // Step 2: More aggressive clearing for Notes_Accounting
+    for (let row = 1; row <= 150; row++) { // Extended range for notes
+      for (let col = 1; col <= 12; col++) { // A to L columns
+        const cell = worksheet.getCell(row, col);
+        
+        // Clear various empty states
+        if (cell.value === undefined || 
+            cell.value === null ||
+            cell.value === '' ||
+            (typeof cell.value === 'string' && /^\s*$/.test(cell.value)) ||
+            (typeof cell.value === 'string' && cell.value === ' ') ||
+            (typeof cell.value === 'string' && cell.value === '  ') ||
+            (typeof cell.value === 'string' && cell.value === '\t') ||
+            (typeof cell.value === 'string' && cell.value === '\n')) {
+          
+          // Completely clear the cell
+          cell.value = null;
+          
+          // Reset style to prevent formatting artifacts
+          cell.style = {
+            font: { name: this.THAI_FONT_NAME, size: 14 },
+            alignment: { horizontal: 'left', vertical: 'middle' }
+          };
+        }
+      }
+    }
+    
+    console.log('Enhanced Notes_Accounting blank space clearing completed');
+  }
+
+  /**
    * Format Notes to Financial Statements (Note_Policy) with specific column widths
    */
   static formatNotesToFinancialStatements(worksheet: ExcelJS.Worksheet): void {
@@ -807,6 +861,9 @@ export class ExcelJSFormatter {
     
     // Clear blank spaces first
     this.clearBlankSpaces(worksheet);
+    
+    // Set TH Sarabun New font for all cells
+    this.setWorksheetDefaultFont(worksheet);
     
     // Set specific column widths for Note_Policy
     worksheet.columns = [
@@ -865,7 +922,7 @@ export class ExcelJSFormatter {
       const cell = worksheet.getCell(cellRef);
       cell.font = {
         name: this.THAI_FONT_NAME,
-        size: 12,
+        size: 14,
         bold: true,
         color: { argb: 'FF000000' }
       };
@@ -954,13 +1011,194 @@ export class ExcelJSFormatter {
   }
   
   /**
+   * Format notes with specific note-by-note formatting using row trackers
+   */
+  static formatNotesWithSpecificFormatting(worksheet: ExcelJS.Worksheet, formatters: any[]): void {
+    console.log('Applying specific note-by-note formatting with row trackers');
+    
+    // STEP 1: Enhanced blank space clearing for Notes_Accounting
+    this.clearNotesAccountingBlanks(worksheet);
+    
+    // STEP 2: Set basic worksheet formatting
+    this.setWorksheetDefaultFont(worksheet);
+    this.setAccountingNotesColumnWidths(worksheet);
+    this.formatCompanyHeaderNoBackground(worksheet);
+    
+    // STEP 3: Apply specific formatting for each note
+    formatters.forEach(formatter => {
+      console.log(`Formatting ${formatter.type} note:`, formatter.tracker);
+      switch (formatter.type) {
+        case 'cash':
+          this.formatCashNote(worksheet, formatter.tracker);
+          break;
+        case 'receivables':
+          this.formatReceivablesNote(worksheet, formatter.tracker);
+          break;
+        case 'payables':
+          this.formatPayablesNote(worksheet, formatter.tracker);
+          break;
+        case 'ppe':
+          this.formatPPENote(worksheet, formatter.tracker);
+          break;
+        default:
+          this.formatGeneralNote(worksheet, formatter.tracker);
+      }
+    });
+    
+    // STEP 4: Final cleanup - clear any remaining empty cells  
+    this.clearEmptyCells(worksheet);
+    
+    console.log(`Specific note formatting completed for ${formatters.length} notes with enhanced blank cell cleanup`);
+  }
+
+  /**
+   * Set column widths for accounting notes
+   */
+  private static setAccountingNotesColumnWidths(worksheet: ExcelJS.Worksheet): void {
+    worksheet.columns = [
+      { width: 4 },   // A - note number
+      { width: 4 },   // B  
+      { width: 25 },  // C - account names
+      { width: 12 },  // D
+      { width: 2 },   // E
+      { width: 12 },  // F
+      { width: 12 },  // G - current year amounts
+      { width: 2 },   // H
+      { width: 12 }   // I - previous year amounts
+    ];
+  }
+
+  /**
+   * Format Cash Note specifically
+   */
+  private static formatCashNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Cash Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // 1. Format Note Header (bold in column B, "หน่วย:บาท" bold in column I)
+    tracker.headerRows.forEach((row: number) => {
+      const noteNumberCell = worksheet.getCell(`A${row}`);
+      const noteTitleCell = worksheet.getCell(`B${row}`);
+      const unitCell = worksheet.getCell(`I${row}`);
+      
+      // Note number
+      noteNumberCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      noteNumberCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Note title - BOLD
+      noteTitleCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      noteTitleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // "หน่วย:บาท" - BOLD
+      unitCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      unitCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    });
+
+    // 2. Format Year Headers (center, underline, general format)
+    tracker.yearHeaderRows.forEach((row: number) => {
+      const currentYearCell = worksheet.getCell(`G${row}`);
+      const previousYearCell = worksheet.getCell(`I${row}`);
+      
+      [currentYearCell, previousYearCell].forEach(cell => {
+        if (cell.value) {
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, underline: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.numFmt = '@'; // General format, not number format
+        }
+      });
+    });
+
+    // 3. Format Detail Rows (normal text in column C, amounts right-aligned)
+    tracker.detailRows.forEach((row: number) => {
+      const detailNameCell = worksheet.getCell(`C${row}`);
+      const currentAmountCell = worksheet.getCell(`G${row}`);
+      const previousAmountCell = worksheet.getCell(`I${row}`);
+      
+      // Detail name - normal
+      detailNameCell.font = { name: this.THAI_FONT_NAME, size: 14 };
+      detailNameCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Amounts - right aligned with number format
+      [currentAmountCell, previousAmountCell].forEach(cell => {
+        if (cell.value) {
+          cell.font = { name: this.THAI_FONT_NAME, size: 14 };
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        }
+      });
+    });
+
+    // 4. Format Total Row ("รวม" bold in column C, amounts not bold)
+    tracker.totalRows.forEach((row: number) => {
+      const totalTextCell = worksheet.getCell(`C${row}`);
+      const currentTotalCell = worksheet.getCell(`G${row}`);
+      const previousTotalCell = worksheet.getCell(`I${row}`);
+      
+      // "รวม" text - BOLD
+      totalTextCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      totalTextCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Total amounts - NOT bold
+      [currentTotalCell, previousTotalCell].forEach(cell => {
+        if (cell.value) {
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        }
+      });
+    });
+  }
+
+  /**
+   * Format Receivables Note specifically
+   */
+  private static formatReceivablesNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Receivables Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Same structure as Cash Note
+    this.formatCashNote(worksheet, tracker);
+  }
+
+  /**
+   * Format Payables Note specifically
+   */
+  private static formatPayablesNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Payables Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Same structure as Cash Note
+    this.formatCashNote(worksheet, tracker);
+  }
+
+  /**
+   * Format PPE Note specifically
+   */
+  private static formatPPENote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting PPE Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Same structure as Cash Note
+    this.formatCashNote(worksheet, tracker);
+  }
+
+  /**
+   * Format General Note specifically
+   */
+  private static formatGeneralNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting General Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Same structure as Cash Note
+    this.formatCashNote(worksheet, tracker);
+  }
+
+  /**
    * Format notes with no green background - clean professional look (Notes_Accounting)
    */
   static formatNotesWithoutBackground(worksheet: ExcelJS.Worksheet): void {
-    console.log('Applying Notes_Accounting specific formatting');
+    console.log('Applying Notes_Accounting specific formatting (fallback method)');
     
-    // Clear blank spaces first
-    this.clearBlankSpaces(worksheet);
+    // Enhanced blank space clearing first
+    this.clearNotesAccountingBlanks(worksheet);
+    
+    // Set TH Sarabun New font for all cells
+    this.setWorksheetDefaultFont(worksheet);
     
     // Set specific column widths for Notes_Accounting
     worksheet.columns = [
@@ -1000,8 +1238,8 @@ export class ExcelJSFormatter {
    * Format account detail lines for accounting notes - Current amount in G, Previous amount in I
    */
   private static formatAccountLinesAccountingNotes(worksheet: ExcelJS.Worksheet): void {
-    // Apply base formatting to all data rows (6-40)
-    for (let row = 6; row <= 40; row++) {
+    // Apply base formatting to all data rows (6-100) - Extended range to cover all notes
+    for (let row = 6; row <= 100; row++) {
       // Account names (Columns B through E)
       ['B', 'C', 'D', 'E'].forEach(col => {
         const nameCell = worksheet.getCell(`${col}${row}`);
@@ -1056,25 +1294,57 @@ export class ExcelJSFormatter {
    * Format total lines for accounting notes - Current amount in G, Previous amount in I
    */
   private static formatTotalLinesAccountingNotes(worksheet: ExcelJS.Worksheet): void {
-    // We'll dynamically detect and format total lines and section headers
-    for (let row = 6; row <= 40; row++) {
-      const cell = worksheet.getCell(`B${row}`);
-      if (cell.value && typeof cell.value === 'string') {
-        const value = cell.value.toString().trim();
-        
-        // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน)
-        if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
-            value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน') {
-          this.formatMainSectionHeaderAccountingNotes(worksheet, row);
-        }
-        // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
-        else if (value.includes('หมุนเวียน') || value.includes('ไม่หมุนเวียน')) {
-          this.formatSubSectionHeaderAccountingNotes(worksheet, row);
-        }
-        // Total lines (รวม...)
-        else if (value.includes('รวม')) {
-          this.formatTotalLineAccountingNotes(worksheet, row);
-        }
+    // We'll dynamically detect and format total lines, section headers, note headers, and year headers
+    // Extended range to cover all possible note rows (up to 100 rows to be safe)
+    for (let row = 6; row <= 100; row++) {
+      const cellA = worksheet.getCell(`A${row}`);
+      const cellB = worksheet.getCell(`B${row}`);
+      const cellG = worksheet.getCell(`G${row}`);
+      const cellI = worksheet.getCell(`I${row}`);
+      
+      // Check for year headers (strings like "2567", "2566")
+      if (cellG.value && typeof cellG.value === 'string' && /^\d{4}$/.test(cellG.value.trim())) {
+        this.formatYearHeaderAccountingNotes(worksheet, row, 'G');
+      }
+      if (cellI.value && typeof cellI.value === 'string' && /^\d{4}$/.test(cellI.value.trim())) {
+        this.formatYearHeaderAccountingNotes(worksheet, row, 'I');
+      }
+      
+      // Check for "หน่วย:บาท" in column I (should be bold)
+      if (cellI.value && typeof cellI.value === 'string' && cellI.value.includes('หน่วย:บาท')) {
+        cellI.font = {
+          name: this.THAI_FONT_NAME,
+          size: 14,
+          bold: true,
+          color: { argb: 'FF000000' }
+        };
+        cellI.alignment = { horizontal: 'right', vertical: 'middle' };
+      }
+      
+      // Check for note headers (note number in column A, note title in column B)
+      const cellAValue = cellA.value && typeof cellA.value === 'string' ? cellA.value.toString().trim() : '';
+      const cellBValue = cellB.value && typeof cellB.value === 'string' ? cellB.value.toString().trim() : '';
+      
+      // Note headers: number in A and descriptive text in B
+      if (/^\d+$/.test(cellAValue) && cellBValue && this.isNoteHeader(cellBValue)) {
+        this.formatNoteHeaderAccountingNotes(worksheet, row);
+      }
+      // Also check for note headers that might be only in column B
+      else if (cellBValue && this.isNoteHeader(cellBValue)) {
+        this.formatNoteHeaderAccountingNotes(worksheet, row);
+      }
+      // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน)
+      else if (cellBValue === 'สินทรัพย์' || cellBValue === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
+          cellBValue === 'ส่วนของผู้ถือหุ้น' || cellBValue === 'ส่วนของผู้เป็นหุ้นส่วน') {
+        this.formatMainSectionHeaderAccountingNotes(worksheet, row);
+      }
+      // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
+      else if (cellBValue.includes('หมุนเวียน') || cellBValue.includes('ไม่หมุนเวียน')) {
+        this.formatSubSectionHeaderAccountingNotes(worksheet, row);
+      }
+      // Total lines (รวม...)
+      else if (cellBValue.includes('รวม')) {
+        this.formatTotalLineAccountingNotes(worksheet, row);
       }
     }
   }
@@ -1123,18 +1393,27 @@ export class ExcelJSFormatter {
    * Format total lines for accounting notes (รวม...)
    */
   private static formatTotalLineAccountingNotes(worksheet: ExcelJS.Worksheet, row: number): void {
-    ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+    // Make only the text "รวม" bold (column B), not the amounts
+    const textCell = worksheet.getCell(`B${row}`);
+    textCell.font = {
+      name: this.THAI_FONT_NAME,
+      size: 14,
+      bold: true,
+      color: { argb: 'FF000000' }
+    };
+    textCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    // Format other columns normally (not bold)
+    ['C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
       cell.font = {
         name: this.THAI_FONT_NAME,
         size: 14,
-        bold: true,
+        bold: false, // Keep amounts not bold
         color: { argb: 'FF000000' }
       };
       
-      if (col === 'B') {
-        cell.alignment = { horizontal: 'left', vertical: 'middle' };
-      } else if (col === 'F') {
+      if (col === 'F') {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
@@ -1146,6 +1425,101 @@ export class ExcelJSFormatter {
   }
 
   /**
+   * Check if a value is a note header based on common patterns
+   */
+  private static isNoteHeader(value: string): boolean {
+    // More comprehensive patterns - check if the value starts with digit (note number)
+    const startsWithNoteNumber = /^\d+\s/.test(value.trim());
+    
+    // Specific note header patterns (including variations found in the code)
+    const noteHeaderPatterns = [
+      'เงินสดและรายการเทียบเท่าเงินสด',
+      'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น',
+      'ลูกหนี้การค้าและลูกหนี้อื่น',
+      'เงินกู้ยืมระยะสั้น',
+      'ที่ดิน อาคารและอุปกรณ์',
+      'สินทรัพย์อื่น',
+      'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
+      'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น',
+      'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
+      'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+      'เงินกู้ยืมระยะยาวอื่น',
+      'เงินกู้ยืมจากกิจการที่เกี่ยวข้องกัน',
+      'รายได้อื่น',
+      'ค่าใช้จ่ายตามลักษณะ',
+      'การอนุมัติงบการเงิน'
+    ];
+    
+    // Check if it's a note header by pattern or starts with note number
+    const matchesPattern = noteHeaderPatterns.some(pattern => value.includes(pattern));
+    const isNumberedHeader = startsWithNoteNumber && (
+      value.includes('เงินสด') || 
+      value.includes('ลูกหนี้') || 
+      value.includes('เจ้าหนี้') || 
+      value.includes('เงินกู้') || 
+      value.includes('เงินเบิก') ||
+      value.includes('ที่ดิน') || 
+      value.includes('สินทรัพย์') || 
+      value.includes('รายได้') ||
+      value.includes('ค่าใช้จ่าย') ||
+      value.includes('การอนุมัติ')
+    );
+    
+    return matchesPattern || isNumberedHeader;
+  }
+
+  /**
+   * Format note headers for accounting notes (เงินสด, ลูกหนี้การค้า, etc.)
+   */
+  private static formatNoteHeaderAccountingNotes(worksheet: ExcelJS.Worksheet, row: number): void {
+    // Make only the note header text (column B) bold, not the amounts
+    const headerCell = worksheet.getCell(`B${row}`);
+    headerCell.font = {
+      name: this.THAI_FONT_NAME,
+      size: 14,
+      bold: true,
+      color: { argb: 'FF000000' }
+    };
+    headerCell.alignment = { horizontal: 'left', vertical: 'middle' };
+    
+    // Format other columns normally (not bold)
+    ['C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: false, // Keep amounts and other content not bold
+        color: { argb: 'FF000000' }
+      };
+      
+      if (col === 'F') {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+    });
+  }
+
+  /**
+   * Format year headers for accounting notes (2567, 2566)
+   */
+  private static formatYearHeaderAccountingNotes(worksheet: ExcelJS.Worksheet, row: number, col: string): void {
+    const cell = worksheet.getCell(`${col}${row}`);
+    cell.font = {
+      name: this.THAI_FONT_NAME,
+      size: 14,
+      bold: false,
+      underline: true,
+      color: { argb: 'FF000000' }
+    };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.numFmt = '@'; // Text format to display as general format, not number format
+  }
+
+  /**
    * Format Detail Notes (DT1 and DT2) with specific column widths
    */
   static formatDetailNotes(worksheet: ExcelJS.Worksheet): void {
@@ -1153,6 +1527,9 @@ export class ExcelJSFormatter {
     
     // Clear blank spaces first
     this.clearBlankSpaces(worksheet);
+    
+    // Set TH Sarabun New font for all cells
+    this.setWorksheetDefaultFont(worksheet);
     
     // Set specific column widths for Detail Notes (optimized for both DT1 and DT2)
     worksheet.columns = [
@@ -1212,6 +1589,6 @@ export class ExcelJSFormatter {
    * Save workbook as buffer for download
    */
   static async saveWorkbook(workbook: ExcelJS.Workbook): Promise<Buffer> {
-    return await workbook.xlsx.writeBuffer() as Buffer;
+    return await workbook.xlsx.writeBuffer() as unknown as Buffer;
   }
 }

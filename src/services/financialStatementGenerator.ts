@@ -12,6 +12,28 @@ import type {
 // ============================================================================
 
 /**
+ * Interface for tracking row positions during note generation
+ * Used to communicate exact formatting requirements to ExcelJS formatter
+ */
+interface NoteRowTracker {
+  currentRow: number;
+  noteStartRow: number;
+  headerRows: number[];        // Rows with note headers (should be bold)
+  yearHeaderRows: number[];    // Rows with year headers (center, underline, general format)
+  detailRows: number[];        // Rows with account details (normal formatting)
+  totalRows: number[];         // Rows with "รวม" text (bold text, normal amounts)
+  unitRows: number[];          // Rows with "หน่วย:บาท" (should be bold)
+}
+
+/**
+ * Interface for note formatting information
+ */
+interface NoteFormatter {
+  type: 'cash' | 'receivables' | 'payables' | 'ppe' | 'inventory' | 'general';
+  tracker: NoteRowTracker;
+}
+
+/**
  * Foundation-first architecture: Note calculations drive Balance Sheet values
  * This ensures perfect consistency between Notes and Balance Sheet
  */
@@ -495,7 +517,7 @@ export class FinancialStatementGenerator {
     const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
-    const accountingNotes = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
+    const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
     const detailNotes = this.generateDetailNotes(trialBalanceData, companyInfo);
 
     return {
@@ -506,7 +528,8 @@ export class FinancialStatementGenerator {
       profitLossStatement,
       changesInEquity: statementOfChangesInEquity,
       notes: notesToFinancialStatements,
-      accountingNotes,
+      accountingNotes: accountingNotesResult.notes,
+      accountingNotesFormatters: accountingNotesResult.formatters,
       detailNotes: {
         detail1: detailNotes,
         detail2: undefined
@@ -541,9 +564,17 @@ export class FinancialStatementGenerator {
     const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Policy', statements.notes);
     ExcelJSFormatter.formatNotesToFinancialStatements(notesWs);
 
-    // Create Accounting Notes (Detailed Notes)
+    // Create Accounting Notes (Detailed Notes) with Specific Formatting
     const accountingNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Accounting', statements.accountingNotes);
-    ExcelJSFormatter.formatNotesWithoutBackground(accountingNotesWs);
+    
+    // Use new specific formatting approach if formatters are available
+    if (statements.accountingNotesFormatters && statements.accountingNotesFormatters.length > 0) {
+      console.log('Using specific row-tracked formatting for Notes_Accounting');
+      ExcelJSFormatter.formatNotesWithSpecificFormatting(accountingNotesWs, statements.accountingNotesFormatters);
+    } else {
+      console.log('Using fallback pattern-based formatting for Notes_Accounting');
+      ExcelJSFormatter.formatNotesWithoutBackground(accountingNotesWs);
+    }
 
     // Create Detail Notes (if available)
     if (statements.detailNotes?.detail1) {
@@ -1388,10 +1419,10 @@ export class FinancialStatementGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[]
-  ): any[][] {
+  ): { notes: any[][], formatters: NoteFormatter[] } {
     // Extract global financial data once for consistency across all notes
     const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
-    console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction ===');
+    console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction with Row Tracking ===');
     
     const notes: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
@@ -1400,33 +1431,46 @@ export class FinancialStatementGenerator {
       ['', '', '', '', '', '', '', '', ''],
     ];
 
+    const formatters: NoteFormatter[] = [];
     let noteNumber = 3;
     
-    // Generate specific notes using global data where possible
-    this.addCashNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
+    // Generate specific notes using global data with row tracking
+    const cashTracker = this.addCashNoteWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    if (cashTracker.headerRows.length > 0) {
+      formatters.push({ type: 'cash', tracker: cashTracker });
+    }
     
-    // NEW: Use individual accounts methods - ZERO filtering approach
-    this.addTradeReceivablesNoteWithIndividualAccounts(notes, globalData, companyInfo, processingType, noteNumber++);
+    const receivablesTracker = this.addTradeReceivablesNoteWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    if (receivablesTracker.headerRows.length > 0) {
+      formatters.push({ type: 'receivables', tracker: receivablesTracker });
+    }
+    
+    const payablesTracker = this.addTradePayablesNoteWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    if (payablesTracker.headerRows.length > 0) {
+      formatters.push({ type: 'payables', tracker: payablesTracker });
+    }
+    
+    // Property, Plant & Equipment Note (PPE) - Using old method for now
+    this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     
     this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addBankOverdraftsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
-    
-    // NEW: Use individual accounts methods - ZERO filtering approach
-    this.addTradePayablesNoteWithIndividualAccounts(notes, globalData, companyInfo, processingType, noteNumber++);
-    
-    this.addShortTermBorrowingsNoteWithGlobalData(notes, globalData, companyInfo, processingType, noteNumber++);
     this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addOtherIncomeNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    
+    const otherIncomeTracker = this.addOtherIncomeNoteWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (otherIncomeTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: otherIncomeTracker });
+    }
+    
     this.addExpensesByNatureNote(notes, companyInfo, processingType, noteNumber++);
     if (companyInfo.type === 'บริษัทจำกัด') {
       this.addFinancialApprovalNote(notes, companyInfo, noteNumber++);
     }
 
-    return notes;
+    console.log(`Generated ${formatters.length} tracked notes with specific formatting`);
+    return { notes, formatters };
   }
 
   private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {
@@ -1590,6 +1634,384 @@ export class FinancialStatementGenerator {
   }
 
   // ============================================================================
+  // NEW: NOTES_ACCOUNTING WITH ROW TRACKING (Specific Formatting)
+  // ============================================================================
+
+  /**
+   * Cash Note with Row Tracking for Specific Formatting
+   */
+  private addCashNoteWithRowTracking(
+    notes: any[][], 
+    globalData: DetailedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 3
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1, // Excel 1-indexed
+      noteStartRow: notes.length + 1,
+      headerRows: [],
+      yearHeaderRows: [],
+      detailRows: [],
+      totalRows: [],
+      unitRows: []
+    };
+
+    const totalAmount = globalData.noteCalculations.cash.total.current;
+    const prevTotalAmount = globalData.noteCalculations.cash.total.previous;
+
+    if (totalAmount === 0 && prevTotalAmount === 0) {
+      return tracker; // No note generated
+    }
+
+    console.log(`=== CASH NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row (note number + title + "หน่วย:บาท")
+    notes.push([noteNumber.toString(), 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow); // "หน่วย:บาท" is also in this row
+    tracker.currentRow++;
+
+    // 2. Year Header Row  
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 3. Detail Rows
+    const cashAmount = globalData.noteCalculations.cash.cash.current;
+    const bankAmount = globalData.noteCalculations.cash.bankDeposits.current;
+    const prevCashAmount = globalData.noteCalculations.cash.cash.previous;
+    const prevBankAmount = globalData.noteCalculations.cash.bankDeposits.previous;
+
+    if (cashAmount !== 0 || prevCashAmount !== 0) {
+      notes.push(['', '', 'เงินสดในมือ', '', '', '', cashAmount, '', 
+        processingType === 'multi-year' ? prevCashAmount : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+
+    if (bankAmount !== 0 || prevBankAmount !== 0) {
+      notes.push(['', '', 'เงินฝากธนาคาร', '', '', '', bankAmount, '', 
+        processingType === 'multi-year' ? prevBankAmount : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+
+    // 4. Total Row
+    notes.push(['', '', 'รวม', '', '', '', totalAmount, '', 
+      processingType === 'multi-year' ? prevTotalAmount : '']);
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 5. Spacer Row
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`Cash Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  /**
+   * Trade Receivables Note with Row Tracking for Specific Formatting
+   */
+  private addTradeReceivablesNoteWithRowTracking(
+    notes: any[][], 
+    globalData: DetailedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 4
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1,
+      noteStartRow: notes.length + 1,
+      headerRows: [],
+      yearHeaderRows: [],
+      detailRows: [],
+      totalRows: [],
+      unitRows: []
+    };
+
+    const receivableAccounts = globalData.individualAccounts.receivables;
+    const totalAmount = globalData.noteCalculations.receivables.total.current;
+    const prevTotalAmount = globalData.noteCalculations.receivables.total.previous;
+
+    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(receivableAccounts).length === 0) {
+      return tracker;
+    }
+
+    console.log(`=== RECEIVABLES NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row
+    notes.push([noteNumber.toString(), 'ลูกหนี้การค้าและลูกหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 2. Year Header Row
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 3. Detail Rows - Individual accounts
+    Object.entries(receivableAccounts).forEach(([accountCode, accountData]) => {
+      notes.push(['', '', accountData.accountName, '', '', '', 
+        accountData.current, '', 
+        processingType === 'multi-year' ? accountData.previous : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    });
+
+    // 4. Total Row
+    notes.push(['', '', 'รวม', '', '', '', totalAmount, '', 
+      processingType === 'multi-year' ? prevTotalAmount : '']);
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 5. Spacer Row
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`Receivables Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  /**
+   * Trade Payables Note with Row Tracking for Specific Formatting
+   */
+  private addTradePayablesNoteWithRowTracking(
+    notes: any[][], 
+    globalData: DetailedFinancialData,
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year',
+    noteNumber: number = 12
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1,
+      noteStartRow: notes.length + 1,
+      headerRows: [],
+      yearHeaderRows: [],
+      detailRows: [],
+      totalRows: [],
+      unitRows: []
+    };
+
+    const payableAccounts = globalData.individualAccounts.payables;
+    const totalAmount = globalData.noteCalculations.payables.total.current;
+    const prevTotalAmount = globalData.noteCalculations.payables.total.previous;
+
+    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(payableAccounts).length === 0) {
+      return tracker;
+    }
+
+    console.log(`=== PAYABLES NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row
+    notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 2. Year Header Row
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 3. Detail Rows - Individual accounts
+    Object.entries(payableAccounts).forEach(([accountCode, accountData]) => {
+      notes.push(['', '', accountData.accountName, '', '', '', 
+        accountData.current, '', 
+        processingType === 'multi-year' ? accountData.previous : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    });
+
+    // 4. Total Row
+    notes.push(['', '', 'รวม', '', '', '', totalAmount, '', 
+      processingType === 'multi-year' ? prevTotalAmount : '']);
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 5. Spacer Row
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`Payables Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  /**
+   * PPE Note with Row Tracking for Specific Formatting
+   */
+  private addPPENoteWithRowTracking(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 6
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1,
+      noteStartRow: notes.length + 1,
+      headerRows: [],
+      yearHeaderRows: [],
+      detailRows: [],
+      totalRows: [],
+      unitRows: []
+    };
+
+    // Calculate PPE amounts
+    const currentCost = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1629));
+    const currentDepreciation = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1630, 1659));
+    const currentNet = currentCost - currentDepreciation;
+    
+    const previousCost = Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629));
+    const previousDepreciation = Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659));
+    const previousNet = previousCost - previousDepreciation;
+
+    if (currentNet === 0 && previousNet === 0) {
+      return tracker;
+    }
+
+    console.log(`=== PPE NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row
+    notes.push([noteNumber.toString(), 'ที่ดิน อาคารและอุปกรณ์', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 2. Year Header Row
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 3. Detail Rows
+    if (currentCost !== 0 || previousCost !== 0) {
+      notes.push(['', '', 'ราคาทุน', '', '', '', currentCost, '', 
+        processingType === 'multi-year' ? previousCost : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+
+    if (currentDepreciation !== 0 || previousDepreciation !== 0) {
+      notes.push(['', '', 'หัก ค่าเสื่อมราคาสะสม', '', '', '', `(${currentDepreciation})`, '', 
+        processingType === 'multi-year' ? `(${previousDepreciation})` : '']);
+      tracker.detailRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+
+    // 4. Total Row (Net Book Value)
+    notes.push(['', '', 'สุทธิ', '', '', '', currentNet, '', 
+      processingType === 'multi-year' ? previousNet : '']);
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 5. Spacer Row
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`PPE Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  /**
+   * Other Income Note with Row Tracking for Specific Formatting
+   */
+  private addOtherIncomeNoteWithRowTracking(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 14
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1,
+      noteStartRow: notes.length + 1,
+      headerRows: [],
+      yearHeaderRows: [],
+      detailRows: [],
+      totalRows: [],
+      unitRows: []
+    };
+
+    // Calculate other income amounts (account range 4110-4999)
+    const currentAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4110, 4999));
+    const previousAmount = Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 4110, 4999));
+
+    if (currentAmount === 0 && previousAmount === 0) {
+      return tracker;
+    }
+
+    console.log(`=== OTHER INCOME NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row
+    notes.push([noteNumber.toString(), 'รายได้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 2. Year Header Row
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 3. Detail Rows - Get individual other income accounts
+    const otherIncomeAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= 4110 && code <= 4999 && (Math.abs(entry.debitAmount - entry.creditAmount) !== 0 || Math.abs(entry.previousBalance || 0) !== 0);
+    });
+
+    otherIncomeAccounts.forEach(account => {
+      const current = Math.abs(account.creditAmount - account.debitAmount);
+      const previous = Math.abs(account.previousBalance || 0);
+      
+      if (current !== 0 || previous !== 0) {
+        notes.push(['', '', account.accountName, '', '', '', current, '', 
+          processingType === 'multi-year' ? previous : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      }
+    });
+
+    // 4. Total Row (if more than one item)
+    if (otherIncomeAccounts.length > 1) {
+      notes.push(['', '', 'รวม', '', '', '', currentAmount, '', 
+        processingType === 'multi-year' ? previousAmount : '']);
+      tracker.totalRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+
+    // 5. Spacer Row
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`Other Income Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  // ============================================================================
   // NOTES_ACCOUNTING HELPER METHODS (Enhanced with Global Data)
   // ============================================================================
 
@@ -1629,22 +2051,22 @@ export class FinancialStatementGenerator {
       
       // Show grouped breakdown from foundation layer
       if (cashAmount !== 0 || prevCashAmount !== 0) {
-        notes.push(['', 'เงินสดในมือ', '', '', '', '', 
+        notes.push(['', '', 'เงินสดในมือ', '', '', '', 
           cashAmount, '', 
           processingType === 'multi-year' ? prevCashAmount : '']);
       }
       
       if (bankAmount !== 0 || prevBankAmount !== 0) {
-        notes.push(['', 'เงินฝากธนาคาร', '', '', '', '', 
+        notes.push(['', '', 'เงินฝากธนาคาร', '', '', '', 
           bankAmount, '', 
           processingType === 'multi-year' ? prevBankAmount : '']);
       }
       
       // Use foundation layer total (perfect consistency with Balance Sheet)
       if (processingType === 'multi-year') {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', '']);
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
@@ -1666,10 +2088,10 @@ export class FinancialStatementGenerator {
       notes.push([noteNumber.toString(), 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
       if (processingType === 'multi-year') {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-        notes.push(['', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', '', totalAmount, '', prevTotalAmount]);
+        notes.push(['', '', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-        notes.push(['', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', '', totalAmount, '', '']);
+        notes.push(['', '', 'เงินเบิกเกินบัญชีธนาคาร', '', '', '', totalAmount, '', '']);
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
@@ -1691,10 +2113,10 @@ export class FinancialStatementGenerator {
       notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
       if (processingType === 'multi-year') {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-        notes.push(['', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', '', totalAmount, '', prevTotalAmount]);
+        notes.push(['', '', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-        notes.push(['', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', '', totalAmount, '', '']);
+        notes.push(['', '', 'เงินกู้ยืมจากสถาบันการเงิน', '', '', '', totalAmount, '', '']);
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
@@ -1738,16 +2160,16 @@ export class FinancialStatementGenerator {
           
         // Only show accounts with non-zero balances
         if (currentAmount !== 0 || previousAmount !== 0) {
-          notes.push(['', account.accountName || `บัญชี ${account.accountCode}`, '', '', '', '', 
+          notes.push(['', '', account.accountName || `บัญชี ${account.accountCode}`, '', '', '', 
             currentAmount, '', 
             processingType === 'multi-year' ? previousAmount : '']);
         }
       }
       
       if (processingType === 'multi-year') {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', '']);
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
@@ -1796,16 +2218,16 @@ export class FinancialStatementGenerator {
           
         // Only show accounts with non-zero balances
         if (currentAmount !== 0 || previousAmount !== 0) {
-          notes.push(['', account.accountName || `บัญชี ${account.accountCode}`, '', '', '', '', 
+          notes.push(['', '', account.accountName || `บัญชี ${account.accountCode}`, '', '', '', 
             currentAmount, '', 
             processingType === 'multi-year' ? previousAmount : '']);
         }
       }
       
       if (processingType === 'multi-year') {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', prevTotalAmount]);
       } else {
-        notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+        notes.push(['', '', 'รวม', '', '', '', totalAmount, '', '']);
       }
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
@@ -1843,16 +2265,16 @@ export class FinancialStatementGenerator {
     // *** ZERO PROCESSING! Just iterate through pre-extracted individual accounts ***
     Object.entries(receivableAccounts).forEach(([accountCode, accountData]) => {
       console.log(`Showing individual account: ${accountCode} - ${accountData.accountName} = ${accountData.current}`);
-      notes.push(['', accountData.accountName, '', '', '', '', 
+      notes.push(['', '', accountData.accountName, '', '', '', 
         accountData.current, '', 
         processingType === 'multi-year' ? accountData.previous : '']);
     });
 
     // Total from foundation layer (guaranteed consistency with Balance Sheet)
     if (processingType === 'multi-year') {
-      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      notes.push(['', '', 'รวม', '', '', '', totalAmount, '', prevTotalAmount]);
     } else {
-      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+      notes.push(['', '', 'รวม', '', '', '', totalAmount, '', '']);
     }
     notes.push(['', '', '', '', '', '', '', '', '']);
     console.log('=== END INDIVIDUAL RECEIVABLES NOTE ===');
@@ -1890,16 +2312,16 @@ export class FinancialStatementGenerator {
     // *** ZERO PROCESSING! Just iterate through pre-extracted individual accounts ***
     Object.entries(payableAccounts).forEach(([accountCode, accountData]) => {
       console.log(`Showing individual account: ${accountCode} - ${accountData.accountName} = ${accountData.current}`);
-      notes.push(['', accountData.accountName, '', '', '', '', 
+      notes.push(['', '', accountData.accountName, '', '', '', 
         accountData.current, '', 
         processingType === 'multi-year' ? accountData.previous : '']);
     });
 
     // Total from foundation layer (guaranteed consistency with Balance Sheet)
     if (processingType === 'multi-year') {
-      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', prevTotalAmount]);
+      notes.push(['', '', 'รวม', '', '', '', totalAmount, '', prevTotalAmount]);
     } else {
-      notes.push(['', 'รวม', '', '', '', '', totalAmount, '', '']);
+      notes.push(['', '', 'รวม', '', '', '', totalAmount, '', '']);
     }
     notes.push(['', '', '', '', '', '', '', '', '']);
     console.log('=== END INDIVIDUAL PAYABLES NOTE ===');
