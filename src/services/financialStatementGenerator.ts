@@ -198,30 +198,30 @@ export class FinancialStatementGenerator {
     // Note 9: Inventories (if applicable)
     const inventoryNote = {
       inventory: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1510, 1510)), // สินค้าคงเหลือ
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1510, 1510))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1510, 1510)), // สินค้าคงเหลือ
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1510, 1510))
       },
       total: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)), // Total for Balance Sheet
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)), // Total for Balance Sheet
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519))
       }
     };
 
     // Note 10: Property, plant and equipment
     const ppeNote = {
       cost: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)), // ราคาทุน
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)), // ราคาทุน
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629))
       },
       accumulatedDepreciation: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)), // ค่าเสื่อมราคาสะสม
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)), // ค่าเสื่อมราคาสะสม
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
       },
       netBookValue: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)), // Net for Balance Sheet
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)), // Net for Balance Sheet
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
       }
     };
 
@@ -253,42 +253,42 @@ export class FinancialStatementGenerator {
       tradeReceivables: receivablesNote.total,          // From Note 8
       inventory: inventoryNote.total,                   // From Note 9
       prepaidExpenses: {                                // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1400, 1439)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439))
       },
       propertyPlantEquipment: ppeNote.netBookValue,     // From Note 10
       otherAssets: {                                    // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700))
       }
     };
 
     // Liabilities (mix of note-derived and individual calculations)
     const balanceSheetLiabilities = {
       bankOverdraftsAndShortTermLoans: {                // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
       },
       tradeAndOtherPayables: payablesNote.total,        // From Note 12
       shortTermBorrowings: {                            // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
       },
       incomeTaxPayable: {                               // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
       },
       longTermLoansFromFI: {                            // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) - 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) - 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
       },
       otherLongTermLoans: {                             // Individual calculation
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) + 
-                 Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) + 
-                  Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) + 
+                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) + 
+                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
       }
     };
 
@@ -315,35 +315,35 @@ export class FinancialStatementGenerator {
       },
       openingRetainedEarnings: openingRetainedEarnings, // Store opening balance separately
       legalReserve: {
-        current: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
-        previous: Math.abs(this.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
       }
     };
 
     // INCOME STATEMENT CALCULATION
     const revenue = {
-      total: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4999)),
-      mainRevenue: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4099)),
-      otherIncome: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4100, 4999))
+      total: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4000, 4999)),
+      mainRevenue: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4000, 4099)),
+      otherIncome: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4100, 4999))
     };
 
     const expenses = {
-      total: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5999)),
-      costOfServices: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5099)),
+      total: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5000, 5999)),
+      costOfServices: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5000, 5099)),
       adminExpenses: Math.abs(
-        this.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
       ),
       otherExpenses: Math.abs(
-        this.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
-        this.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
+        FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
       ),
-      incomeTax: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5910, 5910)),
-      financialCosts: Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5920, 5929))
+      incomeTax: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5910, 5910)),
+      financialCosts: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5920, 5929))
     };
 
     const netProfit = revenue.total - expenses.total;
@@ -622,12 +622,12 @@ export class FinancialStatementGenerator {
     processingType: 'single-year' | 'multi-year'
   ) {
     // Calculate current year asset balances using VBA-compliant ranges
-    const cashAndCashEquivalents = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
-    const tradeReceivables = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
-    const inventory = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
-    const prepaidExpenses = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
-    const landBuildingsEquipment = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
-    const otherAssets = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
+    const cashAndCashEquivalents = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
+    const tradeReceivables = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
+    const inventory = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
+    const prepaidExpenses = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
+    const landBuildingsEquipment = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
+    const otherAssets = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
 
     // Calculate previous year asset balances using previousBalance field
     const prevCashAndCashEquivalents = this.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099);
@@ -779,8 +779,8 @@ export class FinancialStatementGenerator {
     const prevLegalReserve = globalData.balanceSheetTotals.equity.legalReserve.previous;
 
     // Handle registered capital separately (not in global data yet)
-    const registeredCapital = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
-    const prevRegisteredCapital = this.sumPreviousBalanceByNumericRange(trialBalanceData, 3000, 3009);
+    const registeredCapital = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
+    const prevRegisteredCapital = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3000, 3009);
 
     console.log('=== BALANCE SHEET LIABILITIES: Values Summary ===');
     console.log('Current Year Values:', {
@@ -1072,41 +1072,41 @@ export class FinancialStatementGenerator {
     console.log('Trial Balance Data:', trialBalanceData);
     
     // Calculate revenue (4000-4099)
-    const revenue = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4000, 4099));
+    const revenue = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4000, 4099));
     const previousRevenue = processingType === 'multi-year' ? 0 : 0; // Placeholder for previous year
     
     // Calculate other income (4100-4999)
-    const otherIncome = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 4100, 4999));
+    const otherIncome = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4100, 4999));
     const previousOtherIncome = processingType === 'multi-year' ? 0 : 0;
     
     // Calculate cost of services/goods sold (5000-5099)
-    const costOfServices = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5000, 5099));
+    const costOfServices = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5000, 5099));
     const previousCostOfServices = processingType === 'multi-year' ? 0 : 0;
     
     // Calculate administrative expenses (5300-5350 + selected ranges)
     const adminExpenses = Math.abs(
-      this.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
     );
     const previousAdminExpenses = processingType === 'multi-year' ? 0 : 0;
     
     // Calculate other expenses (5351-5354, 5358-5361, 5364, 5366-5999)
     const otherExpenses = Math.abs(
-      this.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
-      this.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
+      FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
     );
     const previousOtherExpenses = processingType === 'multi-year' ? 0 : 0;
     
     // Calculate income tax (5910)
-    const incomeTax = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
+    const incomeTax = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
     const previousIncomeTax = processingType === 'multi-year' ? 0 : 0;
     
     // Calculate financial costs (5920-5929)
-    const financialCosts = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5920, 5929));
+    const financialCosts = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5920, 5929));
     const previousFinancialCosts = processingType === 'multi-year' ? 0 : 0;
     
     console.log('Calculated values:', {
