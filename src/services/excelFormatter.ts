@@ -1171,11 +1171,92 @@ export class ExcelJSFormatter {
   /**
    * Format PPE Note specifically
    */
+  /**
+   * Format PPE Note specifically - Enhanced for complex structure
+   */
   private static formatPPENote(worksheet: ExcelJS.Worksheet, tracker: any): void {
-    console.log('Formatting PPE Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    console.log('Formatting PPE Note (Enhanced), rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
     
-    // Same structure as Cash Note
-    this.formatCashNote(worksheet, tracker);
+    // PPE notes have complex structure with section headers, so use enhanced formatting
+    
+    // 1. Header Rows (Note headers, section headers like "ราคาทุนเดิม", "ค่าเสื่อมราคาสะสม")
+    tracker.headerRows.forEach((row: number) => {
+      const rowObj = worksheet.getRow(row);
+      rowObj.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      
+      // Also apply to individual cells for safety
+      for (let col = 1; col <= 9; col++) {
+        const cell = worksheet.getCell(row, col);
+        if (cell.value) {
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+        }
+      }
+    });
+
+    // 2. Unit Rows (หน่วย:บาท)
+    tracker.unitRows.forEach((row: number) => {
+      const cell = worksheet.getCell(row, 9); // Column I
+      if (cell.value) {
+        cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      }
+    });
+
+    // 3. Year Header Rows (column headers)
+    tracker.yearHeaderRows.forEach((row: number) => {
+      const rowObj = worksheet.getRow(row);
+      rowObj.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+      rowObj.alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      // Apply underline to year headers
+      for (let col = 1; col <= 9; col++) {
+        const cell = worksheet.getCell(row, col);
+        if (cell.value) {
+          cell.font = { 
+            name: this.THAI_FONT_NAME, 
+            size: 14, 
+            bold: false,
+            underline: true 
+          };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+      }
+    });
+
+    // 4. Detail Rows (individual accounts)
+    tracker.detailRows.forEach((row: number) => {
+      // Apply number formatting to amount columns
+      for (let col = 4; col <= 9; col++) { // Columns D through I
+        const cell = worksheet.getCell(row, col);
+        if (cell.value && typeof cell.value === 'number') {
+          cell.numFmt = '#,##0.00';
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+        }
+      }
+    });
+
+    // 5. Total Rows (รวม, มูลค่าสุทธิ, ค่าเสื่อมราคา)
+    tracker.totalRows.forEach((row: number) => {
+      // Apply bold to text in column C
+      const textCell = worksheet.getCell(row, 3);
+      if (textCell.value) {
+        textCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      }
+      
+      // Apply number formatting to amount columns but keep them normal weight
+      for (let col = 4; col <= 9; col++) { // Columns D through I
+        const cell = worksheet.getCell(row, col);
+        if (cell.value) {
+          if (typeof cell.value === 'number' || (typeof cell.value === 'object' && 'formula' in cell.value)) {
+            cell.numFmt = '#,##0.00';
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+          }
+        }
+      }
+    });
+
+    console.log(`PPE Note formatting completed: ${tracker.headerRows.length} headers, ${tracker.detailRows.length} details, ${tracker.totalRows.length} totals`);
   }
 
   /**

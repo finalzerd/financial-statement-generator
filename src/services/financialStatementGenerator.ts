@@ -1450,8 +1450,11 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'payables', tracker: payablesTracker });
     }
     
-    // Property, Plant & Equipment Note (PPE) - Using old method for now
-    this.addPPENote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting
+    const ppeTracker = this.addPPENoteWithRowTrackingEnhanced(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (ppeTracker.headerRows.length > 0) {
+      formatters.push({ type: 'ppe', tracker: ppeTracker });
+    }
     
     this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
@@ -2008,6 +2011,211 @@ export class FinancialStatementGenerator {
     tracker.currentRow++;
 
     console.log(`Other Income Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    return tracker;
+  }
+
+  /**
+   * PPE Note with Enhanced Row Tracking - Maintains Original Complex Structure
+   * Tracks all header rows, section headers, and total rows for precise formatting
+   */
+  private addPPENoteWithRowTrackingEnhanced(
+    notes: any[][], 
+    trialBalanceData: TrialBalanceEntry[], 
+    companyInfo: CompanyInfo, 
+    processingType: 'single-year' | 'multi-year', 
+    trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 6
+  ): NoteRowTracker {
+    const tracker: NoteRowTracker = {
+      currentRow: notes.length + 1,
+      noteStartRow: notes.length + 1,
+      headerRows: [],        // Note headers and section headers
+      yearHeaderRows: [],    // Year/column headers
+      detailRows: [],        // Individual asset/depreciation accounts
+      totalRows: [],         // Total/รวม rows and net book value
+      unitRows: []           // หน่วย:บาท rows
+    };
+
+    // Get all PPE asset accounts (1610-1659 without decimal points)
+    const assetAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode);
+      return code >= 1610 && code <= 1659 && !entry.accountCode.includes('.');
+    });
+
+    // Get all accumulated depreciation accounts (1610-1659 with decimal points)
+    const depreciationAccounts = trialBalanceData.filter(entry => {
+      const code = parseInt(entry.accountCode);
+      return code >= 1610 && code <= 1659 && entry.accountCode.includes('.');
+    });
+
+    // Only create note if there are any PPE accounts with balances
+    if (assetAccounts.length === 0 && depreciationAccounts.length === 0) {
+      return tracker;
+    }
+
+    // Check if any accounts have non-zero balances
+    const hasAssetBalances = assetAccounts.some(acc => 
+      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
+    );
+    const hasDepreciationBalances = depreciationAccounts.some(acc => 
+      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
+    );
+
+    if (!hasAssetBalances && !hasDepreciationBalances) {
+      return tracker;
+    }
+
+    console.log(`=== PPE NOTE ENHANCED ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+
+    // 1. Note Header Row
+    notes.push([noteNumber.toString(), 'ที่ดิน อาคารและอุปกรณ์', '', '', '', '', '', '', 'หน่วย:บาท']);
+    tracker.headerRows.push(tracker.currentRow);
+    tracker.unitRows.push(tracker.currentRow);
+    tracker.currentRow++;
+    
+    // 2. Column Headers (Year Headers)
+    if (processingType === 'multi-year') {
+      notes.push(['', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear - 1}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+    } else {
+      notes.push(['', '', '', '', '', '', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+    }
+    tracker.yearHeaderRows.push(tracker.currentRow);
+    tracker.currentRow++;
+    
+    // 3. Asset Cost Section Header
+    notes.push(['', '', 'ราคาทุนเดิม', '', '', '', '', '', '']);
+    tracker.headerRows.push(tracker.currentRow); // Section header
+    tracker.currentRow++;
+    
+    let assetTotalCurrent = 0;
+    let assetTotalPrevious = 0;
+    let assetTotalPurchases = 0;
+    const assetStartRow = tracker.currentRow; // Track start of asset details (our internal tracking)
+
+    // 4. Individual Asset Accounts (Detail Rows)
+    assetAccounts.forEach(account => {
+      const currentAmount = Math.abs(account.balance);
+      const previousAmount = Math.abs(account.previousBalance || 0);
+      const purchases = Math.max(0, currentAmount - previousAmount); // Only positive purchases
+      
+      if (currentAmount !== 0 || previousAmount !== 0) {
+        if (processingType === 'multi-year') {
+          notes.push(['', '', account.accountName, 
+            previousAmount, '', // Column D (index 3): Previous amount
+            purchases > 0 ? purchases : '', '', // Column F (index 5): Purchases
+            '', currentAmount]); // Column I (index 8): Current amount
+        } else {
+          notes.push(['', '', account.accountName, '', '', '', '', '', currentAmount]); // Column I (index 8): Current amount only
+        }
+        
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+        
+        assetTotalCurrent += currentAmount;
+        assetTotalPrevious += previousAmount;
+        assetTotalPurchases += purchases;
+      }
+    });
+
+    // 5. Asset Totals with Excel formulas (Total Row)
+    const assetEndRow = tracker.currentRow - 1; // Last row of asset details (Excel 1-indexed)
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'รวม', 
+        { f: `SUM(D${assetStartRow}:D${assetEndRow})` }, '', // Column D (index 3): Previous total formula
+        { f: `SUM(F${assetStartRow}:F${assetEndRow})` }, '', // Column F (index 5): Total purchases formula
+        '', { f: `SUM(I${assetStartRow}:I${assetEndRow})` }]); // Column I (index 8): Current total formula
+    } else {
+      notes.push(['', '', 'รวม', '', '', '', '', '', 
+        { f: `SUM(I${assetStartRow}:I${assetEndRow})` }]); // Column I (index 8): Current total formula only
+    }
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+    
+    // 6. Space before depreciation section
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+    
+    // 7. Accumulated Depreciation Section Header
+    notes.push(['', '', 'ค่าเสื่อมราคาสะสม', '', '', '', '', '', '']);
+    tracker.headerRows.push(tracker.currentRow); // Section header
+    tracker.currentRow++;
+    
+    let depreciationTotalCurrent = 0;
+    let depreciationTotalPrevious = 0;
+    let depreciationExpense = 0;
+    const depreciationStartRow = tracker.currentRow; // Track start of depreciation details
+
+    // 8. Individual Depreciation Accounts (Detail Rows)
+    depreciationAccounts.forEach(account => {
+      const currentAmount = Math.abs(account.balance); // Convert to positive
+      const previousAmount = Math.abs(account.previousBalance || 0); // Convert to positive
+      const expenseAmount = Math.max(0, currentAmount - previousAmount); // Depreciation expense for the year
+      
+      if (currentAmount !== 0 || previousAmount !== 0) {
+        if (processingType === 'multi-year') {
+          notes.push(['', '', account.accountName, 
+            previousAmount, '', // Column D (index 3): Previous depreciation
+            expenseAmount > 0 ? expenseAmount : '', '', // Column F (index 5): Depreciation expense
+            '', currentAmount]); // Column I (index 8): Current depreciation
+        } else {
+          notes.push(['', '', account.accountName, '', '', '', '', '', currentAmount]); // Column I (index 8): Current depreciation only
+        }
+        
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+        
+        depreciationTotalCurrent += currentAmount;
+        depreciationTotalPrevious += previousAmount;
+        depreciationExpense += expenseAmount;
+      }
+    });
+
+    // 9. Depreciation Totals with Excel formulas (Total Row)
+    const depreciationEndRow = tracker.currentRow - 1; // Last row of depreciation details
+    
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'รวม', 
+        { f: `SUM(D${depreciationStartRow}:D${depreciationEndRow})` }, '', // Column D (index 3): Previous depreciation total formula
+        { f: `SUM(F${depreciationStartRow}:F${depreciationEndRow})` }, '', // Column F (index 5): Total depreciation expense formula
+        '', { f: `SUM(I${depreciationStartRow}:I${depreciationEndRow})` }]); // Column I (index 8): Current depreciation total formula
+    } else {
+      notes.push(['', '', 'รวม', '', '', '', '', '', 
+        { f: `SUM(I${depreciationStartRow}:I${depreciationEndRow})` }]); // Column I (index 8): Current depreciation total formula only
+    }
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 10. Net book value with formulas referencing the totals above (Total Row)
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+    
+    const assetTotalRowIndex = assetEndRow + 1; // Row number of asset totals
+    const depreciationTotalRowIndex = tracker.currentRow - 2; // Row number of depreciation totals (just added above)
+    
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'มูลค่าสุทธิ', 
+        { f: `D${assetTotalRowIndex}-D${depreciationTotalRowIndex}` }, '', '', '', // Column D (index 3): Previous net value formula
+        '', { f: `I${assetTotalRowIndex}-I${depreciationTotalRowIndex}` }]); // Column I (index 8): Current net value formula
+    } else {
+      notes.push(['', '', 'มูลค่าสุทธิ', '', '', '', '', '', 
+        { f: `I${assetTotalRowIndex}-I${depreciationTotalRowIndex}` }]); // Column I (index 8): Current net value formula only
+    }
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
+
+    // 11. Depreciation expense summary - reference the depreciation expense total
+    if (depreciationExpense > 0) {
+      notes.push(['', '', 'ค่าเสื่อมราคา', '', '', '', '', '', 
+        { f: `F${depreciationTotalRowIndex}` }]); // Column I (index 8): Reference depreciation expense total
+      tracker.totalRows.push(tracker.currentRow);
+      tracker.currentRow++;
+    }
+    
+    // 12. Final spacer
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    tracker.currentRow++;
+
+    console.log(`PPE Enhanced Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
     return tracker;
   }
 
