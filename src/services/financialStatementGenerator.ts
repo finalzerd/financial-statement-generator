@@ -585,73 +585,9 @@ export class FinancialStatementGenerator {
     return total;
   }
 
-  private formatNumber(amount: number): string {
-    if (amount === 0) return '-';
-    return new Intl.NumberFormat('th-TH', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(Math.abs(amount));
-  }
-
-  private formatCurrency(amount: number): string {
-    if (amount === 0) return '-';
-    return new Intl.NumberFormat('th-TH', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(Math.abs(amount));
-  }
-
-  private buildSumFormula(rows: number[], column: string): string {
-    if (rows.length === 0) return '0';
-    if (rows.length === 1) return `${column}${rows[0]}`;
-    
-    // Create ranges for consecutive rows, individual cells for non-consecutive
-    const ranges: string[] = [];
-    let rangeStart = rows[0];
-    let rangeEnd = rows[0];
-    
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i] === rangeEnd + 1) {
-        rangeEnd = rows[i];
-      } else {
-        if (rangeStart === rangeEnd) {
-          ranges.push(`${column}${rangeStart}`);
-        } else {
-          ranges.push(`${column}${rangeStart}:${column}${rangeEnd}`);
-        }
-        rangeStart = rows[i];
-        rangeEnd = rows[i];
-      }
-    }
-    
-    // Add the last range
-    if (rangeStart === rangeEnd) {
-      ranges.push(`${column}${rangeStart}`);
-    } else {
-      ranges.push(`${column}${rangeStart}:${column}${rangeEnd}`);
-    }
-    
-    return `SUM(${ranges.join(',')})`;
-  }
-
   // ============================================================================
   // ACCOUNT BALANCE CALCULATION METHODS
   // ============================================================================
-
-  private sumAccountsByRange(trialBalanceData: TrialBalanceEntry[], accountCodes: string[], dataType: 'current' | 'previous', trialBalancePrevious?: TrialBalanceEntry[]): number {
-    const sourceData = dataType === 'previous' ? trialBalancePrevious || [] : trialBalanceData;
-    
-    const matchingEntries = sourceData.filter(entry => 
-      accountCodes.some(code => entry.accountCode === code || entry.accountCode?.startsWith(code))
-    );
-    
-    return Math.abs(matchingEntries.reduce((sum, entry) => {
-      const balance = dataType === 'previous' 
-        ? (entry.previousBalance || 0)
-        : (entry.balance || 0);
-      return sum + balance;
-    }, 0));
-  }
 
   private sumAccountsByNumericRange(trialBalanceData: TrialBalanceEntry[], startCode: number, endCode: number): number {
     const matchingEntries = trialBalanceData.filter(entry => {
@@ -745,8 +681,8 @@ export class FinancialStatementGenerator {
     }
 
     // Current Assets Total
-    const currentAssetsFormula = this.buildSumFormula(currentAssetRows, 'G');
-    const currentAssetsFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(currentAssetRows, 'I') : '';
+    const currentAssetsFormula = FinancialCalculations.buildSumFormula(currentAssetRows, 'G');
+    const currentAssetsFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(currentAssetRows, 'I') : '';
     
     worksheetData.push(['', 'รวมสินทรัพย์หมุนเวียน', '', '', '', '', 
       { f: currentAssetsFormula }, 
@@ -778,8 +714,8 @@ export class FinancialStatementGenerator {
     }
 
     // Non-Current Assets Total
-    const nonCurrentAssetsFormula = this.buildSumFormula(nonCurrentAssetRows, 'G');
-    const nonCurrentAssetsFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(nonCurrentAssetRows, 'I') : '';
+    const nonCurrentAssetsFormula = FinancialCalculations.buildSumFormula(nonCurrentAssetRows, 'G');
+    const nonCurrentAssetsFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(nonCurrentAssetRows, 'I') : '';
     
     worksheetData.push(['', 'รวมสินทรัพย์ไม่หมุนเวียน', '', '', '', '', 
       { f: nonCurrentAssetsFormula }, 
@@ -957,8 +893,8 @@ export class FinancialStatementGenerator {
     }
 
     // Current Liabilities Total using tracked rows
-    const currentLiabilitiesFormula = this.buildSumFormula(cellTracker.currentLiabilitiesRows, 'G');
-    const currentLiabilitiesFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.currentLiabilitiesRows, 'I') : '';
+    const currentLiabilitiesFormula = FinancialCalculations.buildSumFormula(cellTracker.currentLiabilitiesRows, 'G');
+    const currentLiabilitiesFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(cellTracker.currentLiabilitiesRows, 'I') : '';
     
     worksheetData.push(['', 'รวมหนี้สินหมุนเวียน', '', '', '', '', 
       { f: currentLiabilitiesFormula }, 
@@ -999,8 +935,8 @@ export class FinancialStatementGenerator {
     }
 
     // Non-Current Liabilities Total using tracked rows
-    const nonCurrentLiabilitiesFormula = this.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'G');
-    const nonCurrentLiabilitiesFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'I') : '';
+    const nonCurrentLiabilitiesFormula = FinancialCalculations.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'G');
+    const nonCurrentLiabilitiesFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'I') : '';
     
     worksheetData.push(['', 'รวมหนี้สินไม่หมุนเวียน', '', '', '', '', 
       { f: nonCurrentLiabilitiesFormula }, 
@@ -1091,8 +1027,8 @@ export class FinancialStatementGenerator {
     }
 
     // Total Equity using tracked rows
-    const totalEquityFormula = this.buildSumFormula(cellTracker.equityDataRows, 'G');
-    const totalEquityFormulaPrev = processingType === 'multi-year' ? this.buildSumFormula(cellTracker.equityDataRows, 'I') : '';
+    const totalEquityFormula = FinancialCalculations.buildSumFormula(cellTracker.equityDataRows, 'G');
+    const totalEquityFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(cellTracker.equityDataRows, 'I') : '';
     
     worksheetData.push(['', `รวม${equityTerm}`, '', '', '', '', 
       { f: totalEquityFormula }, 
@@ -1651,21 +1587,6 @@ export class FinancialStatementGenerator {
     if (financialCosts > 0) {
       detailNotes.push(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCosts]);
     }
-  }
-
-  private checkHasInventory(trialBalanceData: TrialBalanceEntry[]): boolean {
-    // Check for inventory account 1510
-    const inventoryAccount = trialBalanceData.find(entry => entry.accountCode === '1510');
-    if (inventoryAccount && (inventoryAccount.balance !== 0)) {
-      return true;
-    }
-
-    // Check for purchase accounts 5010
-    const purchaseAccounts = trialBalanceData.filter(entry => 
-      entry.accountCode?.startsWith('5010') && 
-      (entry.balance !== 0)
-    );
-    return purchaseAccounts.length > 0;
   }
 
   // ============================================================================
