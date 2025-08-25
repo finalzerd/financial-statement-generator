@@ -150,6 +150,66 @@ case 'noteType':
 
 **IMPORTANT**: Never add `{text: string, bold: true}` objects in FinancialStatementGenerator. Always use plain strings and handle formatting in ExcelJSFormatter pattern recognition or row tracking.
 
+## Cell Clearing Architecture & Critical Zero Handling
+
+### **Cell Clearing Functions & Logic**
+The ExcelJSFormatter includes multiple cell clearing functions that remove empty/blank content for professional worksheet appearance. **CRITICAL**: These functions can inadvertently clear intentional zero values if not properly implemented.
+
+### **Main Clearing Functions**
+1. **`clearEmptyCells(worksheet)`** - Primary clearing function with extended range (rows 1-100, columns A-K)
+2. **`clearBlankSpaces(worksheet)`** - Clears empty strings, spaces, and null values only
+3. **`clearNotesAccountingBlanks(worksheet)`** - Enhanced clearing specifically for Notes_Accounting
+
+### **The Zero Clearing Problem (SOLVED)**
+**Issue**: Zeros in PPE movement columns (F=ซื้อเพิ่ม, G=จำหน่ายออก) were being cleared by `clearEmptyCells()` function.
+
+**Root Cause**: JavaScript falsy value evaluation in clearing condition:
+```typescript
+// PROBLEMATIC CODE (FIXED):
+if (!cell.value || ...) {  // !0 evaluates to true, clearing zeros!
+```
+
+**Solution**: Explicit null/undefined checking to preserve intentional zeros:
+```typescript
+// CORRECT CODE:
+if ((cell.value === undefined || cell.value === null) || 
+    (typeof cell.value === 'string' && cell.value.trim() === '') ||
+    (typeof cell.value === 'string' && /^\s*$/.test(cell.value)) ||
+    (typeof cell.value === 'number' && cell.value === 0 && row > 10 && shouldClearZeros && !isProtectedColumn)) {
+```
+
+### **Protected Column Logic**
+```typescript
+// Protect specific columns from zero clearing
+const shouldClearZeros = (col !== 6 && col !== 7);  // Don't clear zeros in F(6) and G(7)
+const isProtectedColumn = (col === 6 || col === 7);  // PPE movement columns
+
+// Only clear zeros if:
+// 1. It's a number equal to 0
+// 2. Row > 10 (avoid clearing header zeros)
+// 3. Column is NOT protected (not F or G)
+// 4. Double-check with isProtectedColumn flag
+```
+
+### **Critical Implementation Rules**
+1. **Never use `!value` for zero checking** - Use explicit `=== undefined` and `=== null`
+2. **Protect specific columns** - PPE movement columns F(6) and G(7) must preserve zeros
+3. **Row-based protection** - Only clear zeros in rows > 10 to preserve header formatting
+4. **Function order matters** - Run clearing functions after data insertion but before final formatting
+
+### **Debugging Zero Issues**
+If zeros disappear from Excel output:
+1. Check `clearEmptyCells()` condition logic for falsy value catching
+2. Verify protected column numbers (F=6, G=7 in 1-indexed Excel)
+3. Add logging to see which clearing function is removing values
+4. Test clearing logic with JavaScript falsy value evaluation
+
+### **Best Practices**
+- **Test clearing logic** independently before applying to worksheets
+- **Use explicit checks** for undefined/null instead of falsy evaluation
+- **Document protected columns** clearly in code comments
+- **Preserve business logic** - zeros often have meaning in financial statements
+
 ## Global Data Architecture Implementation
 
 ### **DetailedFinancialData Interface - Foundation-First with Dynamic Individual Accounts**
@@ -398,6 +458,7 @@ This system represents a complete migration from Excel VBA to modern web technol
 ### **Recent Architecture Improvements**
 - **Enhanced Notes_Accounting Formatting**: Row tracking provides exact bold header placement and professional formatting
 - **Zero-Filtering Performance**: Pre-extracted individual accounts eliminate redundant trial balance operations
+- **Critical Zero Display Fix**: Fixed clearEmptyCells() function to preserve zeros in PPE movement columns (F/G)
 - **Comprehensive Error Handling**: TypeScript type safety with user-friendly error messages
 - **Modular Service Architecture**: Clean separation of concerns across 6 specialized services
 - **Database Integration**: Persistent company data, trial balance storage, statement management

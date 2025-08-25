@@ -60,8 +60,8 @@ export class ExcelJSFormatter {
             // It's a formatted number string - convert to actual number
             cell.value = numericValue;
           } else {
-            // It's actual text content
-            cell.value = cellValue || '';
+            // It's actual text content - preserve zeros as numbers, empty as empty
+            cell.value = cellValue !== undefined && cellValue !== null ? cellValue : '';
           }
         } else {
           // Handle any other case
@@ -739,10 +739,15 @@ export class ExcelJSFormatter {
         const cell = worksheet.getCell(row, col);
         
         // Check if cell is effectively empty or contains only whitespace
-        if (!cell.value || 
+        // Protect columns F(6) and G(7) from having zeros cleared (PPE movement columns)
+        const shouldClearZeros = (col !== 6 && col !== 7);
+        const isProtectedColumn = (col === 6 || col === 7);
+        
+        if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
             (typeof cell.value === 'string' && /^\s*$/.test(cell.value)) ||
-            (typeof cell.value === 'number' && cell.value === 0 && row > 10)) { // Don't clear legitimate 0 amounts in data rows
+            (typeof cell.value === 'number' && cell.value === 0 && row > 10 && shouldClearZeros && !isProtectedColumn)) {
+          
           
           // Clear the cell value completely
           cell.value = null;
@@ -1045,7 +1050,7 @@ export class ExcelJSFormatter {
       }
     });
     
-    // STEP 4: Final cleanup - clear any remaining empty cells  
+    // STEP 4: Final cleanup - clear any remaining empty cells but preserve PPE movement columns
     this.clearEmptyCells(worksheet);
     
     console.log(`Specific note formatting completed for ${formatters.length} notes with enhanced blank cell cleanup`);
@@ -1227,7 +1232,7 @@ export class ExcelJSFormatter {
       // Apply number formatting to amount columns
       for (let col = 4; col <= 9; col++) { // Columns D through I
         const cell = worksheet.getCell(row, col);
-        if (cell.value && typeof cell.value === 'number') {
+        if (typeof cell.value === 'number') { // Remove the && cell.value condition to include zeros
           cell.numFmt = '#,##0.00';
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
           cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
@@ -1246,12 +1251,10 @@ export class ExcelJSFormatter {
       // Apply number formatting to amount columns but keep them normal weight
       for (let col = 4; col <= 9; col++) { // Columns D through I
         const cell = worksheet.getCell(row, col);
-        if (cell.value) {
-          if (typeof cell.value === 'number' || (typeof cell.value === 'object' && 'formula' in cell.value)) {
-            cell.numFmt = '#,##0.00';
-            cell.alignment = { horizontal: 'right', vertical: 'middle' };
-            cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
-          }
+        if (typeof cell.value === 'number' || (typeof cell.value === 'object' && cell.value && 'formula' in cell.value)) {
+          cell.numFmt = '#,##0.00';
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
         }
       }
     });
