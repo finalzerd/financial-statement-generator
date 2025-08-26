@@ -1496,7 +1496,7 @@ export class FinancialStatementGenerator {
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT2 - Selling and administrative expenses  
-    this.addDetailTwoWithGlobalData(detailNotes, globalData);
+    this.addDetailTwoWithGlobalData(detailNotes, globalData, trialBalanceData);
     
     return detailNotes;
   }
@@ -2132,10 +2132,6 @@ export class FinancialStatementGenerator {
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
     
-    // 6. Space before depreciation section
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-    
     // 7. Accumulated Depreciation Section Header
     notes.push(['', '', 'ค่าเสื่อมราคาสะสม', '', '', '', '', '', '']);
     tracker.headerRows.push(tracker.currentRow); // Section header
@@ -2187,11 +2183,8 @@ export class FinancialStatementGenerator {
     tracker.currentRow++;
 
     // 10. Net book value with formulas referencing the totals above (Total Row)
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-    
     const assetTotalRowIndex = assetEndRow + 1; // Row number of asset totals
-    const depreciationTotalRowIndex = tracker.currentRow - 2; // Row number of depreciation totals (just added above)
+    const depreciationTotalRowIndex = tracker.currentRow - 1; // Row number of depreciation totals (just added above)
     
     // Net book value - Same structure for both processing types
     notes.push(['', '', 'มูลค่าสุทธิ', 
@@ -3254,18 +3247,82 @@ export class FinancialStatementGenerator {
 
   private addDetailTwoWithGlobalData(
     detailNotes: any[][], 
-    globalData: DetailedFinancialData
+    globalData: DetailedFinancialData,
+    trialBalanceData: TrialBalanceEntry[]
   ): void {
+    // Header for Detail 2
     detailNotes.push(['รายละเอียดประกอบที่ 2', '', '', '', '', '', '', '', 'หน่วย:บาท']);
-    detailNotes.push(['', '', '', '', '', '', '', '', '']);
-    detailNotes.push(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', '', '', '']);
     
-    // Use global data for total expenses - eliminates redundant calculations
-    const totalExpenses = globalData.income.expenses.total;
+    // Column headers row
+    detailNotes.push(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', 'ค่าใช้จ่ายในการขาย', 'ค่าใช้จ่ายในการบริหาร', 'ค่าใช้จ่ายอื่น']);
     
-    // Add expense categories with global totals
-    detailNotes.push(['', 'ค่าใช้จ่ายในการขาย', '', '', '', '', '', '', globalData.income.expenses.adminExpenses]);
-    detailNotes.push(['', 'ค่าใช้จ่ายในการบริหาร', '', '', '', '', '', '', globalData.income.expenses.otherExpenses]);
-    detailNotes.push(['', '', 'รวม', '', '', '', '', '', totalExpenses]);
+    // Track starting row for totals calculation
+    const dataStartRow = detailNotes.length + 1; // Next row number (1-indexed for Excel)
+    
+    // Initialize totals for each category
+    let sellingExpensesTotal = 0;
+    let adminExpensesTotal = 0; 
+    let otherExpensesTotal = 0;
+    let financialCostsTotal = 0;
+    
+    // Get all expense accounts from trial balance data
+    const expenseAccounts = trialBalanceData.filter((entry: TrialBalanceEntry) => {
+      const code = parseInt(entry.accountCode || '0');
+      return code >= 5300 && code <= 5999 && entry.accountCode !== '5910';
+    });
+    
+    // Process each expense account
+    expenseAccounts.forEach((account: TrialBalanceEntry) => {
+      const accountCode = account.accountCode || '';
+      const accountName = account.accountName || '';
+      const amount = Math.abs(account.balance || 0); // Expenses are positive
+      
+      if (amount === 0) return; // Skip zero amounts
+      
+      // Check account code ranges
+      const codeNum = parseInt(accountCode);
+      
+      if (codeNum >= 5360 && codeNum <= 5364) {
+        // Financial costs - handle separately
+        financialCostsTotal += amount;
+      } else {
+        // Regular expense accounts
+        let sellingAmount = 0;
+        let adminAmount = 0;
+        let otherAmount = 0;
+        
+        if (codeNum >= 5300 && codeNum <= 5311) {
+          // Selling expenses
+          sellingAmount = amount;
+          sellingExpensesTotal += amount;
+        } else if (codeNum >= 5312 && codeNum <= 5350) {
+          // Admin expenses
+          adminAmount = amount;
+          adminExpensesTotal += amount;
+        } else if ((codeNum >= 5351 && codeNum <= 5359) || (codeNum >= 5365 && codeNum <= 5999)) {
+          // Other expenses
+          otherAmount = amount;
+          otherExpensesTotal += amount;
+        }
+        
+        // Add account row (account name in columns A-F merged, amounts in G,H,I)
+        detailNotes.push([accountName, '', '', '', '', '', sellingAmount, adminAmount, otherAmount]);
+      }
+    });
+    
+    // Calculate ending row for totals
+    const dataEndRow = detailNotes.length; // Current row number (1-indexed for Excel)
+    
+    // Add total row with formulas
+    detailNotes.push(['รวม', '', '', '', '', '', 
+      { f: `SUM(G${dataStartRow}:G${dataEndRow})` },
+      { f: `SUM(H${dataStartRow}:H${dataEndRow})` },
+      { f: `SUM(I${dataStartRow}:I${dataEndRow})` }
+    ]);
+    
+    // Add financial costs row if there are any
+    if (financialCostsTotal > 0) {
+      detailNotes.push(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCostsTotal]);
+    }
   }
 }

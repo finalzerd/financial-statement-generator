@@ -1630,8 +1630,9 @@ export class ExcelJSFormatter {
     
     // Apply formatting sections without green background
     this.formatCompanyHeaderNoBackground(worksheet);
-    this.formatColumnHeadersProfessional(worksheet);
+    this.formatColumnHeadersAccountingNotes(worksheet); // Use accounting notes headers (no หมายเหตุ in F5)
     this.formatDetailNotesAccountLines(worksheet);
+    this.formatDetailTwoMerging(worksheet); // Add specific merging for Detail 2
     this.formatTotalLinesProfessional(worksheet);
     this.setRowHeightsProfessional(worksheet);
     
@@ -1667,6 +1668,124 @@ export class ExcelJSFormatter {
         amountCell.numFmt = '#,##0.00_);[Red](#,##0.00)';
       });
     }
+  }
+  
+  /**
+   * Format Detail 2 specific merging - merge columns A-F for expense account rows
+   */
+  private static formatDetailTwoMerging(worksheet: ExcelJS.Worksheet): void {
+    // Find Detail 2 section by looking for "รายละเอียดประกอบที่ 2"
+    let detailTwoStartRow = -1;
+    let detailTwoHeaderRow = -1;
+    
+    // Find the start of Detail 2
+    for (let row = 1; row <= 100; row++) {
+      const cellValue = worksheet.getCell(row, 1).value;
+      if (cellValue && cellValue.toString().includes('รายละเอียดประกอบที่ 2')) {
+        detailTwoStartRow = row;
+        break;
+      }
+    }
+    
+    // Find the header row (ค่าใช้จ่ายในการขายและบริหาร)
+    if (detailTwoStartRow > 0) {
+      for (let row = detailTwoStartRow; row <= detailTwoStartRow + 5; row++) {
+        const cellValue = worksheet.getCell(row, 1).value;
+        if (cellValue && cellValue.toString().includes('ค่าใช้จ่ายในการขายและบริหาร')) {
+          detailTwoHeaderRow = row;
+          break;
+        }
+      }
+    }
+    
+    if (detailTwoHeaderRow > 0) {
+      // Merge the header row A-F
+      worksheet.mergeCells(`A${detailTwoHeaderRow}:F${detailTwoHeaderRow}`);
+      const headerCell = worksheet.getCell(`A${detailTwoHeaderRow}`);
+      headerCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Add borders to header row
+      for (let col = 1; col <= 9; col++) {
+        const cell = worksheet.getCell(detailTwoHeaderRow, col);
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      }
+      
+      // Process expense account rows (data rows after header)
+      const dataStartRow = detailTwoHeaderRow + 1;
+      let lastDataRow = dataStartRow;
+      
+      for (let row = dataStartRow; row <= dataStartRow + 50; row++) {
+        const cellA = worksheet.getCell(row, 1);
+        const cellG = worksheet.getCell(row, 7);
+        const cellH = worksheet.getCell(row, 8);
+        const cellI = worksheet.getCell(row, 9);
+        
+        // Check if this row has expense data (non-zero values in G, H, or I, or is a total/financial cost row)
+        const hasExpenseData = (cellG.value && cellG.value !== 0) || 
+                              (cellH.value && cellH.value !== 0) || 
+                              (cellI.value && cellI.value !== 0) ||
+                              (cellA.value && (cellA.value.toString().includes('รวม') || 
+                                             cellA.value.toString().includes('ค่าใช้จ่ายต้นทุนทางการเงิน')));
+        
+        // Check if row has account name in column A
+        const hasAccountName = cellA.value && cellA.value.toString().trim() !== '';
+        
+        if (hasAccountName && hasExpenseData) {
+          // Merge columns A-F for this expense account row
+          try {
+            worksheet.mergeCells(`A${row}:F${row}`);
+            cellA.alignment = { horizontal: 'left', vertical: 'middle' };
+          } catch (error) {
+            // Skip if merge fails (already merged or other issue)
+            console.log(`Merge failed for row ${row}: ${error}`);
+          }
+          
+          // Add borders to all columns for this data row (A-I)
+          for (let col = 1; col <= 9; col++) {
+            const cell = worksheet.getCell(row, col);
+            cell.border = {
+              top: { style: 'thin' },
+              left: { style: 'thin' },
+              bottom: { style: 'thin' },
+              right: { style: 'thin' }
+            };
+          }
+          
+          lastDataRow = row;
+        }
+        
+        // Stop processing if we reach an empty section (end of Detail 2)
+        if (!hasAccountName && !hasExpenseData) {
+          // Check next few rows to see if we've reached the end
+          let emptyRowCount = 0;
+          for (let checkRow = row; checkRow <= row + 3; checkRow++) {
+            const checkCell = worksheet.getCell(checkRow, 1);
+            if (!checkCell.value || checkCell.value.toString().trim() === '') {
+              emptyRowCount++;
+            }
+          }
+          if (emptyRowCount >= 3) break; // End of Detail 2 section
+        }
+      }
+      
+      // Add bottom border to complete the table
+      if (lastDataRow > dataStartRow) {
+        for (let col = 1; col <= 9; col++) {
+          const cell = worksheet.getCell(lastDataRow, col);
+          cell.border = {
+            ...cell.border,
+            bottom: { style: 'medium' }
+          };
+        }
+      }
+    }
+    
+    console.log('Detail 2 cell merging completed');
   }
   
   /**
