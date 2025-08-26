@@ -20,7 +20,7 @@ export interface NoteRowTracker {
  * Interface for note formatting information
  */
 export interface NoteFormatter {
-  type: 'cash' | 'receivables' | 'payables' | 'ppe' | 'inventory' | 'general';
+  type: 'cash' | 'receivables' | 'payables' | 'ppe' | 'inventory' | 'general' | 'shortTermLoans';
   tracker: NoteRowTracker;
 }
 

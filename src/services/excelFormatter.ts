@@ -1045,6 +1045,9 @@ export class ExcelJSFormatter {
         case 'ppe':
           this.formatPPENote(worksheet, formatter.tracker);
           break;
+        case 'shortTermLoans':
+          this.formatShortTermLoansNote(worksheet, formatter.tracker);
+          break;
         default:
           this.formatGeneralNote(worksheet, formatter.tracker);
       }
@@ -1260,6 +1263,16 @@ export class ExcelJSFormatter {
     });
 
     console.log(`PPE Note formatting completed: ${tracker.headerRows.length} headers, ${tracker.detailRows.length} details, ${tracker.totalRows.length} totals`);
+  }
+
+  /**
+   * Format Short Term Loans Note specifically
+   */
+  private static formatShortTermLoansNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Short Term Loans Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Use same structure as Cash Note - simple note format
+    this.formatCashNote(worksheet, tracker);
   }
 
   /**

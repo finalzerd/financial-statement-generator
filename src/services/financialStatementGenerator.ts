@@ -12,7 +12,9 @@ import {
   TradePayablesNoteGenerator,
   PPENoteGenerator,
   OtherIncomeNoteGenerator,
-  ShortTermBorrowingsNoteGenerator
+  ShortTermBorrowingsNoteGenerator,
+  ShortTermLoansNoteGenerator,
+  OtherAssetsNoteGenerator
 } from './financialStatements/notes/noteTypes';
 import type { 
   NoteRowTracker, 
@@ -1316,8 +1318,15 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'ppe', tracker: ppeTracker });
     }
     
-    this.addShortTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addOtherAssetsNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (shortTermLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'shortTermLoans', tracker: shortTermLoansTracker });
+    }
+    
+    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (otherAssetsTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: otherAssetsTracker });
+    }
     this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
@@ -2518,38 +2527,6 @@ export class FinancialStatementGenerator {
     notes.push(['', '', '', '', '', '', '', '', '']);
   }
 
-  private addShortTermLoansNote(
-    notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
-    companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year', 
-    trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 5
-  ): void {
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1141, 1141));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1141, 1141)) : 0;
-
-    if (totalAmount !== 0 || prevTotalAmount !== 0) {
-      notes.push([noteNumber.toString(), 'เงินให้กู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
-      if (processingType === 'multi-year') {
-        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-      } else {
-        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
-      }
-      
-      notes.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', 
-        processingType === 'multi-year' ? totalAmount : '', '', 
-        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
-      
-      const dataRowIndex = notes.length; // The data row we just added (0-based array length = 1-based Excel row - 1)
-      notes.push(['', '', 'รวม', '', '', '', 
-        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
-        {f: `I${dataRowIndex}`}]);
-      notes.push(['', '', '', '', '', '', '', '', '']);
-    }
-  }
-
   private addPPENote(
     notes: any[][], 
     trialBalanceData: TrialBalanceEntry[], 
@@ -2706,38 +2683,6 @@ export class FinancialStatementGenerator {
     }
     
     notes.push(['', '', '', '', '', '', '', '', '']);
-  }
-
-  private addOtherAssetsNote(
-    notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
-    companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year', 
-    trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 7
-  ): void {
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1660, 1700)) : 0;
-
-    if (totalAmount !== 0 || prevTotalAmount !== 0) {
-      notes.push([noteNumber.toString(), 'สินทรัพย์อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
-      if (processingType === 'multi-year') {
-        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-      } else {
-        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
-      }
-      
-      notes.push(['', '', 'สินทรัพย์อื่น', '', '', '', 
-        processingType === 'multi-year' ? totalAmount : '', '', 
-        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
-      
-      const dataRowIndex = notes.length; // The data row we just added
-      notes.push(['', '', 'รวม', '', '', '', 
-        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
-        {f: `I${dataRowIndex}`}]);
-      notes.push(['', '', '', '', '', '', '', '', '']);
-    }
   }
 
   private addBankOverdraftsNote(
