@@ -14,7 +14,8 @@ import {
   OtherIncomeNoteGenerator,
   ShortTermBorrowingsNoteGenerator,
   ShortTermLoansNoteGenerator,
-  OtherAssetsNoteGenerator
+  OtherAssetsNoteGenerator,
+  LongTermLoansNoteGenerator
 } from './financialStatements/notes/noteTypes';
 import type { 
   NoteRowTracker, 
@@ -1327,7 +1328,11 @@ export class FinancialStatementGenerator {
     if (otherAssetsTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherAssetsTracker });
     }
-    this.addLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    
+    const longTermLoansTracker = LongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (longTermLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: longTermLoansTracker });
+    }
     this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     
@@ -2825,44 +2830,6 @@ export class FinancialStatementGenerator {
       notes.push(['', '', 'รวม', '', '', '', 
         processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
         {f: `I${dataRowIndex}`}]);
-      notes.push(['', '', '', '', '', '', '', '', '']);
-    }
-  }
-
-  private addLongTermLoansNote(
-    notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
-    companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year', 
-    trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 11
-  ): void {
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
-                       Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2120, 2123)) : 0;
-
-    if (totalAmount !== 0 || prevTotalAmount !== 0) {
-      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
-      if (processingType === 'multi-year') {
-        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-      } else {
-        notes.push(['', '', '', '', '', '', '', '', `${companyInfo.reportingYear}`]);
-      }
-      
-      notes.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', 
-        processingType === 'multi-year' ? totalAmount : '', '', 
-        totalAmount !== 0 ? totalAmount : (processingType === 'multi-year' ? prevTotalAmount : totalAmount)]);
-      
-      const dataRowIndex = notes.length; // The data row we just added
-      notes.push(['', '', 'รวม', '', '', '', 
-        processingType === 'multi-year' ? {f: `G${dataRowIndex}`} : '', '', 
-        {f: `I${dataRowIndex}`}]);
-      
-      // Add current portion detail - this would normally be user input in VBA
-      const currentPortion = Math.round(totalAmount * 0.1); // Placeholder: 10% as current portion
-      notes.push(['', '', 'หัก ส่วนของหนี้สินระยะยาวที่ถึงกำหนดชำระภายในหนึ่งปี', '', '', '', currentPortion, '', '']);
-      notes.push(['', '', 'เงินกู้ยืมระยะยาวสุทธิจากส่วนที่ถึงกำหนดชำระคืนภายในหนึ่งปี', '', '', '', totalAmount - currentPortion, '', '']);
       notes.push(['', '', '', '', '', '', '', '', '']);
     }
   }

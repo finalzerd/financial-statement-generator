@@ -10,6 +10,7 @@ export { OtherIncomeNoteGenerator } from './OtherIncomeNoteGenerator';
 export { ShortTermBorrowingsNoteGenerator } from './ShortTermBorrowingsNoteGenerator';
 export { ShortTermLoansNoteGenerator } from './ShortTermLoansNoteGenerator';
 export { OtherAssetsNoteGenerator } from './OtherAssetsNoteGenerator';
+export { LongTermLoansNoteGenerator } from './LongTermLoansNoteGenerator';
 
 // TODO: Add more note generators as they are extracted:
 // export { InventoryNoteGenerator } from './InventoryNoteGenerator';
