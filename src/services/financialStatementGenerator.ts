@@ -15,7 +15,11 @@ import {
   ShortTermBorrowingsNoteGenerator,
   ShortTermLoansNoteGenerator,
   OtherAssetsNoteGenerator,
-  LongTermLoansNoteGenerator
+  LongTermLoansNoteGenerator,
+  OtherLongTermLoansNoteGenerator,
+  RelatedPartyLoansNoteGenerator,
+  ExpensesByNatureNoteGenerator,
+  FinancialApprovalNoteGenerator
 } from './financialStatements/notes/noteTypes';
 import type { 
   NoteRowTracker, 
@@ -1333,17 +1337,32 @@ export class FinancialStatementGenerator {
     if (longTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: longTermLoansTracker });
     }
-    this.addOtherLongTermLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    this.addRelatedPartyLoansNote(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    
+    const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (otherLongTermLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });
+    }
+    
+    const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (relatedPartyLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: relatedPartyLoansTracker });
+    }
     
     const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     if (otherIncomeTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherIncomeTracker });
     }
     
-    this.addExpensesByNatureNote(notes, companyInfo, processingType, noteNumber++);
+    const expensesByNatureTracker = ExpensesByNatureNoteGenerator.generateWithRowTracking(notes, companyInfo, processingType, noteNumber++);
+    if (expensesByNatureTracker.headerRows.length > 0) {
+      formatters.push({ type: 'general', tracker: expensesByNatureTracker });
+    }
+    
     if (companyInfo.type === 'บริษัทจำกัด') {
-      this.addFinancialApprovalNote(notes, companyInfo, noteNumber++);
+      const financialApprovalTracker = FinancialApprovalNoteGenerator.generateWithRowTracking(notes, companyInfo, noteNumber++);
+      if (financialApprovalTracker.headerRows.length > 0) {
+        formatters.push({ type: 'general', tracker: financialApprovalTracker });
+      }
     }
 
     console.log(`Generated ${formatters.length} tracked notes with specific formatting`);
