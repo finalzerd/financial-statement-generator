@@ -1,0 +1,151 @@
+/* CompanyMappingPage Styles - Dark Theme Compatible */
+
+.company-mapping-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.no-company-selected {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.no-company-selected h2 {
+  color: rgba(255, 255, 255, 0.87);
+  margin-bottom: 1rem;
+}
+
+.page-header {
+  margin-bottom: 30px;
+}
+
+.page-header h1 {
+  margin: 0 0 10px 0;
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 600;
+}
+
+.page-header p {
+  margin: 0 0 20px 0;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.page-header strong {
+  color: #646cff;
+  font-weight: 600;
+}
+
+.intro-section {
+  background-color: #2a2a2a;
+  padding: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.intro-section p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.features-list {
+  margin: 20px 0;
+}
+
+.features-list h3 {
+  margin: 0 0 10px 0;
+  color: #646cff;
+  font-weight: 600;
+}
+
+.features-list ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.features-list li {
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.mapping-controls {
+  margin-bottom: 20px;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background-color: #646cff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #535bf2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(100, 108, 255, 0.3);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #545b62;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .company-mapping-page {
+    padding: 15px;
+  }
+  
+  .page-header h1 {
+    font-size: 1.8rem;
+  }
+  
+  .intro-section {
+    padding: 20px;
+  }
+  
+  .intro-section p {
+    font-size: 14px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .no-company-selected {
+    padding: 40px 15px;
+  }
+  
+  .features-list ul {
+    padding-left: 15px;
+  }
+  
+  .features-list li {
+    font-size: 14px;
+  }
+}

@@ -849,3 +849,199 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* ============================================================================
+   NAVIGATION TABS & ACCOUNT MAPPING STYLES
+   ============================================================================ */
+
+/* Navigation Tabs */
+.navigation-tabs {
+  display: flex;
+  gap: 0;
+  margin: 1.5rem 0;
+  border-bottom: 2px solid var(--border);
+  background: var(--bg-tertiary);
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tab-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.tab-button.active {
+  background: var(--bg-primary);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-button.active:hover {
+  background: var(--bg-primary);
+  color: var(--accent-hover);
+}
+
+/* Mappings Section */
+.mappings-section {
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 0 0 8px 8px;
+  border: 2px solid var(--border);
+  border-top: none;
+}
+
+.mappings-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.mappings-header h2 {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+  font-size: 1.8rem;
+}
+
+.mappings-header p {
+  margin: 0 0 1rem 0;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+}
+
+.trial-balance-info {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.info-badge {
+  background: var(--accent);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Enhanced Account Mapping Manager Integration */
+.mappings-section .account-mapping-manager {
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  padding: 0;
+}
+
+.mappings-section .account-mapping-manager .header {
+  background: var(--bg-tertiary);
+  padding: 1.5rem;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mappings-section .account-mapping-manager .header h2 {
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.mappings-section .account-mapping-manager .mappings-grid {
+  padding: 1.5rem;
+}
+
+.mappings-section .account-mapping-manager .mapping-card {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.mappings-section .account-mapping-manager .mapping-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.15);
+}
+
+.mappings-section .account-mapping-manager .validation-summary.valid {
+  background-color: rgba(76, 175, 80, 0.1);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.mappings-section .account-mapping-manager .validation-summary.invalid {
+  background-color: var(--error-bg);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* Dark Theme Button Overrides for Account Mapping */
+.mappings-section .btn-primary {
+  background-color: var(--accent);
+  border-color: var(--accent);
+}
+
+.mappings-section .btn-primary:hover {
+  background-color: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.mappings-section .btn-secondary {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.mappings-section .btn-secondary:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.mappings-section .btn-success {
+  background-color: var(--success);
+  border-color: var(--success);
+}
+
+.mappings-section .btn-success:hover {
+  background-color: var(--success-hover);
+  border-color: var(--success-hover);
+}
+
+/* Responsive Navigation */
+@media (max-width: 768px) {
+  .navigation-tabs {
+    flex-direction: column;
+  }
+  
+  .tab-button {
+    flex: none;
+    text-align: center;
+  }
+  
+  .mappings-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .trial-balance-info {
+    margin-top: 0.5rem;
+  }
+  
+  .info-badge {
+    font-size: 12px;
+    padding: 0.4rem 0.8rem;
+  }
+}

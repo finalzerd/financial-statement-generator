@@ -4,6 +4,7 @@ import FinancialStatementsDisplay from './components/FinancialStatementsDisplay'
 import SampleFileDownloader from './components/SampleFileDownloader'
 import CompanyInfoForm from './components/CompanyInfoForm'
 import CompanySelector from './components/CompanySelector'
+import { AccountMappingManager } from './components/AccountMappingManager'
 import type { CompanyInfoFormData } from './components/CompanyInfoForm'
 import { CSVProcessor } from './services/csvProcessor'
 import { FinancialStatementGenerator } from './services/financialStatementGenerator'
@@ -22,9 +23,15 @@ function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [showCompanySelector, setShowCompanySelector] = useState(true)
   
+  // Navigation state
+  const [activeTab, setActiveTab] = useState<'generate' | 'mappings'>('generate')
+  
   // Legacy form state (for companies not yet in database)
   const [showCompanyForm, setShowCompanyForm] = useState(false)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  
+  // Store trial balance data for mapping validation
+  const [currentTrialBalanceData, setCurrentTrialBalanceData] = useState<any[]>([])
 
   const statementGenerator = new FinancialStatementGenerator()
 
@@ -43,6 +50,9 @@ function App() {
 
     try {
       console.log('Processing file with database integration:', { trialBalanceSetId, csvData, companyInfo });
+      
+      // Store trial balance data for mapping validation
+      setCurrentTrialBalanceData(csvData.trialBalance || []);
       
       // Generate financial statements using existing logic
       const statements = statementGenerator.generateFinancialStatements(
@@ -90,6 +100,8 @@ function App() {
     setShowCompanySelector(true);
     setFinancialStatements(null);
     setError(undefined);
+    setCurrentTrialBalanceData([]);
+    setActiveTab('generate');
   }
 
   const processCsvFile = async (file: File, companyInfo: CompanyInfo) => {
@@ -105,6 +117,9 @@ function App() {
       // Process CSV data with multi-year support
       const csvData = CSVProcessor.processCsvFile(csvContent, companyInfo)
       console.log('CSV Data processed:', csvData)
+      
+      // Store trial balance data for mapping validation
+      setCurrentTrialBalanceData(csvData.trialBalance || []);
       
       // Generate financial statements (the generator will handle multi-year logic internally)
       const statements = statementGenerator.generateFinancialStatements(
@@ -187,6 +202,24 @@ function App() {
             </button>
           </div>
         )}
+        
+        {/* Navigation Tabs */}
+        {selectedCompany && !showCompanySelector && (
+          <div className="navigation-tabs">
+            <button 
+              className={`tab-button ${activeTab === 'generate' ? 'active' : ''}`}
+              onClick={() => setActiveTab('generate')}
+            >
+              📊 สร้างงบการเงิน
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'mappings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('mappings')}
+            >
+              ⚙️ จัดการรหัสบัญชี
+            </button>
+          </div>
+        )}
       </header>
       
       <main className="app-main">
@@ -197,22 +230,51 @@ function App() {
           />
         ) : (
           <>
-            <div className="upload-section">
-              <FileUploadWithDatabase
-                selectedCompany={selectedCompany}
-                onFileProcessed={handleFileProcessed}
-                processing={processing}
-                error={error}
-              />
-            </div>
-            
-            <SampleFileDownloader />
-            
-            {financialStatements && (
-              <div className="results-section">
-                <FinancialStatementsDisplay
-                  statements={financialStatements}
-                  onDownload={handleDownload}
+            {/* Content based on active tab */}
+            {activeTab === 'generate' ? (
+              <>
+                <div className="upload-section">
+                  <FileUploadWithDatabase
+                    selectedCompany={selectedCompany}
+                    onFileProcessed={handleFileProcessed}
+                    processing={processing}
+                    error={error}
+                  />
+                </div>
+                
+                <SampleFileDownloader />
+                
+                {financialStatements && (
+                  <div className="results-section">
+                    <FinancialStatementsDisplay
+                      statements={financialStatements}
+                      onDownload={handleDownload}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="mappings-section">
+                <div className="mappings-header">
+                  <h2>⚙️ จัดการรหัสบัญชี</h2>
+                  <p>ปรับแต่งการจับคู่รหัสบัญชีกับหมายเหตุประกอบงบการเงิน</p>
+                  {currentTrialBalanceData.length > 0 && (
+                    <div className="trial-balance-info">
+                      <span className="info-badge">
+                        📋 Trial Balance: {currentTrialBalanceData.length} รายการ
+                      </span>
+                    </div>
+                  )}
+                </div>
+                
+                <AccountMappingManager
+                  companyId={selectedCompany?.id || '1'}
+                  trialBalanceData={currentTrialBalanceData}
+                  onMappingsChanged={() => {
+                    console.log('Account mappings updated - you may want to regenerate statements');
+                    // Optionally clear financial statements to force regeneration
+                    // setFinancialStatements(null);
+                  }}
                 />
               </div>
             )}

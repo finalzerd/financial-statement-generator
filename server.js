@@ -314,6 +314,479 @@ app.delete('/api/companies/:id', (req, res) => {
   });
 });
 
+// ============== ACCOUNT MAPPING ENDPOINTS ==============
+
+// Get all account mappings for a company
+app.get('/api/companies/:companyId/account-mappings', (req, res) => {
+  const { companyId } = req.params;
+
+  const query = `
+    SELECT * FROM company_account_mappings 
+    WHERE company_id = ? 
+    ORDER BY note_number, note_type
+  `;
+
+  db.all(query, [companyId], (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Database error',
+        details: err.message 
+      });
+      return;
+    }
+
+    const mappings = rows.map(row => ({
+      id: row.id,
+      companyId: row.company_id,
+      noteType: row.note_type,
+      noteNumber: row.note_number,
+      noteTitle: row.note_title,
+      accountRanges: JSON.parse(row.account_ranges),
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }));
+
+    res.json(mappings);
+  });
+});
+
+// Update account mapping for a specific note type
+app.put('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
+  const { companyId, noteType } = req.params;
+  const { noteNumber, noteTitle, accountRanges, isActive } = req.body;
+
+  if (!accountRanges) {
+    res.status(400).json({ 
+      success: false, 
+      error: 'Missing required fields',
+      details: 'accountRanges is required' 
+    });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const query = `
+    UPDATE company_account_mappings 
+    SET note_number = ?, note_title = ?, account_ranges = ?, is_active = ?, updated_at = ?
+    WHERE company_id = ? AND note_type = ?
+  `;
+
+  db.run(query, [
+    noteNumber,
+    noteTitle,
+    JSON.stringify(accountRanges),
+    isActive ? 1 : 0,
+    now,
+    companyId,
+    noteType
+  ], function(err) {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to update account mapping',
+        details: err.message 
+      });
+      return;
+    }
+
+    if (this.changes === 0) {
+      res.status(404).json({ 
+        success: false, 
+        error: 'Account mapping not found',
+        details: `No mapping found for company ${companyId} and note type ${noteType}` 
+      });
+      return;
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Account mapping updated successfully' 
+    });
+  });
+});
+
+// Create new account mapping
+app.post('/api/companies/:companyId/account-mappings', (req, res) => {
+  const { companyId } = req.params;
+  const { noteType, noteNumber, noteTitle, accountRanges, isActive } = req.body;
+
+  if (!noteType || !accountRanges) {
+    res.status(400).json({ 
+      success: false, 
+      error: 'Missing required fields',
+      details: 'noteType and accountRanges are required' 
+    });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const query = `
+    INSERT INTO company_account_mappings 
+    (company_id, note_type, note_number, note_title, account_ranges, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.run(query, [
+    companyId,
+    noteType,
+    noteNumber,
+    noteTitle,
+    JSON.stringify(accountRanges),
+    isActive ? 1 : 0,
+    now,
+    now
+  ], function(err) {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create account mapping',
+        details: err.message 
+      });
+      return;
+    }
+
+    res.status(201).json({ 
+      success: true, 
+      id: this.lastID,
+      message: 'Account mapping created successfully' 
+    });
+  });
+});
+
+// Delete account mapping
+app.delete('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
+  const { companyId, noteType } = req.params;
+
+  const query = `DELETE FROM company_account_mappings WHERE company_id = ? AND note_type = ?`;
+
+  db.run(query, [companyId, noteType], function(err) {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to delete account mapping',
+        details: err.message 
+      });
+      return;
+    }
+
+    if (this.changes === 0) {
+      res.status(404).json({ 
+        success: false, 
+        error: 'Account mapping not found',
+        details: `No mapping found for company ${companyId} and note type ${noteType}` 
+      });
+      return;
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Account mapping deleted successfully' 
+    });
+  });
+});
+
+// Reset account mappings to default
+app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
+  const { companyId } = req.params;
+
+  // Import the default mappings from our migration script
+  const DEFAULT_MAPPINGS = [
+    {
+      noteType: 'cash',
+      noteNumber: 7,
+      noteTitle: 'เงินสดและรายการเทียบเท่าเงินสด',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1000, to: 1099 }]
+      })
+    },
+    {
+      noteType: 'receivables',
+      noteNumber: 8,
+      noteTitle: 'ลูกหนี้การค้าและลูกหนี้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1140, to: 1215 }]
+      })
+    },
+    {
+      noteType: 'inventory',
+      noteNumber: 9,
+      noteTitle: 'สินค้าคงเหลือ',
+      accountRanges: JSON.stringify({
+        includes: [1510]
+      })
+    },
+    {
+      noteType: 'prepaid_expenses',
+      noteNumber: 10,
+      noteTitle: 'ค่าใช้จ่ายจ่ายล่วงหน้า',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1400, to: 1439 }]
+      })
+    },
+    {
+      noteType: 'ppe_cost',
+      noteNumber: 11,
+      noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1610, to: 1659 }]
+      })
+    },
+    {
+      noteType: 'other_assets',
+      noteNumber: 12,
+      noteTitle: 'สินทรัพย์อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1660, to: 1700 }]
+      })
+    },
+    {
+      noteType: 'bank_overdrafts',
+      noteNumber: 15,
+      noteTitle: 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2001, to: 2009 }]
+      })
+    },
+    {
+      noteType: 'payables',
+      noteNumber: 16,
+      noteTitle: 'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2010, to: 2999 }],
+        excludes: [2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2103, 2120, 2121, 2122, 2123]
+      })
+    },
+    {
+      noteType: 'short_term_loans',
+      noteNumber: 17,
+      noteTitle: 'เงินกู้ยืมระยะสั้น',
+      accountRanges: JSON.stringify({
+        includes: [2030]
+      })
+    },
+    {
+      noteType: 'income_tax_payable',
+      noteNumber: 18,
+      noteTitle: 'ภาษีเงินได้นิติบุคคลค้างจ่าย',
+      accountRanges: JSON.stringify({
+        includes: [2045]
+      })
+    },
+    {
+      noteType: 'long_term_loans_fi',
+      noteNumber: 19,
+      noteTitle: 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2120, to: 2123 }],
+        excludes: [2121]
+      })
+    },
+    {
+      noteType: 'long_term_loans_other',
+      noteNumber: 20,
+      noteTitle: 'เงินกู้ยืมระยะยาวอื่น',
+      accountRanges: JSON.stringify({
+        includes: [2050, 2051, 2052, 2100, 2101, 2102, 2103]
+      })
+    }
+  ];
+
+  // First, delete existing mappings
+  db.run('DELETE FROM company_account_mappings WHERE company_id = ?', [companyId], (err) => {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Failed to delete existing mappings',
+        details: err.message 
+      });
+      return;
+    }
+
+    // Then, insert default mappings
+    const now = new Date().toISOString();
+    let completed = 0;
+    const total = DEFAULT_MAPPINGS.length;
+
+    if (total === 0) {
+      res.json({
+        success: true,
+        message: 'Account mappings reset (no defaults to insert)'
+      });
+      return;
+    }
+
+    DEFAULT_MAPPINGS.forEach(mapping => {
+      const insertQuery = `
+        INSERT INTO company_account_mappings 
+        (company_id, note_type, note_number, note_title, account_ranges, is_active, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `;
+
+      db.run(insertQuery, [
+        companyId,
+        mapping.noteType,
+        mapping.noteNumber,
+        mapping.noteTitle,
+        mapping.accountRanges,
+        now,
+        now
+      ], (err) => {
+        if (err) {
+          console.error(`Error inserting mapping ${mapping.noteType}:`, err);
+          return;
+        }
+
+        completed++;
+        if (completed === total) {
+          res.json({
+            success: true,
+            message: `Account mappings reset to default (${total} mappings created)`
+          });
+        }
+      });
+    });
+  });
+});
+
+// Validate account mappings against trial balance data
+app.post('/api/companies/:companyId/validate-mappings', (req, res) => {
+  const { companyId } = req.params;
+  const { trialBalanceData } = req.body;
+
+  if (!trialBalanceData || !Array.isArray(trialBalanceData)) {
+    res.status(400).json({ 
+      success: false, 
+      error: 'Missing or invalid trial balance data',
+      details: 'trialBalanceData array is required' 
+    });
+    return;
+  }
+
+  // Get account mappings for the company
+  const query = `
+    SELECT * FROM company_account_mappings 
+    WHERE company_id = ? AND is_active = 1
+    ORDER BY note_number, note_type
+  `;
+
+  db.all(query, [companyId], (err, rows) => {
+    if (err) {
+      console.error('Database error:', err);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Database error',
+        details: err.message 
+      });
+      return;
+    }
+
+    // Process validation logic
+    const mappings = rows.map(row => ({
+      noteType: row.note_type,
+      accountRanges: JSON.parse(row.account_ranges)
+    }));
+
+    const mappedAccountCodes = new Set();
+    const accountToNotes = new Map();
+    const warnings = [];
+    const errors = [];
+
+    // Check each mapping against trial balance
+    mappings.forEach(mapping => {
+      const { accountRanges } = mapping;
+      
+      trialBalanceData.forEach(account => {
+        const code = parseFloat(account.accountCode || '0');
+        let isMatched = false;
+
+        // Check ranges
+        if (accountRanges.ranges) {
+          isMatched = accountRanges.ranges.some(range => 
+            code >= range.from && code <= range.to
+          );
+        }
+
+        // Check includes
+        if (accountRanges.includes) {
+          isMatched = isMatched || accountRanges.includes.includes(code);
+        }
+
+        // Check excludes
+        if (accountRanges.excludes && isMatched) {
+          isMatched = !accountRanges.excludes.includes(code);
+        }
+
+        if (isMatched) {
+          mappedAccountCodes.add(account.accountCode);
+          
+          if (!accountToNotes.has(account.accountCode)) {
+            accountToNotes.set(account.accountCode, []);
+          }
+          accountToNotes.get(account.accountCode).push(mapping.noteType);
+        }
+      });
+    });
+
+    // Find unmapped accounts
+    const unmappedAccounts = trialBalanceData.filter(account => 
+      !mappedAccountCodes.has(account.accountCode)
+    ).map(account => ({
+      accountCode: account.accountCode,
+      accountName: account.accountName,
+      balance: account.balance || account.currentBalance || 0
+    }));
+
+    // Find conflicting accounts (mapped to multiple notes)
+    const conflictingAccounts = [];
+    accountToNotes.forEach((noteTypes, accountCode) => {
+      if (noteTypes.length > 1) {
+        const account = trialBalanceData.find(a => a.accountCode === accountCode);
+        if (account) {
+          conflictingAccounts.push({
+            accountCode,
+            accountName: account.accountName,
+            noteTypes
+          });
+        }
+      }
+    });
+
+    // Add warnings and errors
+    if (unmappedAccounts.length > 0) {
+      warnings.push(`${unmappedAccounts.length} accounts are not mapped to any note`);
+    }
+
+    if (conflictingAccounts.length > 0) {
+      errors.push(`${conflictingAccounts.length} accounts are mapped to multiple notes`);
+    }
+
+    const totalAccounts = trialBalanceData.length;
+    const mappedAccounts = mappedAccountCodes.size;
+    const coveragePercentage = totalAccounts > 0 ? (mappedAccounts / totalAccounts) * 100 : 0;
+
+    res.json({
+      isValid: errors.length === 0,
+      warnings,
+      errors,
+      unmappedAccounts,
+      conflictingAccounts,
+      mappingCoverage: {
+        totalAccounts,
+        mappedAccounts,
+        unmappedAccounts: unmappedAccounts.length,
+        coveragePercentage
+      }
+    });
+  });
+});
+
 // ============== TRIAL BALANCE ENDPOINTS ==============
 
 // Save trial balance data

@@ -143,6 +143,114 @@ export class ApiService {
     });
   }
 
+  // ============== ACCOUNT MAPPING OPERATIONS ==============
+  
+  static async getCompanyAccountMappings(companyId: string) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings`);
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Failed to fetch account mappings');
+      return result;
+    } catch (error) {
+      console.error('Error fetching company account mappings:', error);
+      throw error;
+    }
+  }
+
+  static async updateAccountMapping(
+    companyId: string, 
+    noteType: string, 
+    mappingData: {
+      noteNumber?: number;
+      noteTitle?: string;
+      accountRanges: any;
+      isActive?: boolean;
+    }
+  ) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings/${noteType}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mappingData)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details || 'Failed to update account mapping');
+      return result;
+    } catch (error) {
+      console.error('Error updating account mapping:', error);
+      throw error;
+    }
+  }
+
+  static async createAccountMapping(companyId: string, mappingData: {
+    noteType: string;
+    noteNumber?: number;
+    noteTitle?: string;
+    accountRanges: any;
+    isActive?: boolean;
+  }) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mappingData)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details || 'Failed to create account mapping');
+      return result;
+    } catch (error) {
+      console.error('Error creating account mapping:', error);
+      throw error;
+    }
+  }
+
+  static async deleteAccountMapping(companyId: string, noteType: string) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings/${noteType}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || 'Failed to delete account mapping');
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting account mapping:', error);
+      throw error;
+    }
+  }
+
+  static async validateAccountMappings(companyId: string, trialBalanceData: any[]) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/validate-mappings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trialBalanceData })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details || 'Validation failed');
+      return result;
+    } catch (error) {
+      console.error('Error validating account mappings:', error);
+      throw error;
+    }
+  }
+
+  static async resetAccountMappingsToDefault(companyId: string) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details || 'Failed to reset account mappings');
+      return result;
+    } catch (error) {
+      console.error('Error resetting account mappings:', error);
+      throw error;
+    }
+  }
+
   // ============== TRIAL BALANCE OPERATIONS ==============
 
   static async saveTrialBalance(
