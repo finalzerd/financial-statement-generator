@@ -10,7 +10,7 @@
  * Reason for moving: TypeScript compiler reported these methods as unused (never read)
  */
 
-import { TrialBalanceEntry, CompanyInfo } from '../types/financial';
+import type { TrialBalanceEntry, CompanyInfo } from '../../types/financial';
 
 // Types needed for the unused methods
 interface NoteRowTracker {
@@ -71,7 +71,7 @@ export function addPPENoteWithRowTrackingEnhanced(
   trialBalanceData: TrialBalanceEntry[],
   companyInfo: CompanyInfo,
   processingType: 'single-year' | 'multi-year',
-  trialBalancePrevious?: TrialBalanceEntry[],
+  _trialBalancePrevious?: TrialBalanceEntry[],
   noteNumber: number = 6
 ): NoteRowTracker {
   const tracker: NoteRowTracker = {

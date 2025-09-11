@@ -58,7 +58,7 @@ export class TradeReceivablesNoteGenerator {
     tracker.currentRow++;
 
     // 3. Detail Rows - Individual accounts (zero-filtering architecture)
-    Object.entries(receivableAccounts).forEach(([accountCode, accountData]) => {
+  Object.entries(receivableAccounts).forEach(([_, accountData]) => {
       notes.push(['', '', accountData.accountName, '', '', '', 
         accountData.current, '', 
         processingType === 'multi-year' ? accountData.previous : '']);

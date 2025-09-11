@@ -20,6 +20,7 @@ export class FinancialApprovalNoteGenerator {
     companyInfo: CompanyInfo, 
     noteNumber: number = 16
   ): NoteRowTracker {
+  void companyInfo; // referenced to satisfy TS noUnusedParameters
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,

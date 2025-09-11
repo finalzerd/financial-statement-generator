@@ -49,7 +49,7 @@ export class OtherIncomeNoteGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
-    trialBalancePrevious?: TrialBalanceEntry[], 
+  _trialBalancePrevious?: TrialBalanceEntry[], 
     noteNumber: number = 14
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {

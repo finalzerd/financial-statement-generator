@@ -20,7 +20,7 @@ export class PPENoteGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
-    trialBalancePrevious?: TrialBalanceEntry[], 
+  _trialBalancePrevious?: TrialBalanceEntry[], 
     noteNumber: number = 6
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {

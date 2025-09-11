@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import sqlite3 from 'sqlite3';
+import multer from 'multer';
 // Uncomment next line to use PostgreSQL instead of SQLite
 // import { DatabaseConfig } from './src/server/config/database.js';
 
@@ -44,7 +45,14 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Multer setup for multipart/form-data (used when saving generated statements with Excel file)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit for uploaded Excel file
+});
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -980,28 +988,58 @@ function getAccountType(accountCode) {
   return 'unknown';
 }
 
-// Save generated financial statements
-app.post('/api/statements', (req, res) => {
-  const { trialBalanceSetId, statements, excelBuffer } = req.body;
-  
-  console.log('Received request to save statements:', { trialBalanceSetId });
-  
-  if (!trialBalanceSetId || !statements) {
-    res.status(400).json({ 
-      success: false, 
-      error: 'Missing required fields',
-      details: 'trialBalanceSetId and statements are required' 
-    });
-    return;
-  }
+// Save generated financial statements (supports multipart/form-data or JSON)
+app.post('/api/statements', upload.single('excelFile'), (req, res) => {
+  try {
+    // Support both multipart/form-data (FormData) and application/json
+    let trialBalanceSetId;
+    let statementsRaw;
 
-  // For now, just acknowledge the request
-  // TODO: Implement actual statement storage
-  res.json({ 
-    success: true, 
-    message: 'Statements saved successfully',
-    statementId: trialBalanceSetId + '_statements'
-  });
+    if (req.is('multipart/form-data')) {
+      trialBalanceSetId = req.body?.trialBalanceSetId;
+      statementsRaw = req.body?.statements; // JSON string
+    } else {
+      // JSON request
+      trialBalanceSetId = req.body?.trialBalanceSetId;
+      statementsRaw = req.body?.statements;
+    }
+
+    let parsedStatements = null;
+    if (typeof statementsRaw === 'string') {
+      try {
+        parsedStatements = JSON.parse(statementsRaw);
+      } catch (e) {
+        console.warn('Failed to parse statements JSON string');
+      }
+    } else if (statementsRaw && typeof statementsRaw === 'object') {
+      parsedStatements = statementsRaw;
+    }
+
+    console.log('Received request to save statements:', { trialBalanceSetId, hasFile: !!req.file });
+
+    if (!trialBalanceSetId || !parsedStatements) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        details: 'trialBalanceSetId and statements are required'
+      });
+      return;
+    }
+
+    // For now, just acknowledge the request - future persistence can store req.file.buffer
+    res.json({
+      success: true,
+      message: 'Statements saved successfully',
+      statementId: trialBalanceSetId + '_statements'
+    });
+  } catch (err) {
+    console.error('Error saving statements:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: err.message
+    });
+  }
 });
 
 // File upload route placeholder

@@ -293,6 +293,17 @@ export class ExcelJSFormatter {
     ];
     
     console.log('Applied SCE Column Widths (Custom): A=28, B=2, C=14, D=2, E=2, F=14, G=2, H=2, I=14');
+    // Optional: debug width calculations when needed (Vite-safe environment check)
+    try {
+      // Use Vite's import.meta.env.DEV when available; fallback to Node check in SSR
+      const isDev = (typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV) ||
+                    (typeof process !== 'undefined' && (process as any).env?.NODE_ENV === 'development');
+      if (isDev) {
+        this.debugWidthCalculationsSCE(worksheet);
+      }
+    } catch {
+      // No-op if environment metadata is not available
+    }
     
     // Merge row 5 from column C to I
     worksheet.mergeCells('C5:I5');
