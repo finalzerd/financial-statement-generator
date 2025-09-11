@@ -32,6 +32,7 @@ import type {
 } from './financialStatements/core/types';
 import { ProfitLossBuilder } from './financialStatements/profitLoss/ProfitLossBuilder';
 import { EquityBuilder } from './financialStatements/equity/EquityBuilder';
+import { GlobalDataExtractor } from './financialStatements/core/GlobalDataExtractor';
 
 // ============================================================================
 // MAIN FINANCIAL STATEMENT GENERATOR CLASS
@@ -376,7 +377,8 @@ export class FinancialStatementGenerator {
   ): FinancialStatements {
     
     // *** EXTRACT ALL DATA ONCE ***
-    const globalData = this.extractAllFinancialData(trialBalanceData, companyInfo);
+  const globalData = this.extractedData || GlobalDataExtractor.extract(trialBalanceData, companyInfo);
+  this.extractedData = globalData;
     
     console.log('=== USING GLOBAL DATA FOR ALL STATEMENTS ===');
     console.log('Paid-up Capital (Global):', globalData.balanceSheetTotals.equity.paidUpCapital);
