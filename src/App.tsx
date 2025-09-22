@@ -13,6 +13,8 @@ import type { FinancialStatements, CompanyInfo } from './types/financial'
 import type { Company } from './types/database'
 import { DynamicMappingProvider } from './services/financialStatements/mapping/DynamicMappingProvider'
 import { StaticMappingProvider } from './services/financialStatements/mapping/StaticMappingProvider'
+import type { IAccountMappingProvider } from './services/financialStatements/mapping/IAccountMappingProvider'
+import MappingPreview from './components/mappings/MappingPreview'
 import './App.css'
 
 function App() {
@@ -34,6 +36,9 @@ function App() {
   
   // Store trial balance data for mapping validation
   const [currentTrialBalanceData, setCurrentTrialBalanceData] = useState<any[]>([])
+  const [currentCompanyInfo, setCurrentCompanyInfo] = useState<CompanyInfo | null>(null)
+  const [currentProcessingType, setCurrentProcessingType] = useState<'single-year' | 'multi-year'>('single-year')
+  const [currentMappingProvider, setCurrentMappingProvider] = useState<IAccountMappingProvider | null>(null)
 
   const statementGenerator = new FinancialStatementGenerator()
 
@@ -53,8 +58,10 @@ function App() {
     try {
       console.log('Processing file with database integration:', { trialBalanceSetId, csvData, companyInfo });
       
-      // Store trial balance data for mapping validation
-      setCurrentTrialBalanceData(csvData.trialBalance || []);
+  // Store trial balance data and metadata for mapping preview/validation
+  setCurrentTrialBalanceData(csvData.trialBalance || []);
+  setCurrentCompanyInfo(companyInfo);
+  setCurrentProcessingType(csvData.processingType);
       
       // Build mapping provider (dynamic from DB if available, otherwise static defaults)
       let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
@@ -71,6 +78,9 @@ function App() {
         console.warn('Failed to load account mappings, using static defaults:', e)
         provider = new StaticMappingProvider()
       }
+
+      // Persist provider for Mapping Preview tab
+      if (provider) setCurrentMappingProvider(provider)
 
       // Generate financial statements using provider-aware logic
       const statements = statementGenerator.generateFinancialStatements(
@@ -137,8 +147,10 @@ function App() {
       const csvData = CSVProcessor.processCsvFile(csvContent, companyInfo)
       console.log('CSV Data processed:', csvData)
       
-      // Store trial balance data for mapping validation
-      setCurrentTrialBalanceData(csvData.trialBalance || []);
+  // Store trial balance data and metadata for mapping preview/validation
+  setCurrentTrialBalanceData(csvData.trialBalance || []);
+  setCurrentCompanyInfo(companyInfo);
+  setCurrentProcessingType(csvData.processingType);
       
       // Build mapping provider (dynamic from DB if available, otherwise static defaults)
       let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
@@ -155,6 +167,9 @@ function App() {
         console.warn('Failed to load account mappings, using static defaults:', e)
         provider = new StaticMappingProvider()
       }
+
+      // Persist provider for Mapping Preview tab
+      if (provider) setCurrentMappingProvider(provider)
 
       // Generate financial statements (the generator will handle multi-year logic internally)
       const statements = statementGenerator.generateFinancialStatements(
@@ -312,6 +327,19 @@ function App() {
                     // setFinancialStatements(null);
                   }}
                 />
+
+                {/* Mapping Preview: show matched/unmatched accounts per note */}
+                {currentTrialBalanceData.length > 0 && currentCompanyInfo && currentMappingProvider && (
+                  <div style={{ marginTop: 24 }}>
+                    <h3>🔎 ตัวอย่างการจับคู่บัญชีตามหมายเหตุ</h3>
+                    <MappingPreview
+                      trialBalance={currentTrialBalanceData}
+                      company={currentCompanyInfo}
+                      provider={currentMappingProvider}
+                      processingType={currentProcessingType}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </>

@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Local data files (do not commit)
+financial_statements.db
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.xlsx
+test-output*
+test-*.mjs
+test-*.js
+!/scripts/*.csv # allow any curated CSVs under scripts if needed
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
