@@ -266,6 +266,11 @@ Your CSV file should follow this structure:
 
 ## 📈 Future Enhancement Opportunities
 
+## 📐 Diagrams
+
+- Balance Sheet build flow (Mermaid): [docs/bs-flow.md](docs/bs-flow.md)
+- Notes flows (Mermaid): [docs/notes-flows.md](docs/notes-flows.md)
+
 ### **Phase 2: Advanced Features**
 - [ ] **Multiple File Support**: Process multiple CSV files
 - [ ] **Custom Account Mapping**: User-defined account codes

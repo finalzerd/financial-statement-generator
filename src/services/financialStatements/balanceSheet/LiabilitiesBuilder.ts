@@ -1,6 +1,6 @@
 import { FinancialCalculations } from '../../financialCalculations';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
-import type { CellTracker } from '../core/types';
+import type { CellTracker, DetailedFinancialData } from '../core/types';
 
 // Builds the Balance Sheet (Liabilities & Equity) worksheet data.
 // This mirrors the original logic from FinancialStatementGenerator.generateBalanceSheetLiabilities
@@ -9,28 +9,38 @@ export class LiabilitiesBuilder {
   static build(
     trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo,
-    processingType: 'single-year' | 'multi-year'
+    processingType: 'single-year' | 'multi-year',
+    globalData?: DetailedFinancialData
   ): (string | number | { f: string })[][] {
     const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
     const liabilityAndEquityTerm = isLimitedPartnership ? 'หนี้สินและส่วนของผู้เป็นหุ้นส่วน' : 'หนี้สินและส่วนของผู้ถือหุ้น';
     const equityTerm = isLimitedPartnership ? 'ส่วนของผู้เป็นหุ้นส่วน' : 'ส่วนของผู้ถือหุ้น';
 
     // Current year values (match ranges used in original extractor)
-    const bankOverdraftsAndShortTermLoans = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
-    const tradeAndOtherPayables =
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) -
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) -
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) -
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) -
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
-    const shortTermBorrowings = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
-    const incomeTaxPayable = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
-    const longTermLoansFromFI =
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
-    const otherLongTermLoans =
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
-      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119));
+    const bankOverdraftsAndShortTermLoans = globalData
+      ? globalData.balanceSheetTotals.liabilities.bankOverdraftsAndShortTermLoans.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
+    const tradeAndOtherPayables = globalData
+      ? globalData.balanceSheetTotals.liabilities.tradeAndOtherPayables.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) -
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) -
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) -
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) -
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2123));
+    const shortTermBorrowings = globalData
+      ? globalData.balanceSheetTotals.liabilities.shortTermBorrowings.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030));
+    const incomeTaxPayable = globalData
+      ? globalData.balanceSheetTotals.liabilities.incomeTaxPayable.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045));
+    const longTermLoansFromFI = globalData
+      ? globalData.balanceSheetTotals.liabilities.longTermLoansFromFI.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
+    const otherLongTermLoans = globalData
+      ? globalData.balanceSheetTotals.liabilities.otherLongTermLoans.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
+        Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119));
 
     // Equity related values (current)
     const registeredCapital = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
@@ -41,23 +51,36 @@ export class LiabilitiesBuilder {
     const legalReserve = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3030, 3039));
 
     // Previous year values
-    const prevBankOverdraftsAndShortTermLoans = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009);
-    const prevTradeAndOtherPayables =
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) -
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) -
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) -
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) -
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123));
-    const prevShortTermBorrowings = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
-    const prevIncomeTaxPayable = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
-    const prevLongTermLoansFromFI =
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) -
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121));
-    const prevOtherLongTermLoans =
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
-      Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119));
-    const prevPaidUpCapital = Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010));
-    const prevRetainedEarnings = Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020));
+    const prevBankOverdraftsAndShortTermLoans = globalData
+      ? globalData.balanceSheetTotals.liabilities.bankOverdraftsAndShortTermLoans.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009);
+    const prevTradeAndOtherPayables = globalData
+      ? globalData.balanceSheetTotals.liabilities.tradeAndOtherPayables.previous
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) -
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) -
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) -
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) -
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123));
+    const prevShortTermBorrowings = globalData
+      ? globalData.balanceSheetTotals.liabilities.shortTermBorrowings.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030);
+    const prevIncomeTaxPayable = globalData
+      ? globalData.balanceSheetTotals.liabilities.incomeTaxPayable.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045);
+    const prevLongTermLoansFromFI = globalData
+      ? globalData.balanceSheetTotals.liabilities.longTermLoansFromFI.previous
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) -
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121));
+    const prevOtherLongTermLoans = globalData
+      ? globalData.balanceSheetTotals.liabilities.otherLongTermLoans.previous
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
+        Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119));
+    const prevPaidUpCapital = globalData
+      ? globalData.balanceSheetTotals.equity.paidUpCapital.previous
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010));
+    const prevRetainedEarnings = globalData
+      ? globalData.balanceSheetTotals.equity.retainedEarnings.previous
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3020, 3020));
 
     // Initialize worksheet data with headers
     const worksheetData: (string | number | { f: string })[][] = [

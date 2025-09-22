@@ -34,6 +34,7 @@ import { ProfitLossBuilder } from './financialStatements/profitLoss/ProfitLossBu
 import { EquityBuilder } from './financialStatements/equity/EquityBuilder';
 import { GlobalDataExtractor } from './financialStatements/core/GlobalDataExtractor';
 import { NotesPolicyBuilder } from './financialStatements/notes/NotesPolicyBuilder';
+import type { IAccountMappingProvider } from './financialStatements/mapping/IAccountMappingProvider';
 
 // ============================================================================
 // MAIN FINANCIAL STATEMENT GENERATOR CLASS
@@ -46,6 +47,7 @@ export class FinancialStatementGenerator {
   // ============================================================================
   
   private extractedData: DetailedFinancialData | null = null;
+  private mappingProvider?: IAccountMappingProvider;
   
   /**
    * MAIN DATA EXTRACTION METHOD - Call this first to avoid redundant calculations
@@ -66,19 +68,24 @@ export class FinancialStatementGenerator {
     trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
-    trialBalancePrevious?: TrialBalanceEntry[]
+    trialBalancePrevious?: TrialBalanceEntry[],
+    provider?: IAccountMappingProvider
   ): FinancialStatements {
     
     // *** EXTRACT ALL DATA ONCE ***
-  const globalData = this.extractedData || GlobalDataExtractor.extract(trialBalanceData, companyInfo);
+  // Set/update provider if supplied
+  if (provider) {
+    this.mappingProvider = provider;
+  }
+  const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
   this.extractedData = globalData;
     
     console.log('=== USING GLOBAL DATA FOR ALL STATEMENTS ===');
     console.log('Paid-up Capital (Global):', globalData.balanceSheetTotals.equity.paidUpCapital);
     console.log('Net Profit (Global):', globalData.income.netProfit);
     
-  const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType);
-  const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType);
+  const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData);
+  const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData);
     const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
@@ -212,7 +219,7 @@ export class FinancialStatementGenerator {
     trialBalancePrevious?: TrialBalanceEntry[]
   ): { notes: any[][], formatters: NoteFormatter[] } {
     // Extract global financial data once for consistency across all notes
-    const globalData = this.extractedData || GlobalDataExtractor.extract(trialBalanceData, companyInfo);
+  const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
     console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction with Row Tracking ===');
     
@@ -296,7 +303,7 @@ export class FinancialStatementGenerator {
 
   private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {
     // Extract global financial data once for consistency
-    const globalData = this.extractedData || GlobalDataExtractor.extract(trialBalanceData, companyInfo);
+  const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
     console.log('=== NOTES_DETAIL: Using Global Data Extraction ===');
     

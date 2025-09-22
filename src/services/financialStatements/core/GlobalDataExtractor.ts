@@ -5,6 +5,8 @@
 import { FinancialCalculations } from '../../financialCalculations';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
 import type { DetailedFinancialData } from './types';
+import type { IAccountMappingProvider } from '../mapping/IAccountMappingProvider';
+import { sumByRules } from '../mapping/ruleSum';
 
 export class GlobalDataExtractor {
   private static cacheKey(tb: TrialBalanceEntry[], company: CompanyInfo): string {
@@ -12,55 +14,88 @@ export class GlobalDataExtractor {
   }
   private static cache = new Map<string, DetailedFinancialData>();
 
-  static extract(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): DetailedFinancialData {
+  static extract(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo, provider?: IAccountMappingProvider): DetailedFinancialData {
     const key = this.cacheKey(trialBalanceData, companyInfo);
-    if (this.cache.has(key)) return this.cache.get(key)!;
+    const useCache = !provider; // if provider is present (dynamic mappings), bypass cache to reflect changes immediately
+    if (useCache && this.cache.has(key)) return this.cache.get(key)!;
 
     // NOTE 7
     const cashNote = {
       cash: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1019)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1019))
+        current: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, { ranges: [{ from: 1000, to: 1019 }] }, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1019)),
+        previous: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, { ranges: [{ from: 1000, to: 1019 }] }, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1019))
       },
       bankDeposits: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1020, 1099)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099))
+        current: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, { ranges: [{ from: 1020, to: 1099 }] }, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1020, 1099)),
+        previous: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, { ranges: [{ from: 1020, to: 1099 }] }, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1020, 1099))
       },
       total: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099))
+        current: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, provider.getRules('cash')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)),
+        previous: provider?.getRules('cash')
+          ? sumByRules(trialBalanceData, provider.getRules('cash')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099))
       }
     };
 
     // NOTE 8
     const receivablesNote = {
       total: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
+        current: provider?.getRules('receivables')
+          ? sumByRules(trialBalanceData, provider.getRules('receivables')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)),
+        previous: provider?.getRules('receivables')
+          ? sumByRules(trialBalanceData, provider.getRules('receivables')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215))
       }
     };
 
     // NOTE 9
     const inventoryNote = {
       inventory: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1510, 1510)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1510, 1510))
+        current: provider?.getRules('inventory')
+          ? sumByRules(trialBalanceData, { includes: [1510] }, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1510, 1510)),
+        previous: provider?.getRules('inventory')
+          ? sumByRules(trialBalanceData, { includes: [1510] }, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1510, 1510))
       },
       total: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519))
+        current: provider?.getRules('inventory')
+          ? sumByRules(trialBalanceData, provider.getRules('inventory')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)),
+        previous: provider?.getRules('inventory')
+          ? sumByRules(trialBalanceData, provider.getRules('inventory')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519))
       }
     };
 
     // NOTE 10
     const ppeNote = {
       cost: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629))
+        current: provider?.getRules('ppe_cost')
+          ? sumByRules(trialBalanceData, provider.getRules('ppe_cost')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)),
+        previous: provider?.getRules('ppe_cost')
+          ? sumByRules(trialBalanceData, provider.getRules('ppe_cost')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629))
       },
       accumulatedDepreciation: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
+        current: provider?.getRules('ppe_accum_depr')
+          ? sumByRules(trialBalanceData, provider.getRules('ppe_accum_depr')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)),
+        previous: provider?.getRules('ppe_accum_depr')
+          ? sumByRules(trialBalanceData, provider.getRules('ppe_accum_depr')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
       },
       netBookValue: {
         current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)) -
@@ -73,16 +108,20 @@ export class GlobalDataExtractor {
     // NOTE 12
     const payablesNote = {
       total: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
+        current: provider?.getRules('payables')
+          ? sumByRules(trialBalanceData, provider.getRules('payables')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2010, 2999)) -
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)) -
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)) -
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) -
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2123)),
+        previous: provider?.getRules('payables')
+          ? sumByRules(trialBalanceData, provider.getRules('payables')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2010, 2999)) -
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030)) -
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045)) -
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) -
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2123))
       }
     };
 
@@ -104,29 +143,49 @@ export class GlobalDataExtractor {
 
     const balanceSheetLiabilities = {
       bankOverdraftsAndShortTermLoans: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
+        current: provider?.getRules('bank_overdrafts')
+          ? sumByRules(trialBalanceData, provider.getRules('bank_overdrafts')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
+        previous: provider?.getRules('bank_overdrafts')
+          ? sumByRules(trialBalanceData, provider.getRules('bank_overdrafts')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
       },
       tradeAndOtherPayables: payablesNote.total,
       shortTermBorrowings: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
+        current: provider?.getRules('short_term_loans')
+          ? sumByRules(trialBalanceData, provider.getRules('short_term_loans')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
+        previous: provider?.getRules('short_term_loans')
+          ? sumByRules(trialBalanceData, provider.getRules('short_term_loans')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
       },
       incomeTaxPayable: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
+        current: provider?.getRules('income_tax_payable')
+          ? sumByRules(trialBalanceData, provider.getRules('income_tax_payable')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
+        previous: provider?.getRules('income_tax_payable')
+          ? sumByRules(trialBalanceData, provider.getRules('income_tax_payable')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
       },
       longTermLoansFromFI: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
+        current: provider?.getRules('long_term_loans_fi')
+          ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_fi')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
+        previous: provider?.getRules('long_term_loans_fi')
+          ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_fi')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) -
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
       },
       otherLongTermLoans: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
+        current: provider?.getRules('long_term_loans_other')
+          ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_other')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
+            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
+        previous: provider?.getRules('long_term_loans_other')
+          ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_other')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
+            Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
       }
     };
 
@@ -137,8 +196,12 @@ export class GlobalDataExtractor {
 
     const balanceSheetEquity = {
       paidUpCapital: {
-        current: this.getSingleAccountBalance(trialBalanceData, '3010'),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010))
+        current: provider?.getRules('paid_up_capital')
+          ? sumByRules(trialBalanceData, provider.getRules('paid_up_capital')!, 'current')
+          : this.getSingleAccountBalance(trialBalanceData, '3010'),
+        previous: provider?.getRules('paid_up_capital')
+          ? sumByRules(trialBalanceData, provider.getRules('paid_up_capital')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010))
       },
       retainedEarnings: {
         current: finalRetainedEarnings,
@@ -146,8 +209,12 @@ export class GlobalDataExtractor {
       },
       openingRetainedEarnings: openingRetainedEarnings,
       legalReserve: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
+        current: provider?.getRules('legal_reserve')
+          ? sumByRules(trialBalanceData, provider.getRules('legal_reserve')!, 'current')
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3030, 3039)),
+        previous: provider?.getRules('legal_reserve')
+          ? sumByRules(trialBalanceData, provider.getRules('legal_reserve')!, 'previous')
+          : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3030, 3039))
       }
     };
 
@@ -193,7 +260,9 @@ export class GlobalDataExtractor {
       flags
     };
 
-    this.cache.set(key, extracted);
+    if (useCache) {
+      this.cache.set(key, extracted);
+    }
     return extracted;
   }
 

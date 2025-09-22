@@ -11,6 +11,8 @@ import { FinancialStatementGenerator } from './services/financialStatementGenera
 import { ApiService } from './services/apiService'
 import type { FinancialStatements, CompanyInfo } from './types/financial'
 import type { Company } from './types/database'
+import { DynamicMappingProvider } from './services/financialStatements/mapping/DynamicMappingProvider'
+import { StaticMappingProvider } from './services/financialStatements/mapping/StaticMappingProvider'
 import './App.css'
 
 function App() {
@@ -54,12 +56,29 @@ function App() {
       // Store trial balance data for mapping validation
       setCurrentTrialBalanceData(csvData.trialBalance || []);
       
-      // Generate financial statements using existing logic
+      // Build mapping provider (dynamic from DB if available, otherwise static defaults)
+      let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
+      try {
+        if (selectedCompany?.id) {
+          const mappings = await ApiService.getCompanyAccountMappings(selectedCompany.id)
+          if (Array.isArray(mappings) && mappings.length > 0) {
+            provider = new DynamicMappingProvider(mappings)
+          } else {
+            provider = new StaticMappingProvider()
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load account mappings, using static defaults:', e)
+        provider = new StaticMappingProvider()
+      }
+
+      // Generate financial statements using provider-aware logic
       const statements = statementGenerator.generateFinancialStatements(
         csvData.trialBalance,
         companyInfo,
         csvData.processingType,
-        csvData.trialBalancePrevious
+        csvData.trialBalancePrevious,
+        provider
       )
       console.log('Financial statements generated:', statements)
       
@@ -121,12 +140,29 @@ function App() {
       // Store trial balance data for mapping validation
       setCurrentTrialBalanceData(csvData.trialBalance || []);
       
+      // Build mapping provider (dynamic from DB if available, otherwise static defaults)
+      let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
+      try {
+        if (selectedCompany?.id) {
+          const mappings = await ApiService.getCompanyAccountMappings(selectedCompany.id)
+          if (Array.isArray(mappings) && mappings.length > 0) {
+            provider = new DynamicMappingProvider(mappings)
+          } else {
+            provider = new StaticMappingProvider()
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load account mappings, using static defaults:', e)
+        provider = new StaticMappingProvider()
+      }
+
       // Generate financial statements (the generator will handle multi-year logic internally)
       const statements = statementGenerator.generateFinancialStatements(
         csvData.trialBalance,
         companyInfo,
         csvData.processingType,
-        csvData.trialBalancePrevious
+        csvData.trialBalancePrevious,
+        provider
       )
       console.log('Financial statements generated:', statements)
       

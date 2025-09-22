@@ -1,5 +1,6 @@
 import { FinancialCalculations } from '../../financialCalculations';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
+import type { DetailedFinancialData } from '../core/types';
 
 // Builds the Balance Sheet (Assets) worksheet data.
 // This mirrors the original logic from FinancialStatementGenerator.generateBalanceSheetAssets
@@ -8,23 +9,48 @@ export class AssetsBuilder {
   static build(
     trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo,
-    processingType: 'single-year' | 'multi-year'
+    processingType: 'single-year' | 'multi-year',
+    globalData?: DetailedFinancialData
   ): (string | number | { f: string })[][] {
-    // Calculate current year asset balances using VBA-compliant ranges
-    const cashAndCashEquivalents = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
-    const tradeReceivables = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
-    const inventory = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
-    const prepaidExpenses = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
-    const landBuildingsEquipment = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
-    const otherAssets = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
+    // Calculate current year asset balances using foundation totals when available
+    const cashAndCashEquivalents = globalData
+      ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
+    const tradeReceivables = globalData
+      ? globalData.balanceSheetTotals.assets.tradeReceivables.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
+    const inventory = globalData
+      ? globalData.balanceSheetTotals.assets.inventory.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
+    const prepaidExpenses = globalData
+      ? globalData.balanceSheetTotals.assets.prepaidExpenses.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
+    const landBuildingsEquipment = globalData
+      ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
+    const otherAssets = globalData
+      ? globalData.balanceSheetTotals.assets.otherAssets.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
 
     // Calculate previous year asset balances using previousBalance field
-    const prevCashAndCashEquivalents = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099);
-    const prevTradeReceivables = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215);
-    const prevInventory = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519);
-    const prevPrepaidExpenses = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439);
-    const prevLandBuildingsEquipment = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659);
-    const prevOtherAssets = FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700);
+    const prevCashAndCashEquivalents = globalData
+      ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099);
+    const prevTradeReceivables = globalData
+      ? globalData.balanceSheetTotals.assets.tradeReceivables.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215);
+    const prevInventory = globalData
+      ? globalData.balanceSheetTotals.assets.inventory.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519);
+    const prevPrepaidExpenses = globalData
+      ? globalData.balanceSheetTotals.assets.prepaidExpenses.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439);
+    const prevLandBuildingsEquipment = globalData
+      ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659);
+    const prevOtherAssets = globalData
+      ? globalData.balanceSheetTotals.assets.otherAssets.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700);
 
     // Initialize worksheet data with headers
     const worksheetData: (string | number | { f: string })[][] = [
