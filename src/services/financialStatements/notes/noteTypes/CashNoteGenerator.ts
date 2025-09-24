@@ -32,10 +32,13 @@ export class CashNoteGenerator {
       unitRows: []
     };
 
+    // Mapping-first: use individual selections for detail population
+    const cashAccounts = globalData.individualAccounts.cash;
     const totalAmount = globalData.noteCalculations.cash.total.current;
     const prevTotalAmount = globalData.noteCalculations.cash.total.previous;
 
-    if (totalAmount === 0 && prevTotalAmount === 0) {
+    // If both totals are zero AND no mapped accounts, skip the note
+    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(cashAccounts).length === 0) {
       return tracker; // No note generated
     }
 
@@ -56,25 +59,20 @@ export class CashNoteGenerator {
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 3. Detail Rows
-    const cashAmount = globalData.noteCalculations.cash.cash.current;
-    const bankAmount = globalData.noteCalculations.cash.bankDeposits.current;
-    const prevCashAmount = globalData.noteCalculations.cash.cash.previous;
-    const prevBankAmount = globalData.noteCalculations.cash.bankDeposits.previous;
-
-    if (cashAmount !== 0 || prevCashAmount !== 0) {
-      notes.push(['', '', 'เงินสดในมือ', '', '', '', cashAmount, '', 
-        processingType === 'multi-year' ? prevCashAmount : '']);
+    // 3. Detail Rows - Mapping-based individual accounts (no artificial grouping)
+    const sortedCashEntries = Object.entries(cashAccounts).sort((a, b) => {
+      const aCode = parseInt(a[0] || '0', 10);
+      const bCode = parseInt(b[0] || '0', 10);
+      return aCode - bCode;
+    });
+    sortedCashEntries.forEach(([_, accountData]) => {
+      notes.push(['', '', accountData.accountName, '', '', '',
+        accountData.current, '',
+        processingType === 'multi-year' ? accountData.previous : ''
+      ]);
       tracker.detailRows.push(tracker.currentRow);
       tracker.currentRow++;
-    }
-
-    if (bankAmount !== 0 || prevBankAmount !== 0) {
-      notes.push(['', '', 'เงินฝากธนาคาร', '', '', '', bankAmount, '', 
-        processingType === 'multi-year' ? prevBankAmount : '']);
-      tracker.detailRows.push(tracker.currentRow);
-      tracker.currentRow++;
-    }
+    });
 
     // 4. Total Row - Use SUM formulas over detail rows when available; fallback to numeric totals otherwise
     const hasDetails = tracker.detailRows.length > 0;
