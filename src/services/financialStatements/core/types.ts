@@ -62,6 +62,15 @@ export interface DetailedFinancialData {
       total: { current: number; previous: number };             // Total for Balance Sheet
       // Individual accounts provide the detailed breakdown (replaces tradePayables + otherPayables)
     };
+
+    // Additional note-derived totals that feed Balance Sheet directly
+    prepaid: { current: number; previous: number };             // ค่าใช้จ่ายจ่ายล่วงหน้า (1400-1439)
+    otherAssets: { current: number; previous: number };         // สินทรัพย์อื่น (1660-1700)
+    bankOverdrafts: { current: number; previous: number };      // เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน (2001-2009)
+    shortTermLoans: { current: number; previous: number };      // เงินกู้ยืมระยะสั้น (2030)
+    incomeTaxPayable: { current: number; previous: number };    // ภาษีเงินได้นิติบุคคลค้างจ่าย (2045)
+    longTermLoansFi: { current: number; previous: number };     // เงินกู้ยืมระยะยาวจากสถาบันการเงิน (2120-2123 ยกเว้น 2121)
+    longTermLoansOther: { current: number; previous: number };  // เงินกู้ยืมระยะยาวอื่น (2050-2052,2100-2119)
   };
   
   // INDIVIDUAL ACCOUNT DETAILS: Dynamic structure for note breakdowns

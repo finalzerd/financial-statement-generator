@@ -1,6 +1,7 @@
 import { FinancialCalculations } from '../../financialCalculations';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
 import type { DetailedFinancialData } from '../core/types';
+import { BalanceSheetLinkMap, NOTE_FIRST_MODE } from '../core/linking/balanceSheetLinkMap';
 
 // Builds the Balance Sheet (Assets) worksheet data.
 // This mirrors the original logic from FinancialStatementGenerator.generateBalanceSheetAssets
@@ -12,45 +13,70 @@ export class AssetsBuilder {
     processingType: 'single-year' | 'multi-year',
     globalData?: DetailedFinancialData
   ): (string | number | { f: string })[][] {
-    // Calculate current year asset balances using foundation totals when available
-    const cashAndCashEquivalents = globalData
-      ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099));
-    const tradeReceivables = globalData
-      ? globalData.balanceSheetTotals.assets.tradeReceivables.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215));
-    const inventory = globalData
-      ? globalData.balanceSheetTotals.assets.inventory.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519));
-    const prepaidExpenses = globalData
-      ? globalData.balanceSheetTotals.assets.prepaidExpenses.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439));
-    const landBuildingsEquipment = globalData
-      ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1659));
-    const otherAssets = globalData
-      ? globalData.balanceSheetTotals.assets.otherAssets.current
-      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700));
+    // Calculate current year asset balances using note-first link map when enabled
+    const n = globalData?.noteCalculations;
+    const cashAndCashEquivalents = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.cashAndCashEquivalents(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1000, 1099)));
+    const tradeReceivables = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.tradeReceivables(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.tradeReceivables.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215)));
+    const inventory = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.inventory(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.inventory.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519)));
+    const prepaidExpenses = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.prepaidExpenses(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.prepaidExpenses.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439)));
+    const landBuildingsEquipment = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.propertyPlantEquipment(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1659)));
+    const otherAssets = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.otherAssets(n).current
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.otherAssets.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)));
 
     // Calculate previous year asset balances using previousBalance field
-    const prevCashAndCashEquivalents = globalData
-      ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099);
-    const prevTradeReceivables = globalData
-      ? globalData.balanceSheetTotals.assets.tradeReceivables.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215);
-    const prevInventory = globalData
-      ? globalData.balanceSheetTotals.assets.inventory.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519);
-    const prevPrepaidExpenses = globalData
-      ? globalData.balanceSheetTotals.assets.prepaidExpenses.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439);
-    const prevLandBuildingsEquipment = globalData
-      ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659);
-    const prevOtherAssets = globalData
-      ? globalData.balanceSheetTotals.assets.otherAssets.previous
-      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700);
+    const prevCashAndCashEquivalents = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.cashAndCashEquivalents(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.cashAndCashEquivalents.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1000, 1099));
+    const prevTradeReceivables = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.tradeReceivables(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.tradeReceivables.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215));
+    const prevInventory = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.inventory(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.inventory.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519));
+    const prevPrepaidExpenses = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.prepaidExpenses(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.prepaidExpenses.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439));
+    const prevLandBuildingsEquipment = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.propertyPlantEquipment(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.propertyPlantEquipment.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1659));
+    const prevOtherAssets = (NOTE_FIRST_MODE && n)
+      ? BalanceSheetLinkMap.assets.otherAssets(n).previous
+      : (globalData
+          ? globalData.balanceSheetTotals.assets.otherAssets.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700));
 
     // Initialize worksheet data with headers
     const worksheetData: (string | number | { f: string })[][] = [

@@ -98,11 +98,93 @@ export class GlobalDataExtractor {
           : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
       },
       netBookValue: {
-        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)) -
-                 Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)),
-        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629)) -
-                  Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659))
+        current: (
+          (provider?.getRules('ppe_cost')
+            ? sumByRules(trialBalanceData, provider.getRules('ppe_cost')!, 'current')
+            : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1600, 1629)))
+          -
+          (provider?.getRules('ppe_accum_depr')
+            ? sumByRules(trialBalanceData, provider.getRules('ppe_accum_depr')!, 'current')
+            : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1630, 1659)))
+        ),
+        previous: (
+          (provider?.getRules('ppe_cost')
+            ? sumByRules(trialBalanceData, provider.getRules('ppe_cost')!, 'previous')
+            : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1600, 1629)))
+          -
+          (provider?.getRules('ppe_accum_depr')
+            ? sumByRules(trialBalanceData, provider.getRules('ppe_accum_depr')!, 'previous')
+            : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659)))
+        )
       }
+    };
+
+    // Additional note-derived totals
+    const prepaidNote = {
+      current: provider?.getRules('prepaid')
+        ? sumByRules(trialBalanceData, provider.getRules('prepaid')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439)),
+      previous: provider?.getRules('prepaid')
+        ? sumByRules(trialBalanceData, provider.getRules('prepaid')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439))
+    };
+
+    const otherAssetsNote = {
+      current: provider?.getRules('other_assets')
+        ? sumByRules(trialBalanceData, provider.getRules('other_assets')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)),
+      previous: provider?.getRules('other_assets')
+        ? sumByRules(trialBalanceData, provider.getRules('other_assets')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700))
+    };
+
+    const bankOverdraftsNote = {
+      current: provider?.getRules('bank_overdrafts')
+        ? sumByRules(trialBalanceData, provider.getRules('bank_overdrafts')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2001, 2009)),
+      previous: provider?.getRules('bank_overdrafts')
+        ? sumByRules(trialBalanceData, provider.getRules('bank_overdrafts')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2001, 2009))
+    };
+
+    const shortTermLoansNote = {
+      current: provider?.getRules('short_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('short_term_loans')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2030, 2030)),
+      previous: provider?.getRules('short_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('short_term_loans')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2030, 2030))
+    };
+
+    const incomeTaxPayableNote = {
+      current: provider?.getRules('income_tax_payable')
+        ? sumByRules(trialBalanceData, provider.getRules('income_tax_payable')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045)),
+      previous: provider?.getRules('income_tax_payable')
+        ? sumByRules(trialBalanceData, provider.getRules('income_tax_payable')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2045, 2045))
+    };
+
+    const longTermLoansFiNote = {
+      current: provider?.getRules('long_term_loans_fi')
+        ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_fi')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
+          Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121)),
+      previous: provider?.getRules('long_term_loans_fi')
+        ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_fi')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2120, 2123)) -
+          Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2121, 2121))
+    };
+
+    const longTermLoansOtherNote = {
+      current: provider?.getRules('long_term_loans_other')
+        ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_other')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
+          Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119)),
+      previous: provider?.getRules('long_term_loans_other')
+        ? sumByRules(trialBalanceData, provider.getRules('long_term_loans_other')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
+          Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))
     };
 
     // NOTE 12
@@ -244,7 +326,7 @@ export class GlobalDataExtractor {
     };
     const netProfit = revenue.total - expenses.total;
 
-    const individualAccounts = this.extractIndividualAccounts(trialBalanceData);
+  const individualAccounts = this.extractIndividualAccounts(trialBalanceData, provider);
 
     const flags = {
       hasInventory: balanceSheetAssets.inventory.current > 0,
@@ -253,7 +335,20 @@ export class GlobalDataExtractor {
     };
 
     const extracted: DetailedFinancialData = {
-      noteCalculations: { cash: cashNote, receivables: receivablesNote, inventory: inventoryNote, ppe: ppeNote, payables: payablesNote },
+      noteCalculations: {
+        cash: cashNote,
+        receivables: receivablesNote,
+        inventory: inventoryNote,
+        ppe: ppeNote,
+        payables: payablesNote,
+        prepaid: prepaidNote,
+        otherAssets: otherAssetsNote,
+        bankOverdrafts: bankOverdraftsNote,
+        shortTermLoans: shortTermLoansNote,
+        incomeTaxPayable: incomeTaxPayableNote,
+        longTermLoansFi: longTermLoansFiNote,
+        longTermLoansOther: longTermLoansOtherNote
+      },
       individualAccounts,
       balanceSheetTotals: { assets: balanceSheetAssets, liabilities: balanceSheetLiabilities, equity: balanceSheetEquity },
       income: { revenue, expenses, netProfit },
@@ -271,24 +366,103 @@ export class GlobalDataExtractor {
     return account ? Math.abs(account.currentBalance || account.balance || 0) : 0;
   }
 
-  private static extractIndividualAccounts(trialBalanceData: TrialBalanceEntry[]) {
+  private static extractIndividualAccounts(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
     const individualAccounts: any = { cash: {}, receivables: {}, payables: {} };
-    for (const entry of trialBalanceData) {
-      const code = parseInt(entry.accountCode || '0');
-      const currentAmount = Math.abs(entry.balance || 0);
-      const previousAmount = Math.abs(entry.previousBalance || 0);
+
+    // Helper to get entries by provider rules or fallback numeric filters
+    const getEntriesByRulesOrRange = (
+      key: string,
+      fallback: (e: TrialBalanceEntry) => boolean
+    ): TrialBalanceEntry[] => {
+      const rules = provider?.getRules(key);
+      if (rules) {
+        return this.selectByRules(trialBalanceData, rules);
+      }
+      return trialBalanceData.filter(fallback);
+    };
+
+    // Cash: 1000-1099 with category split
+    const cashEntries = getEntriesByRulesOrRange('cash', e => {
+      const code = parseInt(e.accountCode || '0', 10);
+      return code >= 1000 && code <= 1099;
+    });
+    for (const entry of cashEntries) {
+      const code = parseInt(entry.accountCode || '0', 10);
+      const currentAmount = Math.abs((entry.currentBalance ?? entry.balance ?? 0) as number);
+      const previousAmount = Math.abs((entry.previousBalance ?? 0) as number);
       if (currentAmount === 0 && previousAmount === 0) continue;
-      if (code >= 1000 && code <= 1099) {
-        individualAccounts.cash[entry.accountCode || ''] = { accountName: entry.accountName || `บัญชี ${entry.accountCode}`, current: currentAmount, previous: previousAmount, category: code <= 1019 ? 'cash' : 'bankDeposits' };
-      } else if (code >= 1140 && code <= 1215) {
-        individualAccounts.receivables[entry.accountCode || ''] = { accountName: entry.accountName || `บัญชี ${entry.accountCode}`, current: currentAmount, previous: previousAmount };
-      } else if (code >= 2010 && code <= 2999) {
-        const isExcluded = code === 2030 || code === 2045 || (code >= 2050 && code <= 2052) || (code >= 2100 && code <= 2123);
-        if (!isExcluded) {
-          individualAccounts.payables[entry.accountCode || ''] = { accountName: entry.accountName || `บัญชี ${entry.accountCode}`, current: currentAmount, previous: previousAmount };
-        }
+      const category = code <= 1019 ? 'cash' : 'bankDeposits';
+      individualAccounts.cash[entry.accountCode || ''] = {
+        accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+        current: currentAmount,
+        previous: previousAmount,
+        category
+      };
+    }
+
+    // Receivables: provider rules or 1140-1215
+    const receivableEntries = getEntriesByRulesOrRange('receivables', e => {
+      const code = parseInt(e.accountCode || '0', 10);
+      return code >= 1140 && code <= 1215;
+    });
+    for (const entry of receivableEntries) {
+      const currentAmount = Math.abs((entry.currentBalance ?? entry.balance ?? 0) as number);
+      const previousAmount = Math.abs((entry.previousBalance ?? 0) as number);
+      if (currentAmount === 0 && previousAmount === 0) continue;
+      individualAccounts.receivables[entry.accountCode || ''] = {
+        accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+        current: currentAmount,
+        previous: previousAmount
+      };
+    }
+
+    // Payables: provider rules or 2010-2999 minus exclusions
+    const payablesFallback = (e: TrialBalanceEntry) => {
+      const code = parseInt(e.accountCode || '0', 10);
+      const isExcluded = code === 2030 || code === 2045 || (code >= 2050 && code <= 2052) || (code >= 2100 && code <= 2123);
+      return code >= 2010 && code <= 2999 && !isExcluded;
+    };
+    const payableEntries = getEntriesByRulesOrRange('payables', payablesFallback);
+    for (const entry of payableEntries) {
+      const currentAmount = Math.abs((entry.currentBalance ?? entry.balance ?? 0) as number);
+      const previousAmount = Math.abs((entry.previousBalance ?? 0) as number);
+      if (currentAmount === 0 && previousAmount === 0) continue;
+      individualAccounts.payables[entry.accountCode || ''] = {
+        accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
+        current: currentAmount,
+        previous: previousAmount
+      };
+    }
+
+    return individualAccounts;
+  }
+
+  // Minimal rule-aware selector (kept private, in-file)
+  private static selectByRules(tb: TrialBalanceEntry[], rules: any): TrialBalanceEntry[] {
+    const toNum = (v: any) => Number.parseInt(String(v), 10);
+    const inRanges = (codeNum: number, ranges?: Array<{ from: number; to: number }>) =>
+      Array.isArray(ranges) && ranges.some(r => codeNum >= r.from && codeNum <= r.to);
+
+    const includeSet = new Set<string>((rules?.includes ?? []).map((v: any) => String(v)));
+    const excludeSet = new Set<string>((rules?.excludes ?? []).map((v: any) => String(v)));
+    const hasRanges = Array.isArray(rules?.ranges) && rules.ranges.length > 0;
+    const hasInclude = includeSet.size > 0;
+
+    const out: TrialBalanceEntry[] = [];
+    const seen = new Set<string>();
+    for (const e of tb) {
+      const codeStr = e.accountCode || '';
+      const codeNum = toNum(codeStr);
+      const byRange = hasRanges && Number.isFinite(codeNum) && inRanges(codeNum, rules.ranges);
+      const byInclude = hasInclude && includeSet.has(codeStr);
+      if (!(byRange || byInclude)) continue;
+      if (excludeSet.has(codeStr)) continue;
+      if (Number.isFinite(codeNum) && inRanges(codeNum, rules?.excludeRanges)) continue;
+      if (!seen.has(codeStr)) {
+        seen.add(codeStr);
+        out.push(e);
       }
     }
-    return individualAccounts;
+    return out;
   }
 }
