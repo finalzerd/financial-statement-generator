@@ -76,9 +76,19 @@ export class CashNoteGenerator {
       tracker.currentRow++;
     }
 
-    // 4. Total Row
-    notes.push(['', '', 'รวม', '', '', '', totalAmount, '', 
-      processingType === 'multi-year' ? prevTotalAmount : '']);
+    // 4. Total Row - Use SUM formulas over detail rows when available; fallback to numeric totals otherwise
+    const hasDetails = tracker.detailRows.length > 0;
+    const firstDetailRow = hasDetails ? tracker.detailRows[0] : null;
+    const lastDetailRow = hasDetails ? tracker.detailRows[tracker.detailRows.length - 1] : null;
+
+    const currentTotalCell = hasDetails
+      ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` }
+      : totalAmount;
+    const previousTotalCell = processingType === 'multi-year'
+      ? (hasDetails ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : prevTotalAmount)
+      : '';
+
+    notes.push(['', '', 'รวม', '', '', '', currentTotalCell as any, '', previousTotalCell as any]);
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
 
