@@ -377,7 +377,7 @@ export class GlobalDataExtractor {
   }
 
   private static extractIndividualAccounts(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
-    const individualAccounts: any = { cash: {}, receivables: {}, payables: {} };
+  const individualAccounts: any = { cash: {}, receivables: {}, payables: {} };
 
     // Helper to get entries by provider rules or fallback numeric filters
     const getEntriesByRulesOrRange = (
@@ -406,6 +406,7 @@ export class GlobalDataExtractor {
         accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
         current: currentAmount,
         previous: previousAmount,
+        noteCategory: 'cash',
         category
       };
     }
@@ -422,7 +423,8 @@ export class GlobalDataExtractor {
       individualAccounts.receivables[entry.accountCode || ''] = {
         accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
         current: currentAmount,
-        previous: previousAmount
+        previous: previousAmount,
+        noteCategory: 'receivables'
       };
     }
 
@@ -440,7 +442,8 @@ export class GlobalDataExtractor {
       individualAccounts.payables[entry.accountCode || ''] = {
         accountName: entry.accountName || `บัญชี ${entry.accountCode}`,
         current: currentAmount,
-        previous: previousAmount
+        previous: previousAmount,
+        noteCategory: 'payables'
       };
     }
 

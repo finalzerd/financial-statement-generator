@@ -24,6 +24,22 @@ export interface NoteFormatter {
   tracker: NoteRowTracker;
 }
 
+// Note category classification for selection-first architecture
+export type NoteCategory =
+  | 'cash'
+  | 'receivables'
+  | 'inventory'
+  | 'prepaid'
+  | 'ppe_cost'
+  | 'ppe_accum_depr'
+  | 'other_assets'
+  | 'bank_overdrafts'
+  | 'payables'
+  | 'short_term_loans'
+  | 'income_tax_payable'
+  | 'long_term_loans_fi'
+  | 'long_term_loans_other';
+
 /**
  * Foundation-first architecture: Note calculations drive Balance Sheet values
  * This ensures perfect consistency between Notes and Balance Sheet
@@ -81,6 +97,8 @@ export interface DetailedFinancialData {
         accountName: string;
         current: number;
         previous: number;
+        // Selection-first: which note this account belongs to
+        noteCategory?: NoteCategory; // 'cash'
         category: 'cash' | 'bankDeposits'; // Auto-categorized based on code range
       };
     };
@@ -91,6 +109,8 @@ export interface DetailedFinancialData {
         accountName: string;
         current: number;
         previous: number;
+        // Selection-first: which note this account belongs to
+        noteCategory?: NoteCategory; // 'receivables'
       };
     };
     
@@ -100,6 +120,8 @@ export interface DetailedFinancialData {
         accountName: string;
         current: number;
         previous: number;
+        // Selection-first: which note this account belongs to
+        noteCategory?: NoteCategory; // 'payables'
       };
     };
   };
