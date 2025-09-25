@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { DetailedFinancialData, NoteRowTracker } from '../../core/types';
+import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { CompanyInfo } from '../../../../types/financial';
 
 /**
@@ -20,7 +21,8 @@ export class CashNoteGenerator {
     globalData: DetailedFinancialData,
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year',
-    noteNumber: number = 3
+    noteNumber: number = 3,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1, // Excel 1-indexed
@@ -32,13 +34,15 @@ export class CashNoteGenerator {
       unitRows: []
     };
 
-    // Mapping-first: use individual selections for detail population
+    // Prefer selection-first for detail population when available; fallback to legacy globalData
+    const selectionRows = selection?.byCategory?.cash ?? [];
+    const hasSelectionDetails = selectionRows.length > 0;
     const cashAccounts = globalData.individualAccounts.cash;
     const totalAmount = globalData.noteCalculations.cash.total.current;
     const prevTotalAmount = globalData.noteCalculations.cash.total.previous;
 
-    // If both totals are zero AND no mapped accounts, skip the note
-    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(cashAccounts).length === 0) {
+    // If both totals are zero AND no mapped accounts AND no selection, skip the note
+    if (!hasSelectionDetails && totalAmount === 0 && prevTotalAmount === 0 && Object.keys(cashAccounts).length === 0) {
       return tracker; // No note generated
     }
 
@@ -59,20 +63,36 @@ export class CashNoteGenerator {
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 3. Detail Rows - Mapping-based individual accounts (no artificial grouping)
-    const sortedCashEntries = Object.entries(cashAccounts).sort((a, b) => {
-      const aCode = parseInt(a[0] || '0', 10);
-      const bCode = parseInt(b[0] || '0', 10);
-      return aCode - bCode;
-    });
-    sortedCashEntries.forEach(([_, accountData]) => {
-      notes.push(['', '', accountData.accountName, '', '', '',
-        accountData.current, '',
-        processingType === 'multi-year' ? accountData.previous : ''
-      ]);
-      tracker.detailRows.push(tracker.currentRow);
-      tracker.currentRow++;
-    });
+    // 3. Detail Rows - Prefer selection rows; otherwise use globalData individual accounts (sorted)
+    if (hasSelectionDetails) {
+      console.log(`[SelectionFirst] Cash: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.cash?.current ?? 'n/a'}, previous=${selection?.totals?.cash?.previous ?? 'n/a'}`);
+      selectionRows
+        .slice()
+        .sort((a, b) => parseInt(a.accountCode || '0', 10) - parseInt(b.accountCode || '0', 10))
+        .forEach((a) => {
+          notes.push(['', '', a.accountName, '', '', '',
+            a.current, '',
+            processingType === 'multi-year' ? a.previous : ''
+          ]);
+          tracker.detailRows.push(tracker.currentRow);
+          tracker.currentRow++;
+        });
+    } else {
+      const sortedCashEntries = Object.entries(cashAccounts).sort((a, b) => {
+        const aCode = parseInt(a[0] || '0', 10);
+        const bCode = parseInt(b[0] || '0', 10);
+        return aCode - bCode;
+      });
+      console.log(`[SelectionFirst] Cash: no selection details; falling back to globalData.individualAccounts (${sortedCashEntries.length} accounts).`);
+      sortedCashEntries.forEach(([_, accountData]) => {
+        notes.push(['', '', accountData.accountName, '', '', '',
+          accountData.current, '',
+          processingType === 'multi-year' ? accountData.previous : ''
+        ]);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+    }
 
     // 4. Total Row - Use SUM formulas over detail rows when available; fallback to numeric totals otherwise
     const hasDetails = tracker.detailRows.length > 0;

@@ -240,7 +240,7 @@ export class FinancialStatementGenerator {
     let noteNumber = 3;
     
     // Generate specific notes using global data with row tracking
-    const cashTracker = CashNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    const cashTracker = CashNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
     if (cashTracker.headerRows.length > 0) {
       formatters.push({ type: 'cash', tracker: cashTracker });
     }
@@ -250,7 +250,7 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'receivables', tracker: receivablesTracker });
     }
     
-    const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
     if (payablesTracker.headerRows.length > 0) {
       formatters.push({ type: 'payables', tracker: payablesTracker });
     }

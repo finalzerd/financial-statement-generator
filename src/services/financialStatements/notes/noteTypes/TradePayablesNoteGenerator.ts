@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { DetailedFinancialData, NoteRowTracker } from '../../core/types';
+import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { CompanyInfo } from '../../../../types/financial';
 
 /**
@@ -20,7 +21,8 @@ export class TradePayablesNoteGenerator {
     globalData: DetailedFinancialData,
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year',
-    noteNumber: number = 12
+    noteNumber: number = 12,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
@@ -32,11 +34,14 @@ export class TradePayablesNoteGenerator {
       unitRows: []
     };
 
+    const selectionRows = selection?.byCategory?.payables ?? [];
+    const hasSelectionDetails = selectionRows.length > 0;
+
     const payableAccounts = globalData.individualAccounts.payables;
     const totalAmount = globalData.noteCalculations.payables.total.current;
     const prevTotalAmount = globalData.noteCalculations.payables.total.previous;
 
-    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(payableAccounts).length === 0) {
+    if (!hasSelectionDetails && totalAmount === 0 && prevTotalAmount === 0 && Object.keys(payableAccounts).length === 0) {
       return tracker;
     }
 
@@ -57,14 +62,26 @@ export class TradePayablesNoteGenerator {
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 3. Detail Rows - Individual accounts (zero-filtering architecture)
-    Object.entries(payableAccounts).forEach(([_, accountData]) => {
-      notes.push(['', '', accountData.accountName, '', '', '', 
-        accountData.current, '', 
-        processingType === 'multi-year' ? accountData.previous : '']);
-      tracker.detailRows.push(tracker.currentRow);
-      tracker.currentRow++;
-    });
+    // 3. Detail Rows - Prefer selection rows; otherwise use globalData individual accounts
+    if (hasSelectionDetails) {
+      console.log(`[SelectionFirst] Payables: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.payables?.current ?? 'n/a'}, previous=${selection?.totals?.payables?.previous ?? 'n/a'}`);
+      selectionRows.forEach((a) => {
+        notes.push(['', '', a.accountName, '', '', '', 
+          a.current, '', 
+          processingType === 'multi-year' ? a.previous : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+    } else {
+      console.log(`[SelectionFirst] Payables: no selection details; falling back to globalData.individualAccounts (${Object.keys(payableAccounts).length} accounts).`);
+      Object.entries(payableAccounts).forEach(([_, accountData]) => {
+        notes.push(['', '', accountData.accountName, '', '', '', 
+          accountData.current, '', 
+          processingType === 'multi-year' ? accountData.previous : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+    }
 
     // 4. Total Row
     // Use Excel SUM formulas over detail rows when available; fallback to numeric totals otherwise
