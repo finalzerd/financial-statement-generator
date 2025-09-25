@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { DetailedFinancialData, NoteRowTracker } from '../../core/types';
+import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { CompanyInfo } from '../../../../types/financial';
 
 /**
@@ -20,7 +21,8 @@ export class TradeReceivablesNoteGenerator {
     globalData: DetailedFinancialData,
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year',
-    noteNumber: number = 4
+    noteNumber: number = 4,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
@@ -32,11 +34,15 @@ export class TradeReceivablesNoteGenerator {
       unitRows: []
     };
 
+    // Prefer selection-first mapping if provided; fallback to legacy globalData
+  const selectionRows = selection?.byCategory?.receivables ?? [];
+  const hasSelectionDetails = selectionRows.length > 0;
+
     const receivableAccounts = globalData.individualAccounts.receivables;
     const totalAmount = globalData.noteCalculations.receivables.total.current;
     const prevTotalAmount = globalData.noteCalculations.receivables.total.previous;
 
-    if (totalAmount === 0 && prevTotalAmount === 0 && Object.keys(receivableAccounts).length === 0) {
+    if (!hasSelectionDetails && totalAmount === 0 && prevTotalAmount === 0 && Object.keys(receivableAccounts).length === 0) {
       return tracker;
     }
 
@@ -57,14 +63,26 @@ export class TradeReceivablesNoteGenerator {
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 3. Detail Rows - Individual accounts (zero-filtering architecture)
-  Object.entries(receivableAccounts).forEach(([_, accountData]) => {
-      notes.push(['', '', accountData.accountName, '', '', '', 
-        accountData.current, '', 
-        processingType === 'multi-year' ? accountData.previous : '']);
-      tracker.detailRows.push(tracker.currentRow);
-      tracker.currentRow++;
-    });
+    // 3. Detail Rows - Prefer selection rows; otherwise use globalData individual accounts
+    if (hasSelectionDetails) {
+      console.log(`[SelectionFirst] Receivables: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.receivables?.current ?? 'n/a'}, previous=${selection?.totals?.receivables?.previous ?? 'n/a'}`);
+      selectionRows.forEach((a) => {
+        notes.push(['', '', a.accountName, '', '', '', 
+          a.current, '', 
+          processingType === 'multi-year' ? a.previous : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+    } else {
+      console.log(`[SelectionFirst] Receivables: no selection details; falling back to globalData.individualAccounts (${Object.keys(receivableAccounts).length} accounts).`);
+      Object.entries(receivableAccounts).forEach(([_, accountData]) => {
+        notes.push(['', '', accountData.accountName, '', '', '', 
+          accountData.current, '', 
+          processingType === 'multi-year' ? accountData.previous : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+    }
 
     // 4. Total Row
     // Use Excel SUM formulas over detail rows when available; fallback to numeric totals otherwise

@@ -35,6 +35,7 @@ import { EquityBuilder } from './financialStatements/equity/EquityBuilder';
 import { GlobalDataExtractor } from './financialStatements/core/GlobalDataExtractor';
 import { NotesPolicyBuilder } from './financialStatements/notes/NotesPolicyBuilder';
 import type { IAccountMappingProvider } from './financialStatements/mapping/IAccountMappingProvider';
+import { SelectionFirstClassifier } from './financialStatements/selection/SelectionFirstClassifier';
 
 // ============================================================================
 // MAIN FINANCIAL STATEMENT GENERATOR CLASS
@@ -222,6 +223,11 @@ export class FinancialStatementGenerator {
   const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
     console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction with Row Tracking ===');
+    // Compute selection-first classification once (mapping-first architecture)
+  const selection = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+  const totalClassified = Object.keys(selection.byAccount).length;
+  const unmatchedCount = selection.unmatched?.length ?? 0;
+  console.log(`[SelectionFirst] Classified ${totalClassified} accounts; unmatched=${unmatchedCount}. Receivables selected=${selection.byCategory?.receivables?.length ?? 0}`);
     
     const notes: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
@@ -239,7 +245,7 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'cash', tracker: cashTracker });
     }
     
-    const receivablesTracker = TradeReceivablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++);
+    const receivablesTracker = TradeReceivablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
     if (receivablesTracker.headerRows.length > 0) {
       formatters.push({ type: 'receivables', tracker: receivablesTracker });
     }
