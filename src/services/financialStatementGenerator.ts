@@ -261,22 +261,22 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'ppe', tracker: ppeTracker });
     }
     
-    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (shortTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'shortTermLoans', tracker: shortTermLoansTracker });
     }
     
-    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherAssetsTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherAssetsTracker });
     }
     
-    const longTermLoansTracker = LongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    const longTermLoansTracker = LongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (longTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: longTermLoansTracker });
     }
     
-    const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherLongTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });
     }

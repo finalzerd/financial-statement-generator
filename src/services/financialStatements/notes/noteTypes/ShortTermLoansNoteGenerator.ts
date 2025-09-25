@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { NoteRowTracker } from '../../core/types';
+import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
 
 /**
@@ -47,7 +48,8 @@ export class ShortTermLoansNoteGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 5
+    noteNumber: number = 5,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
@@ -59,6 +61,36 @@ export class ShortTermLoansNoteGenerator {
       unitRows: []
     };
 
+    const selRows = selection?.byCategory?.short_term_loans ?? [];
+    if (selRows.length > 0) {
+      console.log(`[SelectionFirst] Short-term loans: using selection-first details (${selRows.length} accounts). Total current=${selRows.reduce((s,a)=>s+(a.current||0),0)}, previous=${selRows.reduce((s,a)=>s+(a.previous||0),0)}`);
+      // Header
+      notes.push([noteNumber.toString(), 'เงินให้กู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      tracker.headerRows.push(tracker.currentRow); tracker.unitRows.push(tracker.currentRow); tracker.currentRow++;
+      // Year header
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+      }
+      tracker.yearHeaderRows.push(tracker.currentRow); tracker.currentRow++;
+      // Details
+      selRows.forEach(a => {
+        notes.push(['', '', a.accountName, '', '', '', a.current, '', processingType === 'multi-year' ? a.previous : '']);
+        tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
+      });
+      // Total via SUM
+      const first = tracker.detailRows[0];
+      const last = tracker.detailRows[tracker.detailRows.length - 1];
+      notes.push(['', '', 'รวม', '', '', '', { f: `SUM(G${first}:G${last})` } as any, '', processingType === 'multi-year' ? ({ f: `SUM(I${first}:I${last})` } as any) : '']);
+      tracker.totalRows.push(tracker.currentRow); tracker.currentRow++;
+      // Spacer
+      notes.push(['', '', '', '', '', '', '', '', '']);
+      tracker.currentRow++;
+      return tracker;
+    }
+
+    // Fallback legacy path
     const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1141, 1141));
     const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
       Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1141, 1141)) : 0;
