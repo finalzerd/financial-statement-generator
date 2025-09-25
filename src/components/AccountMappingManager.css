@@ -329,6 +329,8 @@
   font-weight: bold;
 }
 
+/* Sub-category editor removed in simplified version */
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .mappings-grid {

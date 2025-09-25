@@ -11,7 +11,7 @@ const DEFAULT_MAPPINGS = [
     noteNumber: 7,
     noteTitle: 'เงินสดและรายการเทียบเท่าเงินสด',
     accountRanges: JSON.stringify({
-      ranges: [{ from: 1000, to: 1099 }]
+      ranges: [{ from: 1000, to: 1099 }],
     })
   },
   {
@@ -106,6 +106,11 @@ const DEFAULT_MAPPINGS = [
   }
 ];
 
+// DEPRECATED: Use scripts/setupSQLiteDatabase.js to create and seed tables.
+console.error('[DEPRECATED] createAccountMappingsTable.cjs has been superseded by setupSQLiteDatabase.js');
+process.exit(0);
+
+/*
 function createAccountMappingsTable() {
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database(dbPath, (err) => {
@@ -209,3 +214,4 @@ if (require.main === module) {
 }
 
 module.exports = { createAccountMappingsTable, DEFAULT_MAPPINGS };
+*/

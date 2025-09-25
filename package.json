@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "db:setup": "node scripts/setupSQLiteDatabase.js",
     "db:read": "node scripts/readDatabase.js",
-    "db:setup:old": "node -r ts-node/register scripts/setupDatabase.ts"
+    "db:setup:old": "echo Deprecated: use npm run db:setup instead && exit 0"
   },
   "dependencies": {
     "@types/cors": "^2.8.19",

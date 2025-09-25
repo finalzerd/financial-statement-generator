@@ -84,7 +84,8 @@ export class SelectionFirstClassifier {
       let matched: NoteCategory | null = null;
       for (const cat of CATEGORY_PRIORITY) {
         const resolver = getResolver(cat);
-        if (resolver(codeStr)) { matched = cat; break; }
+        const res = resolver(codeStr);
+        if (res.matched) { matched = cat; break; }
       }
 
       const finalCat = matched ?? 'unmatched';
@@ -145,18 +146,20 @@ export class SelectionFirstClassifier {
       }
     };
 
-    return (codeStr: string): boolean => {
+    return (codeStr: string): { matched: boolean } => {
       const codeNum = Number.parseInt(codeStr || '0', 10);
       const inRanges = (lst?: Array<{ from: number; to: number }>) => Array.isArray(lst) && lst.some(r => codeNum >= r.from && codeNum <= r.to);
 
-      // Provider-based rules
+      // Provider-based rules (top-level)
       const byInclude = includes.size > 0 && includes.has(codeStr);
       const byRange = ranges.length > 0 && Number.isFinite(codeNum) && inRanges(ranges);
-  const excluded = excludes.has(codeStr);
-      if ((byInclude || byRange) && !excluded) return true;
+      const excluded = excludes.has(codeStr);
+      if ((byInclude || byRange) && !excluded) {
+        return { matched: true };
+      }
 
       // Fallback numeric mapping
-      return Number.isFinite(codeNum) && fallback(codeNum) === true;
+      return { matched: Number.isFinite(codeNum) && fallback(codeNum) === true };
     };
   }
 }

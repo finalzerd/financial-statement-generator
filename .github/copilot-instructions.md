@@ -469,3 +469,55 @@ This system represents a complete migration from Excel VBA to modern web technol
 - **Pattern Recognition + Row Tracking**: Dual formatting approaches for maximum reliability
 - **Formula Transparency**: Excel formulas maintain audit trail and calculation verification
 - **Professional UI**: React frontend with progress indicators and responsive design
+
+---
+
+## Selection‑First Architecture: Current Status
+
+- SelectionFirstClassifier maps all trial balance accounts to NoteCategories up‑front with numeric fallbacks (no sub‑category tagging).
+- Notes consume `selection.byCategory[...]` and prefer selection‑first data; they log when falling back to legacy.
+- Cash note lists individual accounts (เงินสด/เงินฝากธนาคาร inferred by code range) and totals use Excel `SUM` over detail rows.
+- Receivables and Payables notes use Excel `SUM` formulas for totals over detail rows.
+- Balance Sheet uses note‑first linkage where totals reference notes via formulas.
+- ExcelJSFormatter applies all visual formatting using NoteRowTracker; zero‑clearing logic preserves 0s in protected PPE columns.
+
+## How to Add a New Note
+
+Follow this recipe to add a new note type using the simplified selection‑first model (no sub‑categories).
+
+1) Extend core types
+- File: `src/services/financialStatements/core/types.ts`
+  - Add your new string literal to `NoteCategory`.
+  - If you need a dedicated formatter branch, extend `NoteFormatter['type']` and wire it in the Excel formatter.
+
+2) Author mapping rules (DB/UI or static defaults)
+- Create/update rules for the new category: ranges, includes, excludes.
+
+3) Classification (selection‑first)
+- File: `src/services/financialStatements/selection/SelectionFirstClassifier.ts`
+  - Add the new category to `CATEGORY_PRIORITY` (order prevents double counting when ranges overlap).
+
+4) Implement the note generator
+- Location: `src/services/financialStatements/notes/noteTypes/<NewNote>Generator.ts`
+- Contract:
+  - Prefer `selection.byCategory[category]` for details.
+  - List individual account rows from the selection; avoid re‑filtering the trial balance.
+  - Create a grand total using Excel `SUM` formulas over the emitted detail lines.
+  - Track rows via `NoteRowTracker` (headerRows, yearHeaderRows, detailRows, totalRows, unitRows).
+  - Log selection‑first vs fallback for diagnostics.
+
+5) Formatting
+- File: `src/services/financialStatements/excelFormatter.ts`
+  - Add a case for your `NoteFormatter.type` if needed; apply bold/underline/number formats per `NoteRowTracker`.
+
+6) Orchestration
+- Ensure the orchestrator passes `selection` to the new note.
+- If the Balance Sheet should use this note’s totals, link via formulas (note‑first linkage).
+
+7) Validate
+- Build, then generate a workbook with sample TB.
+- Verify:
+  - Classification buckets are correct (selection.byCategory has the expected accounts)
+  - Note renders with correct Thai labels
+  - Totals use `SUM` formulas and Balance Sheet references the note as intended
+  - No zeros are accidentally cleared in protected areas

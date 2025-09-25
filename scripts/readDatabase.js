@@ -73,6 +73,20 @@ async function readDatabase() {
     console.log(`  Total Companies: ${companies.length}`);
     console.log(`  Total Trial Balance Sets: ${trialSets.length}`);
 
+    // Show account mappings (if table exists)
+    const hasMappingsTable = tables.some(t => t.name === 'company_account_mappings');
+    if (hasMappingsTable) {
+      console.log('\n🧭 Company Account Mappings (sample):');
+      const mappings = await allAsync('SELECT id, company_id, note_type, note_number, note_title, account_ranges, is_active FROM company_account_mappings ORDER BY company_id, note_number LIMIT 10');
+      if (mappings.length > 0) {
+        mappings.forEach(m => {
+          console.log(`  [C${m.company_id}] Note ${m.note_number} ${m.note_type} (${m.is_active ? 'active' : 'inactive'})`);
+        });
+      } else {
+        console.log('  No mappings found');
+      }
+    }
+
   } catch (error) {
     console.error('❌ Error reading database:', error);
   } finally {

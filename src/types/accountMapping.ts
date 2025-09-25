@@ -10,6 +10,7 @@ export interface AccountRange {
   to: number;
 }
 
+
 /**
  * Complete account mapping rules for a note type
  */
@@ -240,6 +241,8 @@ export class AccountMappingUtils {
     if (rules.excludes?.length) {
       parts.push(`Excludes: ${rules.excludes.join(', ')}`);
     }
+
+    // No sub-category description in simplified rules
 
     return parts.join(' | ') || 'No rules defined';
   }

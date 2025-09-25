@@ -120,6 +120,8 @@ export function AccountMappingManager({
           .filter(n => !isNaN(n))
       };
 
+      // No sub-categories in simplified version
+
       // Validate rules
       const ruleValidation = AccountMappingUtils.validateMappingRules(accountRanges);
       if (!ruleValidation.isValid) {
@@ -183,6 +185,8 @@ export function AccountMappingManager({
       setFormData({ ...formData, ranges: newRanges });
     }
   };
+
+  // No sub-category helpers in simplified version
 
   if (loading) return <div className="loading">Loading account mappings...</div>;
 
@@ -345,6 +349,8 @@ export function AccountMappingManager({
                     onChange={(e) => setFormData({ ...formData, excludes: e.target.value })}
                   />
                 </div>
+
+                {/* Sub-category UI removed in simplified version */}
 
                 <div className="form-group">
                   <label>

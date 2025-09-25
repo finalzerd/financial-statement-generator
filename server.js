@@ -24,6 +24,27 @@ db.run('ALTER TABLE companies ADD COLUMN share_value REAL', (err) => {
   // Ignore error if column already exists
 });
 
+// Ensure company_account_mappings table exists
+db.run(`
+  CREATE TABLE IF NOT EXISTS company_account_mappings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    company_id INTEGER NOT NULL,
+    note_type TEXT NOT NULL,
+    note_number INTEGER,
+    note_title TEXT,
+    account_ranges TEXT NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(company_id, note_type),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+  )
+`, (err) => {
+  if (err) {
+    console.error('Error ensuring company_account_mappings table exists:', err);
+  }
+});
+
 // Helper function to convert database row to Company format
 const mapDbRowToCompany = (row) => ({
   id: row.id.toString(),

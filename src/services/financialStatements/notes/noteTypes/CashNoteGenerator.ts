@@ -98,7 +98,6 @@ export class CashNoteGenerator {
     const hasDetails = tracker.detailRows.length > 0;
     const firstDetailRow = hasDetails ? tracker.detailRows[0] : null;
     const lastDetailRow = hasDetails ? tracker.detailRows[tracker.detailRows.length - 1] : null;
-
     const currentTotalCell = hasDetails
       ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` }
       : totalAmount;
