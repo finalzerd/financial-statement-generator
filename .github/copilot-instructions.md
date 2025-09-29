@@ -444,6 +444,118 @@ Object.entries(globalData.individualAccounts.receivables).forEach(([accountCode,
 
 This system represents a complete migration from Excel VBA to modern web technology while maintaining 100% compatibility with the original business logic and financial statement requirements.
 
+## Sub-Category Extension Guide (Cash Example & Future Pattern)
+
+The platform now supports database-driven sub-categories (currently implemented for the Cash note: เงินสด / เงินฝากธนาคาร). This section is a recipe for extending sub-category support to additional note types in a consistent, low-risk manner.
+
+### Concept Overview
+Sub-categories are an optional SECONDARY partition applied AFTER top-level category assignment by the Selection-First Classifier. They never change which high-level NoteCategory an account belongs to; they only aggregate presentation rows inside a note (and optionally provide structured totals for Balance Sheet linkage).
+
+### When To Use
+Use sub-categories only when:
+1. Users need a summarized view (few logical group lines) instead of a long list of individual accounts.
+2. Grouping rules are stable enough to be expressed as account ranges / includes / excludes.
+3. You still want a fallback path (no rules -> list all individual accounts to preserve transparency).
+
+### Data Flow Summary
+1. DB returns JSON column `sub_category_rules` per mapping row (table: `company_account_mappings`).
+2. `DynamicMappingProvider` parses and exposes these via `getSubCategoryRules(noteType)`.
+3. `SelectionFirstClassifier` performs basic category classification (unchanged) THEN optionally partitions accounts for a category if sub-category rules exist.
+4. Note generator (e.g., `CashNoteGenerator`) detects `selection.subCategories[category].grouped` and emits grouped rows + SUM total; otherwise emits individual detail rows.
+5. Excel formatter applies existing row tracking (no formatter changes needed unless you add special styling per sub-category).
+
+### Core Files & Responsibilities
+| Purpose | File | Key Elements |
+|---------|------|--------------|
+| Types for rules | `src/types/accountMapping.ts` | `SubCategoryRule`, `SubCategoryRuleContainer` |
+| Provider interface | `src/services/financialStatements/mapping/IAccountMappingProvider.ts` | `getSubCategoryRules()` |
+| Dynamic runtime provider | `src/services/financialStatements/mapping/DynamicMappingProvider.ts` | Stores `subCategoryRules` Map |
+| Static fallback provider | `src/services/financialStatements/mapping/StaticMappingProvider.ts` | Returns `null` for sub-cats |
+| Classification & partition | `src/services/financialStatements/selection/SelectionFirstClassifier.ts` | Builds `result.subCategories` |
+| Note generation (presentation) | `src/services/financialStatements/notes/noteTypes/<Note>Generator.ts` | Reads `selection.subCategories[...]` |
+| Excel formatting | `src/services/excelFormatter.ts` | Uses `NoteRowTracker` (no direct knowledge of logic) |
+| UI mapping editor (Cash) | `src/components/AccountMappingManager.tsx` | Serializes JSON to API |
+| API data contract | `server.js` & REST endpoints | Persists `sub_category_rules` TEXT |
+
+### Step-by-Step: Adding a New Sub-Category (Example: Payables -> Trade vs Other)
+1. Extend Types:
+  - In `accountMapping.ts`, add a new property to `SubCategoryRuleContainer` (e.g., `payables?: { trade?: SubCategoryRule; other?: SubCategoryRule; }`).
+2. UI Support (optional first iteration can skip):
+  - Update `AccountMappingManager.tsx` to show sub-category panels when editing the target noteType (similar to existing Cash block) and serialize into JSON.
+3. Provider Persistence:
+  - Backend already persists arbitrary JSON; ensure UI sends the new structure. No schema change required if column already exists.
+4. Provider Exposure:
+  - `DynamicMappingProvider` automatically stores whatever JSON is present; no code change unless you want validation.
+5. Classification Partition:
+  - Modify `SelectionFirstClassifier`:
+    - After computing `byCategory.payables`, mirror the Cash logic: pull `provider.getSubCategoryRules('payables')`, build matchers, assign `rec.subCategory`, and add a `subCategories.payables = {...}` structure with: each sub-group `{ accounts, current, previous }`, aggregated `totals`, and `grouped` flag.
+  - Keep fallback path: if no rules -> grouped=false, do not collapse detail listing.
+6. Note Generator:
+  - In (new) `PayablesNoteGenerator` or existing generator code, detect `selection.subCategories?.payables?.grouped`.
+  - If grouped: output only the named sub-category lines (Thai labels), push row indexes into `tracker.detailRows`.
+  - Else: list individual accounts (current behavior).
+  - Total row formulas: `SUM(Gfirst:Glast)` and previous year sum if multi-year.
+7. Formatting:
+  - Row tracking already tags header/year/detail/total rows; Excel formatter just renders them. Only add new styling if you need special emphasis.
+8. Balance Sheet Linkage (optional):
+  - If later you want Balance Sheet to reference sub-category totals individually (rare), expose them via formulas referencing note rows. (Current approach sums internally already.)
+9. Logging & Diagnostics:
+  - Add a concise console log: `console.log('[SelectionFirst] Payables: GROUPED MODE ...')` or `... fallback mode` for support clarity.
+10. Testing:
+  - With rules present: verify only two lines appear plus total.
+  - With rules removed (null): verify per-account listing returns automatically.
+  - Multi-year: confirm previous-year column formulas or values align with aggregated sums.
+
+### Matcher Construction Pattern (Reuse From Cash)
+```typescript
+const buildMatcher = (r?: SubCategoryRule) => {
+  if (!r) return null;
+  const includes = new Set((r.includes||[]).map(String));
+  const excludes = new Set((r.excludes||[]).map(String));
+  const ranges = r.ranges || [];
+  return (codeStr: string) => {
+   if (excludes.has(codeStr)) return false;
+   if (includes.size && includes.has(codeStr)) return true;
+   const n = parseInt(codeStr,10); if (!Number.isFinite(n)) return false;
+   return ranges.some(R => n >= R.from && n <= R.to);
+  };
+};
+```
+
+### Guardrails & Best Practices
+1. Never re-filter the raw trial balance for sub-categories; always partition the already-classified `byCategory[cat]` array.
+2. Keep `grouped=false` fallback path to preserve transparency and minimize user confusion.
+3. Avoid hardcoding Thai labels in classifier; labels belong in note generators (presentation layer).
+4. Do not inject formatting flags into data arrays—only use `NoteRowTracker` for styling.
+5. Maintain immutability of other categories; limit sub-category side-effects to the one you are extending.
+
+### Common Pitfalls
+| Pitfall | Symptom | Fix |
+|---------|---------|-----|
+| Overwriting `totals` with sub-group sums that omit accounts | Balance Sheet mismatch | Always base `totals[cat]` on full category accounts BEFORE partitioning. |
+| Missing fallback when JSON malformed | Note disappears or shows no detail | Wrap partition logic in try/catch and log a warning (see Cash implementation). |
+| Using falsy check `!value` in note formulas | Zeros vanish in Excel | Always explicitly test `value === undefined || value === null`. |
+| Adding bold directly in data arrays | Formatting inconsistency | Use row tracking + ExcelJSFormatter only. |
+
+### Minimal Checklist to Add Another Sub-Category
+1. Types updated (`SubCategoryRuleContainer`).
+2. UI edit panel & serialization (optional first iteration). 
+3. Classifier partition block added with `grouped` flag.
+4. Note generator conditional grouped vs detail listing.
+5. Total row formulas validated.
+6. Console logging for mode detection.
+7. Commit with `feat(<note>-subcategories): ...` message.
+
+### Future Enhancements (Optional)
+| Idea | Benefit |
+|------|---------|
+| Add validation utility for sub-category overlap | Prevent double-counting across sub-groups |
+| Add API endpoint to test sample code coverage of rules | Faster feedback for users editing ranges |
+| UI toggle to expand/collapse underlying accounts when grouped | Combines summary + transparency |
+| Persist user preference per company for grouped vs detail view | Flexible presentation |
+
+This guide should enable future contributors (human or AI) to extend sub-category grouping safely and consistently.
+
 ## Current Implementation Status
 
 ### **Production-Ready Features**
