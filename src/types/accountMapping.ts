@@ -20,6 +20,25 @@ export interface AccountMappingRules {
   excludes?: number[];               // Specific account codes to exclude from ranges
 }
 
+// --------------------------------------------------------------------------
+// OPTIONAL SUB-CATEGORY RULES (CURRENTLY ONLY ENABLED FOR CASH)
+// Each sub-category uses the same rule structure as top-level mapping rules
+// but is applied AFTER top-level filtering to partition accounts. Top-level
+// accountRanges acts as a superset; sub-categories subdivide it.
+// --------------------------------------------------------------------------
+export interface SubCategoryRule extends AccountMappingRules {}
+
+export interface CashSubCategoryRuleSet {
+  cash?: SubCategoryRule;          // เงินสดในมือ 1000-1019 typical
+  bankDeposits?: SubCategoryRule;  // เงินฝากธนาคาร 1020-1099 typical
+}
+
+// Generic container for future categories (only cash implemented now)
+export type SubCategoryRuleContainer = {
+  cash?: CashSubCategoryRuleSet;
+  // future: receivables?: {...}; etc.
+};
+
 /**
  * Company-specific account mapping for a note type
  */
@@ -30,6 +49,7 @@ export interface CompanyAccountMapping {
   noteNumber?: number;               // Note number in financial statements
   noteTitle?: string;                // Custom note title
   accountRanges: AccountMappingRules; // Flexible mapping rules
+  subCategoryRules?: SubCategoryRuleContainer | null; // Optional sub-category rules JSON (column: sub_category_rules)
   isActive: boolean;                 // Whether this mapping is active
   createdAt: string;
   updatedAt: string;
@@ -43,6 +63,7 @@ export interface AccountMappingRequest {
   noteNumber?: number;
   noteTitle?: string;
   accountRanges: AccountMappingRules;
+  subCategoryRules?: SubCategoryRuleContainer | null;
   isActive?: boolean;
 }
 

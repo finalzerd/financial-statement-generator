@@ -118,6 +118,7 @@ async function setupDatabase() {
         note_number INTEGER,
         note_title TEXT,
         account_ranges TEXT NOT NULL,
+        sub_category_rules TEXT, -- JSON blob for optional sub-category rules (currently only for cash)
         is_active INTEGER DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,

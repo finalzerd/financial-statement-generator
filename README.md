@@ -208,7 +208,7 @@ npm run preview
 ```
 
 ### **Usage**
-1. **Upload CSV**: Drag & drop your TB01.csv file
+1. **Upload CSV**: Drag & drop your `samples/TB01.csv` file (or your own trial balance in the same format)
 2. **Company Info**: Fill in company details form
 3. **Review**: View generated financial statements
 4. **Download**: Export to Excel format

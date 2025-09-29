@@ -33,6 +33,7 @@ db.run(`
     note_number INTEGER,
     note_title TEXT,
     account_ranges TEXT NOT NULL,
+    sub_category_rules TEXT, -- JSON blob for optional sub-category rules (currently only used for cash)
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -43,6 +44,11 @@ db.run(`
   if (err) {
     console.error('Error ensuring company_account_mappings table exists:', err);
   }
+});
+
+// Add sub_category_rules column if it doesn't exist (for existing databases)
+db.run('ALTER TABLE company_account_mappings ADD COLUMN sub_category_rules TEXT', (err) => {
+  // Ignore error if column already exists
 });
 
 // Helper function to convert database row to Company format
@@ -373,6 +379,7 @@ app.get('/api/companies/:companyId/account-mappings', (req, res) => {
       noteNumber: row.note_number,
       noteTitle: row.note_title,
       accountRanges: JSON.parse(row.account_ranges),
+      subCategoryRules: row.sub_category_rules ? JSON.parse(row.sub_category_rules) : null,
       isActive: Boolean(row.is_active),
       createdAt: row.created_at,
       updatedAt: row.updated_at
@@ -385,7 +392,7 @@ app.get('/api/companies/:companyId/account-mappings', (req, res) => {
 // Update account mapping for a specific note type
 app.put('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
   const { companyId, noteType } = req.params;
-  const { noteNumber, noteTitle, accountRanges, isActive } = req.body;
+  const { noteNumber, noteTitle, accountRanges, isActive, subCategoryRules } = req.body;
 
   if (!accountRanges) {
     res.status(400).json({ 
@@ -399,7 +406,7 @@ app.put('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
   const now = new Date().toISOString();
   const query = `
     UPDATE company_account_mappings 
-    SET note_number = ?, note_title = ?, account_ranges = ?, is_active = ?, updated_at = ?
+    SET note_number = ?, note_title = ?, account_ranges = ?, sub_category_rules = ?, is_active = ?, updated_at = ?
     WHERE company_id = ? AND note_type = ?
   `;
 
@@ -407,6 +414,7 @@ app.put('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
     noteNumber,
     noteTitle,
     JSON.stringify(accountRanges),
+    subCategoryRules ? JSON.stringify(subCategoryRules) : null,
     isActive ? 1 : 0,
     now,
     companyId,
@@ -441,7 +449,7 @@ app.put('/api/companies/:companyId/account-mappings/:noteType', (req, res) => {
 // Create new account mapping
 app.post('/api/companies/:companyId/account-mappings', (req, res) => {
   const { companyId } = req.params;
-  const { noteType, noteNumber, noteTitle, accountRanges, isActive } = req.body;
+  const { noteType, noteNumber, noteTitle, accountRanges, isActive, subCategoryRules } = req.body;
 
   if (!noteType || !accountRanges) {
     res.status(400).json({ 
@@ -455,8 +463,8 @@ app.post('/api/companies/:companyId/account-mappings', (req, res) => {
   const now = new Date().toISOString();
   const query = `
     INSERT INTO company_account_mappings 
-    (company_id, note_type, note_number, note_title, account_ranges, is_active, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    (company_id, note_type, note_number, note_title, account_ranges, sub_category_rules, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(query, [
@@ -465,6 +473,7 @@ app.post('/api/companies/:companyId/account-mappings', (req, res) => {
     noteNumber,
     noteTitle,
     JSON.stringify(accountRanges),
+    subCategoryRules ? JSON.stringify(subCategoryRules) : null,
     isActive ? 1 : 0,
     now,
     now
@@ -654,8 +663,8 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
     DEFAULT_MAPPINGS.forEach(mapping => {
       const insertQuery = `
         INSERT INTO company_account_mappings 
-        (company_id, note_type, note_number, note_title, account_ranges, is_active, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        (company_id, note_type, note_number, note_title, account_ranges, sub_category_rules, is_active, created_at, updated_at) 
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
       `;
 
       db.run(insertQuery, [
@@ -664,6 +673,7 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
         mapping.noteNumber,
         mapping.noteTitle,
         mapping.accountRanges,
+        mapping.noteType === 'cash' ? null : null,
         now,
         now
       ], (err) => {

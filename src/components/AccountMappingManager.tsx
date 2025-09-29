@@ -25,6 +25,19 @@ interface MappingFormData {
   includes: string;
   excludes: string;
   isActive: boolean;
+  // Optional sub-category rule editing (currently only for cash)
+  subCategoryRules?: {
+    cash?: {
+      ranges: Array<{ from: string; to: string }>;
+      includes: string;
+      excludes: string;
+    };
+    bankDeposits?: {
+      ranges: Array<{ from: string; to: string }>;
+      includes: string;
+      excludes: string;
+    };
+  } | null;
 }
 
 export function AccountMappingManager({ 
@@ -88,7 +101,19 @@ export function AccountMappingManager({
       })) || [{ from: '', to: '' }],
       includes: mapping.accountRanges.includes?.join(', ') || '',
       excludes: mapping.accountRanges.excludes?.join(', ') || '',
-      isActive: mapping.isActive
+      isActive: mapping.isActive,
+      subCategoryRules: mapping.subCategoryRules?.cash ? {
+        cash: {
+          ranges: mapping.subCategoryRules.cash.cash?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+          includes: mapping.subCategoryRules.cash.cash?.includes?.join(', ') || '',
+          excludes: mapping.subCategoryRules.cash.cash?.excludes?.join(', ') || ''
+        },
+        bankDeposits: {
+          ranges: mapping.subCategoryRules.cash.bankDeposits?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+          includes: mapping.subCategoryRules.cash.bankDeposits?.includes?.join(', ') || '',
+          excludes: mapping.subCategoryRules.cash.bankDeposits?.excludes?.join(', ') || ''
+        }
+      } : null
     });
   };
 
@@ -129,11 +154,28 @@ export function AccountMappingManager({
         return;
       }
 
+      // Build subCategoryRules structure (only for cash)
+      let subCategoryRules: any = null;
+      if (formData.noteType === 'cash' && formData.subCategoryRules) {
+        const buildSub = (sc: { ranges: { from: string; to: string }[]; includes: string; excludes: string }) => {
+          const r = sc.ranges.filter(r => r.from && r.to).map(r => ({ from: parseInt(r.from), to: parseInt(r.to) }));
+          const inc = sc.includes.split(',').map(s => s.trim()).filter(s => s).map(s => parseInt(s)).filter(n => !isNaN(n));
+          const exc = sc.excludes.split(',').map(s => s.trim()).filter(s => s).map(s => parseInt(s)).filter(n => !isNaN(n));
+          return { ...(r.length ? { ranges: r } : {}), ...(inc.length ? { includes: inc } : {}), ...(exc.length ? { excludes: exc } : {}) };
+        };
+        const cashRules = buildSub(formData.subCategoryRules.cash!);
+        const bankRules = buildSub(formData.subCategoryRules.bankDeposits!);
+        if (Object.keys(cashRules).length || Object.keys(bankRules).length) {
+          subCategoryRules = { cash: { cash: cashRules, bankDeposits: bankRules } };
+        }
+      }
+
       await ApiService.updateAccountMapping(companyId, formData.noteType, {
         noteNumber: formData.noteNumber,
         noteTitle: formData.noteTitle,
         accountRanges,
-        isActive: formData.isActive
+        isActive: formData.isActive,
+        subCategoryRules
       });
 
       await loadMappings();
@@ -184,6 +226,34 @@ export function AccountMappingManager({
       newRanges[index] = { ...newRanges[index], [field]: value };
       setFormData({ ...formData, ranges: newRanges });
     }
+  };
+
+  const addSubRange = (category: 'cash' | 'bankDeposits') => {
+    if (!formData) return;
+    const sc = formData.subCategoryRules || {
+      cash: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+      bankDeposits: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' }
+    };
+    sc[category]!.ranges = [...sc[category]!.ranges, { from: '', to: '' }];
+    setFormData({ ...formData, subCategoryRules: sc });
+  };
+
+  const updateSubRange = (category: 'cash' | 'bankDeposits', index: number, field: 'from' | 'to', value: string) => {
+    if (!formData) return;
+    if (!formData.subCategoryRules) return;
+    const sc = { ...formData.subCategoryRules } as any;
+    const ranges = [...sc[category]!.ranges];
+    ranges[index] = { ...ranges[index], [field]: value };
+    sc[category] = { ...sc[category], ranges };
+    setFormData({ ...formData, subCategoryRules: sc });
+  };
+
+  const removeSubRange = (category: 'cash' | 'bankDeposits', index: number) => {
+    if (!formData || !formData.subCategoryRules) return;
+    const sc = { ...formData.subCategoryRules } as any;
+    sc[category]!.ranges = sc[category]!.ranges.filter((_: any, i: number) => i !== index);
+    if (sc[category]!.ranges.length === 0) sc[category]!.ranges = [{ from: '', to: '' }];
+    setFormData({ ...formData, subCategoryRules: sc });
   };
 
   // No sub-category helpers in simplified version
@@ -350,7 +420,65 @@ export function AccountMappingManager({
                   />
                 </div>
 
-                {/* Sub-category UI removed in simplified version */}
+                {formData.noteType === 'cash' && (
+                  <div className="form-group">
+                    <label>Cash Sub-Categories</label>
+                    {(() => {
+                      if (!formData.subCategoryRules) {
+                        return (
+                          <button
+                            type="button"
+                            className="btn-secondary-small"
+                            onClick={() => setFormData({
+                              ...formData,
+                              subCategoryRules: {
+                                cash: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+                                bankDeposits: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' }
+                              }
+                            })}
+                          >Enable Sub-Categories</button>
+                        );
+                      }
+                      const sc = formData.subCategoryRules;
+                      return (
+                        <div className="sub-category-panels">
+                          <div className="sub-cat-panel">
+                            <h4>เงินสด (Cash)</h4>
+                            {sc.cash?.ranges.map((r, idx) => (
+                              <div key={idx} className="range-input">
+                                <input type="number" placeholder="From" value={r.from} onChange={(e) => updateSubRange('cash', idx, 'from', e.target.value)} />
+                                <span>to</span>
+                                <input type="number" placeholder="To" value={r.to} onChange={(e) => updateSubRange('cash', idx, 'to', e.target.value)} />
+                                <button className="btn-danger-small" onClick={() => removeSubRange('cash', idx)} disabled={sc.cash!.ranges.length === 1}>Remove</button>
+                              </div>
+                            ))}
+                            <button className="btn-secondary-small" onClick={() => addSubRange('cash')}>Add Cash Range</button>
+                            <div className="sub-inline-inputs">
+                              <input type="text" placeholder="Cash includes" value={sc.cash?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, cash: { ...sc.cash!, includes: e.target.value } } })} />
+                              <input type="text" placeholder="Cash excludes" value={sc.cash?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, cash: { ...sc.cash!, excludes: e.target.value } } })} />
+                            </div>
+                          </div>
+                          <div className="sub-cat-panel">
+                            <h4>เงินฝากธนาคาร (Bank Deposits)</h4>
+                            {sc.bankDeposits?.ranges.map((r, idx) => (
+                              <div key={idx} className="range-input">
+                                <input type="number" placeholder="From" value={r.from} onChange={(e) => updateSubRange('bankDeposits', idx, 'from', e.target.value)} />
+                                <span>to</span>
+                                <input type="number" placeholder="To" value={r.to} onChange={(e) => updateSubRange('bankDeposits', idx, 'to', e.target.value)} />
+                                <button className="btn-danger-small" onClick={() => removeSubRange('bankDeposits', idx)} disabled={sc.bankDeposits!.ranges.length === 1}>Remove</button>
+                              </div>
+                            ))}
+                            <button className="btn-secondary-small" onClick={() => addSubRange('bankDeposits')}>Add Bank Range</button>
+                            <div className="sub-inline-inputs">
+                              <input type="text" placeholder="Bank includes" value={sc.bankDeposits?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, bankDeposits: { ...sc.bankDeposits!, includes: e.target.value } } })} />
+                              <input type="text" placeholder="Bank excludes" value={sc.bankDeposits?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, bankDeposits: { ...sc.bankDeposits!, excludes: e.target.value } } })} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label>

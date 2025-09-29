@@ -165,6 +165,7 @@ export class ApiService {
       noteTitle?: string;
       accountRanges: any;
       isActive?: boolean;
+      subCategoryRules?: any;
     }
   ) {
     try {
@@ -188,6 +189,7 @@ export class ApiService {
     noteTitle?: string;
     accountRanges: any;
     isActive?: boolean;
+    subCategoryRules?: any;
   }) {
     try {
       const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings`, {
