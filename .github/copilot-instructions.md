@@ -556,6 +556,93 @@ const buildMatcher = (r?: SubCategoryRule) => {
 
 This guide should enable future contributors (human or AI) to extend sub-category grouping safely and consistently.
 
+### Frontend Interaction & Data Flow (Sub-Categories)
+
+This subsection explains exactly how the front-end participates in sub-category creation, persistence, and consumption, so future changes avoid breaking the pipeline.
+
+#### 1. User Edits Sub-Categories (UI Layer)
+File: `src/components/AccountMappingManager.tsx`
+- When the user edits a mapping where `noteType === 'cash'`, the UI renders sub-category panels for: 
+  - เงินสด (cash)
+  - เงินฝากธนาคาร (bankDeposits)
+- Each panel collects Ranges / Includes / Excludes.
+- The UI only serializes `subCategoryRules` if at least one sub-rule has meaningful content (avoids storing empty boilerplate JSON).
+- Payload shape sent to API:
+```json
+{
+  "noteType": "cash",
+  "accountRanges": { "ranges": [{ "from": 1000, "to": 1099 }] },
+  "subCategoryRules": {
+    "cash": {
+      "cash": { "ranges": [{ "from": 1000, "to": 1019 }] },
+      "bankDeposits": { "ranges": [{ "from": 1020, "to": 1099 }] }
+    }
+  },
+  "isActive": true
+}
+```
+
+#### 2. Transport Layer (ApiService)
+File: `src/services/apiService.ts`
+- The create/update mapping methods include `subCategoryRules` in the request body.
+- Response from server includes `sub_category_rules` which ApiService normalizes to `subCategoryRules` (TypeScript camelCase object) for the React state.
+- FE does no transformation beyond direct JSON pass-through; no business logic here.
+
+#### 3. Persistence Layer (Backend)
+File: `server.js`
+- Column: `sub_category_rules TEXT` stores raw JSON string or NULL.
+- On create/update: server trusts client JSON (no deep validation yet). If needed later, add schema validation before insert.
+- On fetch: server parses JSON; if parsing fails it returns `null` (classifier then falls back to per-account detail listing).
+
+#### 4. Provider Construction
+File: `src/App.tsx`
+- After loading company mappings, a `DynamicMappingProvider` is instantiated with all mapping records.
+- Constructor loads `subCategoryRules` into an internal Map keyed by noteType.
+File: `DynamicMappingProvider.ts`
+- Exposes `getSubCategoryRules(noteType)`; returns `SubCategoryRuleContainer | null`.
+
+#### 5. Classification Stage
+File: `SelectionFirstClassifier.ts`
+- Runs once per generation; builds `byCategory.cash` first.
+- If `getSubCategoryRules('cash')` returns a container with `cash` object, partitions those already-classified cash accounts into two buckets using the matcher logic.
+- Assigns each `ClassifiedAccount.subCategory = 'cash' | 'bankDeposits'` when grouped.
+- Returns `result.subCategories.cash = { cash: {...}, bankDeposits: {...}, totals, grouped: true }`.
+- If rules missing or empty -> sets `grouped: false` (still returns a structure for potential diagnostics; underlying note uses per-account detail listing).
+
+#### 6. Note Generation Stage
+File: `CashNoteGenerator.ts`
+- Checks `selection.subCategories?.cash?.grouped`:
+  - true -> emit two lines + total (formulas sum those two rows).
+  - false -> emit individual account detail rows (legacy transparency mode).
+- Row tracking stays identical (detailRows holds either two rows or N account rows). Total row always uses `SUM(Gfirst:Glast)` formula when details exist.
+
+#### 7. Excel Formatting
+File: `excelFormatter.ts`
+- Formatting remains agnostic; it only consumes row indices from the tracker. No branching needed for grouped vs detail mode.
+
+#### 8. UI Preview / Future Enhancements
+- Current Mapping Preview (if implemented) can be extended to read `selection.subCategories.cash.grouped` to show a badge like "Grouped (2 lines)" vs "Detail (N accounts)".
+- Potential toggle: allow user to switch between grouped summary and expanded list without altering stored rules (would require storing a presentation preference, not included yet).
+
+#### 9. Failure / Fallback Scenarios
+| Scenario | Front-End Symptom | Behavior |
+|----------|-------------------|----------|
+| Invalid JSON in DB | Mapping editor loads with no sub-category values | Classifier grouped=false; note lists individual accounts |
+| Missing one sub-rule (only cash defined) | Bank deposits bucket empties | Still grouped=true; empty second row would show 0 unless suppressed (optionally handle) |
+| All accounts matched by excludes | Buckets empty | Total formula = 0; consider validation to warn user |
+| Duplicate ranges overlap both sub-rules | Potential double classification (CURRENT: first match assignment) | Add future validation to detect overlap |
+
+#### 10. End-to-End Summary Diagram (Text Form)
+User edits Cash mapping -> UI builds JSON -> ApiService POST/PUT -> server stores JSON in `sub_category_rules` -> ApiService GET -> DynamicMappingProvider caches rules -> SelectionFirstClassifier partitions accounts -> CashNoteGenerator renders grouped or detailed rows -> ExcelFormatter applies row styling.
+
+#### 11. Extension Consistency Rules
+1. Front-end never decides grouping mode directly; grouping is data-driven (presence of valid rules).
+2. Never embed presentation labels into classifier—labels belong only in note generator.
+3. Keep provider pure: no mutation, just storage and retrieval.
+4. Preserve backward compatibility: absence (NULL) of JSON must not break note generation.
+
+This interaction model keeps each layer single-purpose and minimizes regression risk when adding more sub-categories later.
+
 ## Current Implementation Status
 
 ### **Production-Ready Features**
