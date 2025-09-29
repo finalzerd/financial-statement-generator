@@ -1,5 +1,5 @@
 import type { IAccountMappingProvider } from './IAccountMappingProvider';
-import type { AccountMappingRules } from '../../../types/accountMapping';
+import type { AccountMappingRules, SubCategoryRuleContainer } from '../../../types/accountMapping';
 
 // Default rules mirroring current hard-coded numeric ranges
 const DEFAULT_RULES: Record<string, AccountMappingRules> = {
@@ -23,6 +23,9 @@ const DEFAULT_RULES: Record<string, AccountMappingRules> = {
 export class StaticMappingProvider implements IAccountMappingProvider {
   getRules(noteType: string): AccountMappingRules | null {
     return DEFAULT_RULES[noteType] || null;
+  }
+  getSubCategoryRules(_noteType: string): SubCategoryRuleContainer | null {
+    return null; // Static provider has no sub-category rules
   }
   isActive(_noteType: string): boolean {
     return true;

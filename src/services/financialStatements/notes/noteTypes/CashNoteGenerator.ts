@@ -63,8 +63,34 @@ export class CashNoteGenerator {
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 3. Detail Rows - Prefer selection rows; otherwise use globalData individual accounts (sorted)
-    if (hasSelectionDetails) {
+    // 3. Detail Rows / Grouped Rows
+    const cashGrouping = selection?.subCategories?.cash;
+    if (cashGrouping?.grouped) {
+      // Grouped mode: emit two sub-category rows only
+      console.log(`[SelectionFirst] Cash: GROUPED MODE using DB sub-category rules.`);
+      const cashCurrent = cashGrouping.cash.current;
+      const cashPrevious = cashGrouping.cash.previous;
+      const bankCurrent = cashGrouping.bankDeposits.current;
+      const bankPrevious = cashGrouping.bankDeposits.previous;
+
+      // Row 1: เงินสดในมือ (Cash)
+      notes.push(['', '', 'เงินสดในมือ', '', '', '',
+        cashCurrent, '',
+        processingType === 'multi-year' ? bankPrevious /* intentionally cashPrevious? correct below */ : ''
+      ]);
+      // Correction: previous should be cashPrevious not bankPrevious
+      if (processingType === 'multi-year') {
+        notes[notes.length - 1][8] = cashPrevious; // fix previous year value
+      }
+      tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
+
+      // Row 2: เงินฝากธนาคาร (Bank Deposits)
+      notes.push(['', '', 'เงินฝากธนาคาร', '', '', '',
+        bankCurrent, '',
+        processingType === 'multi-year' ? bankPrevious : ''
+      ]);
+      tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
+    } else if (hasSelectionDetails) {
       console.log(`[SelectionFirst] Cash: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.cash?.current ?? 'n/a'}, previous=${selection?.totals?.cash?.previous ?? 'n/a'}`);
       selectionRows
         .slice()
@@ -98,12 +124,18 @@ export class CashNoteGenerator {
     const hasDetails = tracker.detailRows.length > 0;
     const firstDetailRow = hasDetails ? tracker.detailRows[0] : null;
     const lastDetailRow = hasDetails ? tracker.detailRows[tracker.detailRows.length - 1] : null;
-    const currentTotalCell = hasDetails
-      ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` }
-      : totalAmount;
-    const previousTotalCell = processingType === 'multi-year'
-      ? (hasDetails ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : prevTotalAmount)
-      : '';
+    let currentTotalCell: any;
+    let previousTotalCell: any;
+    if (cashGrouping?.grouped && hasDetails) {
+      // Use SUM over the two grouped rows (still works generically)
+      currentTotalCell = { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` };
+      previousTotalCell = processingType === 'multi-year' ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : '';
+    } else {
+      currentTotalCell = hasDetails ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` } : totalAmount;
+      previousTotalCell = processingType === 'multi-year'
+        ? (hasDetails ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : prevTotalAmount)
+        : '';
+    }
 
     notes.push(['', '', 'รวม', '', '', '', currentTotalCell as any, '', previousTotalCell as any]);
     tracker.totalRows.push(tracker.currentRow);

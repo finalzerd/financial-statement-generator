@@ -15,6 +15,8 @@ export interface ClassifiedAccount {
   current: number;
   previous: number;
   category: NoteCategory | 'unmatched';
+  // Optional sub-category (currently only used for cash: 'cash' | 'bankDeposits')
+  subCategory?: string;
 }
 
 export interface SelectionFirstResult {
@@ -22,6 +24,15 @@ export interface SelectionFirstResult {
   byAccount: Record<string, ClassifiedAccount>;
   // Grouped by category
   byCategory: Record<NoteCategory | 'unmatched', ClassifiedAccount[]>;
+  // Optional grouping for cash sub-categories when rules are present
+  subCategories?: {
+    cash?: {
+      cash: { accounts: ClassifiedAccount[]; current: number; previous: number };
+      bankDeposits: { accounts: ClassifiedAccount[]; current: number; previous: number };
+      totals: { current: number; previous: number };
+      grouped: boolean; // true when DB rules used
+    }
+  };
   // Category totals (sums of current/previous)
   totals: Record<NoteCategory, { current: number; previous: number }>;
   // Accounts that didn’t match any mapping (for UI diagnostics)
@@ -105,9 +116,108 @@ export class SelectionFirstClassifier {
       }
     }
 
+    // ------------------------------------------------------------------
+    // SUB-CATEGORY PARTITIONING (currently only cash)
+    // If provider supplies subCategoryRules for 'cash', we group cash accounts
+    // into two buckets: cash (เงินสด) and bankDeposits (เงินฝากธนาคาร).
+    // Rules: We use the sub-category rule sets to test membership based on
+    // includes/ranges first (excludes honored). Accounts not matching either
+    // rule fall back to legacy heuristic (code range split: 1000-1019 cash, 1020-1099 bank).
+    // If NO subCategoryRules provided, we keep individual listing (grouped=false)
+    // and do not mutate existing note behavior.
+    // ------------------------------------------------------------------
+    let subCategories: SelectionFirstResult['subCategories'] | undefined;
+    try {
+      const cashRules = provider?.getSubCategoryRules('cash');
+      const cashAccounts = (byCategory as any)['cash'] as ClassifiedAccount[];
+      if (cashAccounts && cashAccounts.length > 0) {
+        const ruleSet = cashRules?.cash; // Cash sub-category container { cash?, bankDeposits? }
+        if (ruleSet && (ruleSet.cash || ruleSet.bankDeposits)) {
+          // Helper for sub-category match
+            const buildMatcher = (r: any) => {
+              if (!r) return null;
+              const includes = new Set<string>((r.includes || []).map((n: number) => String(n)));
+              const excludes = new Set<string>((r.excludes || []).map((n: number) => String(n)));
+              const ranges: Array<{ from: number; to: number }> = r.ranges || [];
+              return (codeStr: string) => {
+                if (!r) return false;
+                if (excludes.has(codeStr)) return false;
+                if (includes.size > 0 && includes.has(codeStr)) return true;
+                const codeNum = Number.parseInt(codeStr || '0', 10);
+                if (Number.isFinite(codeNum) && ranges.length > 0) {
+                  return ranges.some(range => codeNum >= range.from && codeNum <= range.to);
+                }
+                return false;
+              };
+            };
+          const isCashMatch = buildMatcher(ruleSet.cash);
+          const isBankMatch = buildMatcher(ruleSet.bankDeposits);
+
+          const cashBucket: ClassifiedAccount[] = [];
+          const bankBucket: ClassifiedAccount[] = [];
+
+          for (const acc of cashAccounts) {
+            let assigned: 'cash' | 'bankDeposits' | null = null;
+            if (isCashMatch && isCashMatch(acc.accountCode)) assigned = 'cash';
+            else if (isBankMatch && isBankMatch(acc.accountCode)) assigned = 'bankDeposits';
+            else {
+              // Legacy heuristic fallback split by code range if not matched by explicit rules
+              const codeNum = Number.parseInt(acc.accountCode || '0', 10);
+              if (codeNum >= 1000 && codeNum <= 1019) assigned = 'cash';
+              else if (codeNum >= 1020 && codeNum <= 1099) assigned = 'bankDeposits';
+            }
+            if (!assigned) {
+              // If still not assigned, default to cash to retain total consistency
+              assigned = 'cash';
+            }
+            acc.subCategory = assigned;
+            if (assigned === 'cash') cashBucket.push(acc); else bankBucket.push(acc);
+          }
+
+          const sumBucket = (lst: ClassifiedAccount[]) => lst.reduce((s, a) => {
+            s.current += a.current; s.previous += a.previous; return s;
+          }, { current: 0, previous: 0 });
+          const cashTotals = sumBucket(cashBucket);
+          const bankTotals = sumBucket(bankBucket);
+          subCategories = {
+            cash: {
+              cash: { accounts: cashBucket, current: cashTotals.current, previous: cashTotals.previous },
+              bankDeposits: { accounts: bankBucket, current: bankTotals.current, previous: bankTotals.previous },
+              totals: { current: cashTotals.current + bankTotals.current, previous: cashTotals.previous + bankTotals.previous },
+              grouped: true
+            }
+          };
+        } else {
+          // No rule set provided -> keep individual listing; still compute raw totals
+          const sumBucket = (lst: ClassifiedAccount[]) => lst.reduce((s, a) => {
+            s.current += a.current; s.previous += a.previous; return s;
+          }, { current: 0, previous: 0 });
+          const cashTotals = sumBucket(cashAccounts.filter(a => {
+            const codeNum = Number.parseInt(a.accountCode || '0', 10);
+            return codeNum >= 1000 && codeNum <= 1019;
+          }));
+          const bankTotals = sumBucket(cashAccounts.filter(a => {
+            const codeNum = Number.parseInt(a.accountCode || '0', 10);
+            return codeNum >= 1020 && codeNum <= 1099;
+          }));
+          subCategories = {
+            cash: {
+              cash: { accounts: cashAccounts, current: cashTotals.current, previous: cashTotals.previous },
+              bankDeposits: { accounts: cashAccounts, current: bankTotals.current, previous: bankTotals.previous },
+              totals: { current: totals.cash.current, previous: totals.cash.previous },
+              grouped: false
+            }
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Cash sub-category partition failed, continuing without grouping:', err);
+    }
+
     return {
       byAccount,
       byCategory: byCategory as any,
+      subCategories,
       totals: totals as any,
       unmatched: (byCategory as any)['unmatched'],
       company: { name: company.name, reportingYear: company.reportingYear, type: company.type }
