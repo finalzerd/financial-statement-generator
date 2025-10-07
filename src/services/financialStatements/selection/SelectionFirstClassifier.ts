@@ -89,7 +89,9 @@ export class SelectionFirstClassifier {
     for (const e of trialBalanceData) {
       const codeStr = e.accountCode || '';
       const accountName = e.accountName || `บัญชี ${codeStr}`;
-      const current = Math.abs((e.currentBalance ?? e.balance ?? 0) as number);
+  // Prefer ending balance (balance) which equals opening + current-period for BS accounts
+  // Fallback to currentBalance when balance not provided
+  const current = Math.abs((e.balance ?? e.currentBalance ?? 0) as number);
       const previous = Math.abs((e.previousBalance ?? 0) as number);
 
       let matched: NoteCategory | null = null;
