@@ -85,8 +85,10 @@ export class FinancialStatementGenerator {
     console.log('Paid-up Capital (Global):', globalData.balanceSheetTotals.equity.paidUpCapital);
     console.log('Net Profit (Global):', globalData.income.netProfit);
     
-  const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData);
-  const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData);
+  // Compute selection-first classification once for BS linkage as well
+  const selectionForBS = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+  const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
+  const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
     const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
@@ -249,16 +251,16 @@ export class FinancialStatementGenerator {
     if (receivablesTracker.headerRows.length > 0) {
       formatters.push({ type: 'receivables', tracker: receivablesTracker });
     }
+
+    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting (should come before Payables)
+    const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+    if (ppeTracker.headerRows.length > 0) {
+      formatters.push({ type: 'ppe', tracker: ppeTracker });
+    }
     
     const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
     if (payablesTracker.headerRows.length > 0) {
       formatters.push({ type: 'payables', tracker: payablesTracker });
-    }
-    
-    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting
-    const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
-    if (ppeTracker.headerRows.length > 0) {
-      formatters.push({ type: 'ppe', tracker: ppeTracker });
     }
     
     const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
