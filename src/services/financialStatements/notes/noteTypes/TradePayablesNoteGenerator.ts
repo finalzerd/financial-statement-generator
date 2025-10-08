@@ -24,6 +24,11 @@ export class TradePayablesNoteGenerator {
     noteNumber: number = 12,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
+    const isZeroLike = (v: any) => (
+      v === null || v === undefined ||
+      (typeof v === 'number' && v === 0) ||
+      (typeof v === 'string' && v.trim() === '')
+    );
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,
@@ -41,7 +46,13 @@ export class TradePayablesNoteGenerator {
     const totalAmount = globalData.noteCalculations.payables.total.current;
     const prevTotalAmount = globalData.noteCalculations.payables.total.previous;
 
-    if (!hasSelectionDetails && totalAmount === 0 && prevTotalAmount === 0 && Object.keys(payableAccounts).length === 0) {
+    const hasMappedAccounts = Object.keys(payableAccounts).length > 0;
+    const totalsAreZero = processingType === 'multi-year'
+      ? totalAmount === 0 && prevTotalAmount === 0
+      : totalAmount === 0;
+
+    if (totalsAreZero || (!hasSelectionDetails && !hasMappedAccounts)) {
+      console.log('[SelectionFirst] Payables: skipping note - totals zero or no mapped accounts/selection.');
       return tracker;
     }
 
@@ -65,22 +76,38 @@ export class TradePayablesNoteGenerator {
     // 3. Detail Rows - Prefer selection rows; otherwise use globalData individual accounts
     if (hasSelectionDetails) {
       console.log(`[SelectionFirst] Payables: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.payables?.current ?? 'n/a'}, previous=${selection?.totals?.payables?.previous ?? 'n/a'}`);
+      let suppressed = 0;
       selectionRows.forEach((a) => {
+        const curr = a.current;
+        const prev = a.previous;
+        const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+        if (hide) { suppressed++; return; }
         notes.push(['', '', a.accountName, '', '', '', 
           a.current, '', 
           processingType === 'multi-year' ? a.previous : '']);
         tracker.detailRows.push(tracker.currentRow);
         tracker.currentRow++;
       });
+      if (suppressed > 0) {
+        console.log(`[SelectionFirst] Payables: suppressed ${suppressed} zero/blank detail rows.`);
+      }
     } else {
       console.log(`[SelectionFirst] Payables: no selection details; falling back to globalData.individualAccounts (${Object.keys(payableAccounts).length} accounts).`);
+      let suppressed = 0;
       Object.entries(payableAccounts).forEach(([_, accountData]) => {
+        const curr = accountData.current;
+        const prev = accountData.previous;
+        const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+        if (hide) { suppressed++; return; }
         notes.push(['', '', accountData.accountName, '', '', '', 
           accountData.current, '', 
           processingType === 'multi-year' ? accountData.previous : '']);
         tracker.detailRows.push(tracker.currentRow);
         tracker.currentRow++;
       });
+      if (suppressed > 0) {
+        console.log(`[Legacy] Payables: suppressed ${suppressed} zero/blank detail rows from globalData.`);
+      }
     }
 
     // 4. Total Row

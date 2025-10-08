@@ -24,6 +24,13 @@ export class CashNoteGenerator {
     noteNumber: number = 3,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
+    // Helper: treat null/undefined/empty-string/0 as zero-like
+    const isZeroLike = (v: any) => (
+      v === null || v === undefined ||
+      (typeof v === 'number' && v === 0) ||
+      (typeof v === 'string' && v.trim() === '')
+    );
+
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1, // Excel 1-indexed
       noteStartRow: notes.length + 1,
@@ -41,9 +48,14 @@ export class CashNoteGenerator {
     const totalAmount = globalData.noteCalculations.cash.total.current;
     const prevTotalAmount = globalData.noteCalculations.cash.total.previous;
 
-    // If both totals are zero AND no mapped accounts AND no selection, skip the note
-    if (!hasSelectionDetails && totalAmount === 0 && prevTotalAmount === 0 && Object.keys(cashAccounts).length === 0) {
-      return tracker; // No note generated
+    const hasMappedAccounts = Object.keys(cashAccounts).length > 0;
+    const totalsAreZero = processingType === 'multi-year'
+      ? totalAmount === 0 && prevTotalAmount === 0
+      : totalAmount === 0;
+
+    if (totalsAreZero || (!hasSelectionDetails && !hasMappedAccounts)) {
+      console.log('[SelectionFirst] Cash: skipping note - totals zero or no mapped accounts/selection.');
+      return tracker;
     }
 
     console.log(`=== CASH NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
@@ -92,10 +104,15 @@ export class CashNoteGenerator {
       tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
     } else if (hasSelectionDetails) {
       console.log(`[SelectionFirst] Cash: using selection-first details (${selectionRows.length} accounts). Total current=${selection?.totals?.cash?.current ?? 'n/a'}, previous=${selection?.totals?.cash?.previous ?? 'n/a'}`);
+      let suppressed = 0;
       selectionRows
         .slice()
         .sort((a, b) => parseInt(a.accountCode || '0', 10) - parseInt(b.accountCode || '0', 10))
         .forEach((a) => {
+          const curr = a.current;
+          const prev = a.previous;
+          const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+          if (hide) { suppressed++; return; }
           notes.push(['', '', a.accountName, '', '', '',
             a.current, '',
             processingType === 'multi-year' ? a.previous : ''
@@ -103,6 +120,9 @@ export class CashNoteGenerator {
           tracker.detailRows.push(tracker.currentRow);
           tracker.currentRow++;
         });
+      if (suppressed > 0) {
+        console.log(`[SelectionFirst] Cash: suppressed ${suppressed} zero/blank detail rows.`);
+      }
     } else {
       const sortedCashEntries = Object.entries(cashAccounts).sort((a, b) => {
         const aCode = parseInt(a[0] || '0', 10);
@@ -110,7 +130,12 @@ export class CashNoteGenerator {
         return aCode - bCode;
       });
       console.log(`[SelectionFirst] Cash: no selection details; falling back to globalData.individualAccounts (${sortedCashEntries.length} accounts).`);
+      let suppressed = 0;
       sortedCashEntries.forEach(([_, accountData]) => {
+        const curr = accountData.current;
+        const prev = accountData.previous;
+        const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+        if (hide) { suppressed++; return; }
         notes.push(['', '', accountData.accountName, '', '', '',
           accountData.current, '',
           processingType === 'multi-year' ? accountData.previous : ''
@@ -118,6 +143,9 @@ export class CashNoteGenerator {
         tracker.detailRows.push(tracker.currentRow);
         tracker.currentRow++;
       });
+      if (suppressed > 0) {
+        console.log(`[Legacy] Cash: suppressed ${suppressed} zero/blank detail rows from globalData.`);
+      }
     }
 
     // 4. Total Row - Use SUM formulas over detail rows when available; fallback to numeric totals otherwise

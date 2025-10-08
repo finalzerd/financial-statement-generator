@@ -51,6 +51,11 @@ export class ShortTermLoansNoteGenerator {
     noteNumber: number = 5,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
+    const isZeroLike = (v: any) => (
+      v === null || v === undefined ||
+      (typeof v === 'number' && v === 0) ||
+      (typeof v === 'string' && v.trim() === '')
+    );
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,
@@ -63,7 +68,27 @@ export class ShortTermLoansNoteGenerator {
 
     const selRows = selection?.byCategory?.short_term_loans ?? [];
     if (selRows.length > 0) {
-      console.log(`[SelectionFirst] Short-term loans: using selection-first details (${selRows.length} accounts). Total current=${selRows.reduce((s,a)=>s+(a.current||0),0)}, previous=${selRows.reduce((s,a)=>s+(a.previous||0),0)}`);
+      let suppressed = 0;
+      const detailRows = selRows.filter((a) => {
+        const curr = a.current;
+        const prev = a.previous;
+        const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+        if (hide) { suppressed++; }
+        return !hide;
+      });
+
+      const totalCurrent = detailRows.reduce((s, a) => s + (a.current || 0), 0);
+      const totalPrevious = detailRows.reduce((s, a) => s + (a.previous || 0), 0);
+      const totalsAreZero = processingType === 'multi-year'
+        ? totalCurrent === 0 && totalPrevious === 0
+        : totalCurrent === 0;
+
+      if (detailRows.length === 0 || totalsAreZero) {
+        console.log('[SelectionFirst] Short-term loans: skipping note - totals zero after filtering or no detail rows.');
+        return tracker;
+      }
+
+      console.log(`[SelectionFirst] Short-term loans: using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalCurrent}, previous=${totalPrevious}`);
       // Header
       notes.push([noteNumber.toString(), 'เงินให้กู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
       tracker.headerRows.push(tracker.currentRow); tracker.unitRows.push(tracker.currentRow); tracker.currentRow++;
@@ -75,7 +100,7 @@ export class ShortTermLoansNoteGenerator {
       }
       tracker.yearHeaderRows.push(tracker.currentRow); tracker.currentRow++;
       // Details
-      selRows.forEach(a => {
+      detailRows.forEach(a => {
         notes.push(['', '', a.accountName, '', '', '', a.current, '', processingType === 'multi-year' ? a.previous : '']);
         tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
       });
@@ -94,8 +119,12 @@ export class ShortTermLoansNoteGenerator {
     const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1141, 1141));
     const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
       Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1141, 1141)) : 0;
+    const legacyTotalsAreZero = processingType === 'multi-year'
+      ? totalAmount === 0 && prevTotalAmount === 0
+      : totalAmount === 0;
 
-    if (totalAmount === 0 && prevTotalAmount === 0) {
+    if (legacyTotalsAreZero) {
+      console.log('[Legacy] Short-term loans: skipping note - totals zero in numeric range fallback.');
       return tracker;
     }
 

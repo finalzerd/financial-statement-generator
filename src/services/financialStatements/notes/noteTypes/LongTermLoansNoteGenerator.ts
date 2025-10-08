@@ -51,6 +51,11 @@ export class LongTermLoansNoteGenerator {
     noteNumber: number = 11,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
+    const isZeroLike = (v: any) => (
+      v === null || v === undefined ||
+      (typeof v === 'number' && v === 0) ||
+      (typeof v === 'string' && v.trim() === '')
+    );
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,
@@ -64,9 +69,27 @@ export class LongTermLoansNoteGenerator {
     // Selection-first path
     const selRows = selection?.byCategory?.long_term_loans_fi ?? [];
     if (selRows.length > 0) {
-      const totalAmount = selRows.reduce((s, a) => s + (a.current || 0), 0);
-      const prevTotalAmount = selRows.reduce((s, a) => s + (a.previous || 0), 0);
-      console.log(`[SelectionFirst] LT loans (FI): using selection-first details (${selRows.length} accounts). Total current=${totalAmount}, previous=${prevTotalAmount}`);
+      let suppressed = 0;
+      const detailRows = selRows.filter((a) => {
+        const curr = a.current;
+        const prev = a.previous;
+        const hide = isZeroLike(curr) && (processingType === 'single-year' ? true : isZeroLike(prev));
+        if (hide) { suppressed++; }
+        return !hide;
+      });
+
+      const totalAmount = detailRows.reduce((s, a) => s + (a.current || 0), 0);
+      const prevTotalAmount = detailRows.reduce((s, a) => s + (a.previous || 0), 0);
+      const totalsAreZero = processingType === 'multi-year'
+        ? totalAmount === 0 && prevTotalAmount === 0
+        : totalAmount === 0;
+
+      if (detailRows.length === 0 || totalsAreZero) {
+        console.log('[SelectionFirst] LT loans (FI): skipping note - totals zero after filtering or no detail rows.');
+        return tracker;
+      }
+
+      console.log(`[SelectionFirst] LT loans (FI): using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalAmount}, previous=${prevTotalAmount}`);
 
       // Header
       notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
@@ -81,7 +104,7 @@ export class LongTermLoansNoteGenerator {
       tracker.yearHeaderRows.push(tracker.currentRow); tracker.currentRow++;
 
       // Details from selection
-      selRows.forEach(a => {
+      detailRows.forEach(a => {
         notes.push(['', '', a.accountName, '', '', '', a.current, '', processingType === 'multi-year' ? a.previous : '']);
         tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
       });
@@ -93,7 +116,7 @@ export class LongTermLoansNoteGenerator {
       tracker.totalRows.push(tracker.currentRow); tracker.currentRow++;
 
       // Current portion (keep placeholder logic at 10%)
-      const currentPortion = Math.round(totalAmount * 0.1);
+  const currentPortion = Math.round(totalAmount * 0.1);
       notes.push(['', '', 'หัก ส่วนของหนี้สินระยะยาวที่ถึงกำหนดชำระภายในหนึ่งปี', '', '', '', currentPortion, '', '']);
       tracker.detailRows.push(tracker.currentRow); tracker.currentRow++;
 
@@ -113,8 +136,12 @@ export class LongTermLoansNoteGenerator {
                        Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
     const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
       Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2120, 2123)) : 0;
+    const legacyTotalsAreZero = processingType === 'multi-year'
+      ? totalAmount === 0 && prevTotalAmount === 0
+      : totalAmount === 0;
 
-    if (totalAmount === 0 && prevTotalAmount === 0) {
+    if (legacyTotalsAreZero) {
+      console.log('[Legacy] LT loans (FI): skipping note - totals zero in numeric range fallback.');
       return tracker;
     }
     console.log('[SelectionFirst] LT loans (FI): no selection details; falling back to legacy totals');
