@@ -584,6 +584,22 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
+      noteType: 'asset_short_term_loans',
+      noteNumber: 9,
+      noteTitle: 'เงินให้กู้ยืมระยะสั้น',
+      accountRanges: JSON.stringify({
+        includes: [1141]
+      })
+    },
+    {
+      noteType: 'asset_long_term_loans',
+      noteNumber: 13,
+      noteTitle: 'เงินให้กู้ยืมระยะยาว',
+      accountRanges: JSON.stringify({
+        includes: [1710]
+      })
+    },
+    {
       noteType: 'bank_overdrafts',
       noteNumber: 15,
       noteTitle: 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
@@ -623,6 +639,14 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       accountRanges: JSON.stringify({
         ranges: [{ from: 2120, to: 2123 }],
         excludes: [2121]
+      })
+    },
+    {
+      noteType: 'hire_purchase_creditors',
+      noteNumber: 21,
+      noteTitle: 'เจ้าหนี้ตามสัญญาเช่าซื้อ',
+      accountRanges: JSON.stringify({
+        includes: [2015, 1644.2, 1644.1]
       })
     },
     {

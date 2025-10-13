@@ -720,3 +720,98 @@ Follow this recipe to add a new note type using the simplified selection‑first
   - Note renders with correct Thai labels
   - Totals use `SUM` formulas and Balance Sheet references the note as intended
   - No zeros are accidentally cleared in protected areas
+
+## End-to-End: Add a New Note (Code + DB + Frontend)
+
+Use this concise checklist when introducing a brand-new note type. It covers all moving parts: types, classifier, data calculations, builders, note generator, Excel formatting, database seeding, and the frontend mapping UI.
+
+### 0) Decide the contract
+- Pick a category key (NoteCategory literal) and Thai display label.
+- Decide if the Balance Sheet should link to this note’s totals (note-first linkage) and whether it’s Assets or Liabilities.
+- Choose sensible default code coverage (ranges/includes/excludes) for fallback mapping.
+
+### 1) Core Types
+- File: `src/services/financialStatements/core/types.ts`
+  - Add the new key to `NoteCategory` (e.g., `'asset_short_term_loans'`).
+  - If the note needs its own Excel formatting branch, add a new `NoteFormatter['type']` string and handle it in the formatter (see step 5).
+  - If Balance Sheet totals should include this, extend `DetailedFinancialData` to include a calculation bucket and optionally `balanceSheetTotals` fields.
+
+### 2) Classifier (Selection-First)
+- File: `src/services/financialStatements/selection/SelectionFirstClassifier.ts`
+  - Add the category to `CATEGORY_PRIORITY` in the appropriate order to avoid double counting.
+  - In `buildResolver`, add a fallback numeric mapping for the new category (e.g., a specific account or range) so the system works even without DB rules.
+  - Provider-based rules (from DB) are already respected by `getRules(cat)`; no extra code needed unless custom logic is required.
+
+### 3) Global Data Extraction (optional, when BS links to note)
+- File: `src/services/financialStatements/core/GlobalDataExtractor.ts`
+  - Add a `build<NewNote>` function to compute current/previous totals.
+  - Insert its result into `noteCalculations` and, if needed, into `balanceSheetTotals`.
+  - Keep math strictly consistent with other notes (foundation-first guarantees cross-statement consistency).
+
+### 4) Balance Sheet Builder (optional)
+- File: `src/services/financialStatements/balanceSheet/AssetsBuilder.ts` or `.../LiabilitiesBuilder.ts`
+  - Insert a new row where the line should appear. Source the value from:
+    - Selection-first totals, or
+    - GlobalDataExtractor’s `noteCalculations`, or
+    - A formula referencing the note (note-first linkage).
+  - Ensure previous-year handling mirrors existing rows.
+
+### 5) Note Generator (Row Tracking)
+- File: `src/services/financialStatements/notes/noteTypes/<NewNote>Generator.ts`
+  - Implement `generateWithRowTracking(notes, trialBalance, companyInfo, processingType, trialBalancePrevious?, noteNumber, selection)`.
+  - Prefer `selection.byCategory['<category>']` for detail lines; suppress rows where both years are zero.
+  - Emit header, year header, detail rows, and a total row using `SUM(Gfirst:Glast)` and `SUM(Ifirst:Ilast)` when multi-year.
+  - Track rows via `NoteRowTracker` (headerRows, yearHeaderRows, detailRows, totalRows, unitRows).
+  - Export it from `src/services/financialStatements/notes/noteTypes/index.ts`.
+
+### 6) Orchestration (Notes_Accounting ordering)
+- File: `src/services/financialStatementGenerator.ts`
+  - Instantiate your generator at the right position in the sequence (e.g., after Receivables, before PPE, etc.).
+  - Push a corresponding `NoteFormatter` item, e.g., `{ type: '<yourFormatterType>', tracker }`.
+  - Pass `selection` to the generator so selection-first data is used.
+
+### 7) Excel Formatting
+- File: `src/services/excelFormatter.ts`
+  - In `formatNotesWithSpecificFormatting`, add a `case` for your formatter type to apply standard row-tracked styles (you can reuse an existing style block if appropriate).
+  - If you still rely on any legacy pattern-detection for bold lines, update the header/total text checks to include the new Thai label. Prefer row tracking.
+
+### 8) Database (SQLite) and API
+- Table: `company_account_mappings` (column: `note_type`, `ranges`, `includes`, `excludes`, `sub_category_rules` TEXT nullable)
+- Backend seeding (optional but recommended):
+  - File: `server.js` (reset defaults section) — add a default mapping row for the new `note_type` with sensible fallback (e.g., `includes: [1141]`).
+  - Setup scripts (optional): `scripts/setupSQLiteDatabase.*` / `scripts/createAccountMappingsTable.*` — adjust seed data if you maintain a bootstrap path.
+- API layer: `src/services/apiService.ts` is generic; no change needed. It already sends/receives `noteType`, ranges, includes, excludes, and `subCategoryRules`.
+
+### 9) Frontend Mapping UI
+- File: `src/types/accountMapping.ts`
+  - Add the note to `STANDARD_NOTE_TYPES` with Thai label and default `accountRanges`/`includes`.
+- File: `src/components/AccountMappingManager.tsx`
+  - Ensure the new note type appears:
+    - In the list of editable mappings; and
+    - In the “Add mapping…” dropdown so users can create it without a full reset.
+  - Confirm create/update calls use `ApiService.createAccountMapping(...)` / `updateAccountMapping(...)` with the new `noteType`.
+
+### 10) Verification Checklist
+- Build passes with zero type errors.
+- Mapping is visible in the UI; users can add/edit ranges/includes/excludes for the new note type.
+- `SelectionFirstClassifier` logs show the expected accounts in the new bucket; `unmatched` stays reasonable.
+- Notes_Accounting shows the new note in the intended order with correct Thai label and `SUM`-based total rows.
+- Balance Sheet row (if added) matches the note’s totals and previous-year behavior is correct.
+- Excel output preserves zeros where required; formatting (bold headers, underlines) looks consistent.
+
+### Worked Example: Asset Short‑Term Loans (เงินให้กู้ยืมระยะสั้น)
+- Types: Added `'asset_short_term_loans'` to `NoteCategory`; formatter type `'assetShortTermLoans'`.
+- Classifier: Inserted into `CATEGORY_PRIORITY` after `cash`; fallback mapping `codeNum === 1141`.
+- Generator: `ShortTermLoansNoteGenerator.generateWithRowTracking(...)` reads `selection.byCategory.asset_short_term_loans`, suppresses all-zero rows, emits details + SUM totals.
+- Orchestration: Placed immediately after Trade Receivables in `financialStatementGenerator.ts` and pushed `{ type: 'assetShortTermLoans', tracker }`.
+- Formatter: `excelFormatter.ts` handles `'assetShortTermLoans'` by reusing standard row-tracked styling.
+- Balance Sheet: Assets builder shows the value in Current Assets; GlobalDataExtractor computes consistent totals.
+- Database: `server.js` reset defaults seeds a mapping with `includes: [1141]`.
+- Frontend: `STANDARD_NOTE_TYPES` includes `'asset_short_term_loans'`; `AccountMappingManager` exposes it in “Add mapping…”.
+
+### Common Pitfalls (and quick fixes)
+- Category key mismatch (e.g., checking `'short_term_loans'` instead of `'asset_short_term_loans'`): Update the generator to read `selection.byCategory['<correctKey>']`.
+- Forgot to push a `NoteFormatter` entry: The note appears but lacks styling — push `{ type: '<yourType>', tracker }` in the orchestrator.
+- Missing `CATEGORY_PRIORITY` entry: Accounts never get classified — add the category to the priority list.
+- Mapping not visible in UI: Add the note to `STANDARD_NOTE_TYPES` and the “Add mapping…” options.
+- BS row missing or wrong order: Adjust `AssetsBuilder`/`LiabilitiesBuilder` and/or the orchestrator note order.

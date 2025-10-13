@@ -26,7 +26,10 @@ export class GlobalDataExtractor {
     const ppeNote = this.buildPPENote(trialBalanceData, provider);
     const prepaidNote = this.buildPrepaidNote(trialBalanceData, provider);
     const otherAssetsNote = this.buildOtherAssetsNote(trialBalanceData, provider);
-    const bankOverdraftsNote = this.buildBankOverdraftsNote(trialBalanceData, provider);
+  const assetShortTermLoans = this.buildAssetShortTermLoansNote(trialBalanceData, provider);
+  const assetLongTermLoans = this.buildAssetLongTermLoansNote(trialBalanceData, provider);
+  const hirePurchaseNote = this.buildHirePurchaseCreditorsNote(trialBalanceData, provider);
+  const bankOverdraftsNote = this.buildBankOverdraftsNote(trialBalanceData, provider);
     const shortTermLoansNote = this.buildShortTermLoansNote(trialBalanceData, provider);
     const incomeTaxPayableNote = this.buildIncomeTaxPayableNote(trialBalanceData, provider);
     const longTermLoansFiNote = this.buildLongTermLoansFiNote(trialBalanceData, provider);
@@ -35,7 +38,7 @@ export class GlobalDataExtractor {
 
     // Balance sheet totals built from notes + specific items
     const balanceSheetAssets = this.buildBalanceSheetAssets(trialBalanceData, cashNote, receivablesNote, inventoryNote, ppeNote);
-    const balanceSheetLiabilities = this.buildBalanceSheetLiabilities(trialBalanceData, provider, payablesNote);
+  const balanceSheetLiabilities = this.buildBalanceSheetLiabilities(trialBalanceData, provider, payablesNote, hirePurchaseNote);
 
     // Equity (retained earnings computed per VBA rules)
     const balanceSheetEquity = this.buildEquitySection(trialBalanceData, provider);
@@ -56,6 +59,9 @@ export class GlobalDataExtractor {
         inventory: inventoryNote,
         ppe: ppeNote,
         payables: payablesNote,
+        assetShortTermLoans,
+        assetLongTermLoans,
+  hirePurchaseCreditors: hirePurchaseNote,
         prepaid: prepaidNote,
         otherAssets: otherAssetsNote,
         bankOverdrafts: bankOverdraftsNote,
@@ -184,6 +190,64 @@ export class GlobalDataExtractor {
     };
   }
 
+  // Asset-side loans given
+  private static buildAssetShortTermLoansNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+    return {
+      current: provider?.getRules('asset_short_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('asset_short_term_loans')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1141, 1141)),
+      previous: provider?.getRules('asset_short_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('asset_short_term_loans')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1141, 1141))
+    };
+  }
+
+  private static buildAssetLongTermLoansNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+    return {
+      current: provider?.getRules('asset_long_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('asset_long_term_loans')!, 'current')
+        : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1710, 1710)),
+      previous: provider?.getRules('asset_long_term_loans')
+        ? sumByRules(trialBalanceData, provider.getRules('asset_long_term_loans')!, 'previous')
+        : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1710, 1710))
+    };
+  }
+
+  private static buildHirePurchaseCreditorsNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+    const principalCodes = ['2015'];
+    const deferredCodes = ['1644.2'];
+    const taxCodes = ['1644.1'];
+
+    const principalCurrentRaw = this.sumAccountsByCodes(trialBalanceData, principalCodes, 'current', provider?.getRules('hire_purchase_creditors'));
+    const principalPreviousRaw = this.sumAccountsByCodes(trialBalanceData, principalCodes, 'previous', provider?.getRules('hire_purchase_creditors'));
+    const deferredCurrentRaw = this.sumAccountsByCodes(trialBalanceData, deferredCodes, 'current', provider?.getRules('hire_purchase_creditors'));
+    const deferredPreviousRaw = this.sumAccountsByCodes(trialBalanceData, deferredCodes, 'previous', provider?.getRules('hire_purchase_creditors'));
+    const taxCurrentRaw = this.sumAccountsByCodes(trialBalanceData, taxCodes, 'current', provider?.getRules('hire_purchase_creditors'));
+    const taxPreviousRaw = this.sumAccountsByCodes(trialBalanceData, taxCodes, 'previous', provider?.getRules('hire_purchase_creditors'));
+
+    const totalCurrentRaw = principalCurrentRaw - deferredCurrentRaw - taxCurrentRaw;
+    const totalPreviousRaw = principalPreviousRaw - deferredPreviousRaw - taxPreviousRaw;
+
+    return {
+      principal: {
+        current: Math.abs(principalCurrentRaw),
+        previous: Math.abs(principalPreviousRaw)
+      },
+      deferredCharges: {
+        current: Math.abs(deferredCurrentRaw),
+        previous: Math.abs(deferredPreviousRaw)
+      },
+      taxCredit: {
+        current: Math.abs(taxCurrentRaw),
+        previous: Math.abs(taxPreviousRaw)
+      },
+      total: {
+        current: Math.abs(totalCurrentRaw),
+        previous: Math.abs(totalPreviousRaw)
+      },
+    } as const;
+  }
+
   private static buildBankOverdraftsNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
     return {
       current: provider?.getRules('bank_overdrafts')
@@ -274,6 +338,10 @@ export class GlobalDataExtractor {
   ) {
     return {
       cashAndCashEquivalents: cashNote.total,
+      shortTermLoansGiven: {
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1141, 1141)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1141, 1141))
+      },
       tradeReceivables: receivablesNote.total,
       inventory: inventoryNote.total,
       prepaidExpenses: {
@@ -281,6 +349,10 @@ export class GlobalDataExtractor {
         previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439))
       },
       propertyPlantEquipment: ppeNote.netBookValue,
+      longTermLoansGiven: {
+        current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1710, 1710)),
+        previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1710, 1710))
+      },
       otherAssets: {
         current: Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1660, 1700)),
         previous: Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1660, 1700))
@@ -291,7 +363,8 @@ export class GlobalDataExtractor {
   private static buildBalanceSheetLiabilities(
     trialBalanceData: TrialBalanceEntry[],
     provider: IAccountMappingProvider | undefined,
-    payablesNote: any
+    payablesNote: any,
+    hirePurchaseNote: ReturnType<typeof GlobalDataExtractor.buildHirePurchaseCreditorsNote>
   ) {
     return {
       bankOverdraftsAndShortTermLoans: this.buildBankOverdraftsNote(trialBalanceData, provider),
@@ -299,7 +372,8 @@ export class GlobalDataExtractor {
       shortTermBorrowings: this.buildShortTermLoansNote(trialBalanceData, provider),
       incomeTaxPayable: this.buildIncomeTaxPayableNote(trialBalanceData, provider),
       longTermLoansFromFI: this.buildLongTermLoansFiNote(trialBalanceData, provider),
-      otherLongTermLoans: this.buildLongTermLoansOtherNote(trialBalanceData, provider)
+      otherLongTermLoans: this.buildLongTermLoansOtherNote(trialBalanceData, provider),
+      hirePurchaseCreditors: hirePurchaseNote.total
     };
   }
 
@@ -393,11 +467,11 @@ export class GlobalDataExtractor {
 
     // Cash: 1000-1099 with category split
     const cashEntries = getEntriesByRulesOrRange('cash', e => {
-      const code = parseInt(e.accountCode || '0', 10);
+      const code = parseFloat(e.accountCode || '0');
       return code >= 1000 && code <= 1099;
     });
     for (const entry of cashEntries) {
-      const code = parseInt(entry.accountCode || '0', 10);
+  const code = parseFloat(entry.accountCode || '0');
       const currentAmount = Math.abs((entry.currentBalance ?? entry.balance ?? 0) as number);
       const previousAmount = Math.abs((entry.previousBalance ?? 0) as number);
       if (currentAmount === 0 && previousAmount === 0) continue;
@@ -413,7 +487,7 @@ export class GlobalDataExtractor {
 
     // Receivables: provider rules or 1140-1215
     const receivableEntries = getEntriesByRulesOrRange('receivables', e => {
-      const code = parseInt(e.accountCode || '0', 10);
+      const code = parseFloat(e.accountCode || '0');
       return code >= 1140 && code <= 1215;
     });
     for (const entry of receivableEntries) {
@@ -430,7 +504,7 @@ export class GlobalDataExtractor {
 
     // Payables: provider rules or 2010-2999 minus exclusions
     const payablesFallback = (e: TrialBalanceEntry) => {
-      const code = parseInt(e.accountCode || '0', 10);
+      const code = parseFloat(e.accountCode || '0');
       const isExcluded = code === 2030 || code === 2045 || (code >= 2050 && code <= 2052) || (code >= 2100 && code <= 2123);
       return code >= 2010 && code <= 2999 && !isExcluded;
     };
@@ -452,7 +526,7 @@ export class GlobalDataExtractor {
 
   // Minimal rule-aware selector (kept private, in-file)
   private static selectByRules(tb: TrialBalanceEntry[], rules: any): TrialBalanceEntry[] {
-    const toNum = (v: any) => Number.parseInt(String(v), 10);
+    const toNum = (v: any) => Number.parseFloat(String(v));
     const inRanges = (codeNum: number, ranges?: Array<{ from: number; to: number }>) =>
       Array.isArray(ranges) && ranges.some(r => codeNum >= r.from && codeNum <= r.to);
 
@@ -477,5 +551,23 @@ export class GlobalDataExtractor {
       }
     }
     return out;
+  }
+
+  private static sumAccountsByCodes(
+    trialBalanceData: TrialBalanceEntry[],
+    codes: string[],
+    which: 'current' | 'previous',
+    rules?: any
+  ): number {
+    const normalizedTargets = new Set(codes.map(code => code.replace(/\s+/g, '')));
+    const filteredEntries = rules ? this.selectByRules(trialBalanceData, rules) : trialBalanceData;
+    return filteredEntries.reduce((sum, entry) => {
+      const code = (entry.accountCode || '').trim().replace(/\s+/g, '');
+      if (!normalizedTargets.has(code)) {
+        return sum;
+      }
+      const value = which === 'previous' ? (entry.previousBalance ?? 0) : (entry.balance ?? entry.currentBalance ?? 0);
+      return sum + (value || 0);
+    }, 0);
   }
 }

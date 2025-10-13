@@ -107,6 +107,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ลูกหนี้การค้าและลูกหนี้อื่น',
     balanceSheetSection: 'current_assets'
   },
+  asset_short_term_loans: {
+    noteNumber: 9,
+    noteTitle: 'เงินให้กู้ยืมระยะสั้น',
+    balanceSheetSection: 'current_assets'
+  },
   inventory: {
     noteNumber: 9,
     noteTitle: 'สินค้าคงเหลือ',
@@ -125,6 +130,11 @@ export const STANDARD_NOTE_TYPES = {
   other_assets: {
     noteNumber: 12,
     noteTitle: 'สินทรัพย์อื่น',
+    balanceSheetSection: 'non_current_assets'
+  },
+  asset_long_term_loans: {
+    noteNumber: 13,
+    noteTitle: 'เงินให้กู้ยืมระยะยาว',
     balanceSheetSection: 'non_current_assets'
   },
   
@@ -152,6 +162,11 @@ export const STANDARD_NOTE_TYPES = {
   long_term_loans_fi: {
     noteNumber: 19,
     noteTitle: 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+    balanceSheetSection: 'non_current_liabilities'
+  },
+  hire_purchase_creditors: {
+    noteNumber: 21,
+    noteTitle: 'เจ้าหนี้ตามสัญญาเช่าซื้อ',
     balanceSheetSection: 'non_current_liabilities'
   },
   long_term_loans_other: {

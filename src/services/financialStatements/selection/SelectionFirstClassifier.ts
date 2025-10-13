@@ -17,6 +17,8 @@ export interface ClassifiedAccount {
   category: NoteCategory | 'unmatched';
   // Optional sub-category (currently only used for cash: 'cash' | 'bankDeposits')
   subCategory?: string;
+  rawCurrent: number;
+  rawPrevious: number;
 }
 
 export interface SelectionFirstResult {
@@ -44,6 +46,9 @@ export interface SelectionFirstResult {
 // Priority order prevents double counting when ranges overlap
 const CATEGORY_PRIORITY: NoteCategory[] = [
   'cash',
+  'asset_short_term_loans',
+  'asset_long_term_loans',
+  'hire_purchase_creditors',
   'receivables',
   'inventory',
   'prepaid',
@@ -87,17 +92,17 @@ export class SelectionFirstClassifier {
 
     // Assign each account to the first matching category by priority
     for (const e of trialBalanceData) {
-      const codeStr = e.accountCode || '';
-      const accountName = e.accountName || `บัญชี ${codeStr}`;
-  // Prefer ending balance (balance) which equals opening + current-period for BS accounts
-  // Fallback to currentBalance when balance not provided
-  const current = Math.abs((e.balance ?? e.currentBalance ?? 0) as number);
-      const previous = Math.abs((e.previousBalance ?? 0) as number);
+    const codeStr = (e.accountCode || '').trim();
+    const accountName = e.accountName || `บัญชี ${codeStr}`;
+    const rawCurrent = (e.balance ?? e.currentBalance ?? 0) as number;
+    const rawPrevious = (e.previousBalance ?? 0) as number;
+    const current = Math.abs(rawCurrent);
+    const previous = Math.abs(rawPrevious);
 
       let matched: NoteCategory | null = null;
       for (const cat of CATEGORY_PRIORITY) {
-        const resolver = getResolver(cat);
-        const res = resolver(codeStr);
+  const resolver = getResolver(cat);
+  const res = resolver(codeStr);
         if (res.matched) { matched = cat; break; }
       }
 
@@ -107,7 +112,9 @@ export class SelectionFirstClassifier {
         accountName,
         current,
         previous,
-        category: finalCat as any
+        category: finalCat as any,
+        rawCurrent,
+        rawPrevious
       };
 
       byAccount[codeStr] = rec;
@@ -145,7 +152,7 @@ export class SelectionFirstClassifier {
                 if (!r) return false;
                 if (excludes.has(codeStr)) return false;
                 if (includes.size > 0 && includes.has(codeStr)) return true;
-                const codeNum = Number.parseInt(codeStr || '0', 10);
+                const codeNum = Number.parseFloat(codeStr || '0');
                 if (Number.isFinite(codeNum) && ranges.length > 0) {
                   return ranges.some(range => codeNum >= range.from && codeNum <= range.to);
                 }
@@ -164,7 +171,7 @@ export class SelectionFirstClassifier {
             else if (isBankMatch && isBankMatch(acc.accountCode)) assigned = 'bankDeposits';
             else {
               // Legacy heuristic fallback split by code range if not matched by explicit rules
-              const codeNum = Number.parseInt(acc.accountCode || '0', 10);
+              const codeNum = Number.parseFloat(acc.accountCode || '0');
               if (codeNum >= 1000 && codeNum <= 1019) assigned = 'cash';
               else if (codeNum >= 1020 && codeNum <= 1099) assigned = 'bankDeposits';
             }
@@ -195,11 +202,11 @@ export class SelectionFirstClassifier {
             s.current += a.current; s.previous += a.previous; return s;
           }, { current: 0, previous: 0 });
           const cashTotals = sumBucket(cashAccounts.filter(a => {
-            const codeNum = Number.parseInt(a.accountCode || '0', 10);
+            const codeNum = Number.parseFloat(a.accountCode || '0');
             return codeNum >= 1000 && codeNum <= 1019;
           }));
           const bankTotals = sumBucket(cashAccounts.filter(a => {
-            const codeNum = Number.parseInt(a.accountCode || '0', 10);
+            const codeNum = Number.parseFloat(a.accountCode || '0');
             return codeNum >= 1020 && codeNum <= 1099;
           }));
           subCategories = {
@@ -237,9 +244,15 @@ export class SelectionFirstClassifier {
     const ranges: Array<{ from: number; to: number }> = rules?.ranges ?? [];
 
     // Fallback numeric ranges per legacy logic
-    const fallback = (codeNum: number) => {
+    const fallback = (codeNum: number, codeStr: string) => {
+      const normalized = codeStr.replace(/\s+/g, '');
       switch (cat) {
         case 'cash': return codeNum >= 1000 && codeNum <= 1099;
+        case 'asset_short_term_loans': return codeNum === 1141; // เงินให้กู้ยืมระยะสั้น (asset)
+        case 'asset_long_term_loans': return codeNum === 1710;  // เงินให้กู้ยืมระยะยาว (asset)
+        case 'hire_purchase_creditors':
+          // Hire purchase principal (2015) plus related deferred charges (1644.2) and VAT (1644.1)
+          return normalized === '2015' || normalized === '1644.2' || normalized === '1644.1';
         case 'receivables': return codeNum >= 1140 && codeNum <= 1215;
         case 'inventory': return codeNum >= 1500 && codeNum <= 1519;
         case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;
@@ -259,7 +272,7 @@ export class SelectionFirstClassifier {
     };
 
     return (codeStr: string): { matched: boolean } => {
-      const codeNum = Number.parseInt(codeStr || '0', 10);
+  const codeNum = Number.parseFloat(codeStr || '0');
       const inRanges = (lst?: Array<{ from: number; to: number }>) => Array.isArray(lst) && lst.some(r => codeNum >= r.from && codeNum <= r.to);
 
       // Provider-based rules (top-level)
@@ -271,7 +284,7 @@ export class SelectionFirstClassifier {
       }
 
       // Fallback numeric mapping
-      return { matched: Number.isFinite(codeNum) && fallback(codeNum) === true };
+      return { matched: Number.isFinite(codeNum) && fallback(codeNum, codeStr) === true };
     };
   }
 }

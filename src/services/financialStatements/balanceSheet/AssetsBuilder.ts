@@ -28,6 +28,10 @@ export class AssetsBuilder {
       : (globalData
           ? globalData.balanceSheetTotals.assets.tradeReceivables.current
           : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1140, 1215))));
+    const assetShortTermLoans = sel?.asset_short_term_loans?.current ?? (
+      globalData?.noteCalculations?.assetShortTermLoans?.current ??
+      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1141, 1141))
+    );
     const inventory = sel?.inventory?.current ?? ((NOTE_FIRST_MODE && n)
       ? BalanceSheetLinkMap.assets.inventory(n).current
       : (globalData
@@ -65,6 +69,10 @@ export class AssetsBuilder {
       : (globalData
           ? globalData.balanceSheetTotals.assets.tradeReceivables.previous
           : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1140, 1215)));
+    const prevAssetShortTermLoans = sel?.asset_short_term_loans?.previous ?? (
+      globalData?.noteCalculations?.assetShortTermLoans?.previous ??
+      FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1141, 1141)
+    );
     const prevInventory = sel?.inventory?.previous ?? ((NOTE_FIRST_MODE && n)
       ? BalanceSheetLinkMap.assets.inventory(n).previous
       : (globalData
@@ -121,6 +129,12 @@ export class AssetsBuilder {
       currentRow++;
     }
 
+    if (assetShortTermLoans !== 0) {
+      worksheetData.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', assetShortTermLoans, '', processingType === 'multi-year' ? prevAssetShortTermLoans : '', '']);
+      currentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
     if (inventory !== 0) {
       worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
       currentAssetRows.push(currentRow);
@@ -156,6 +170,22 @@ export class AssetsBuilder {
 
     if (landBuildingsEquipment !== 0) {
       worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', '11', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+      nonCurrentAssetRows.push(currentRow);
+      currentRow++;
+    }
+
+    // Long-term loans given (asset)
+    const assetLongTermLoans = sel?.asset_long_term_loans?.current ?? (
+      globalData?.noteCalculations?.assetLongTermLoans?.current ??
+      Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1710, 1710))
+    );
+    const prevAssetLongTermLoans = sel?.asset_long_term_loans?.previous ?? (
+      globalData?.noteCalculations?.assetLongTermLoans?.previous ??
+      FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1710, 1710)
+    );
+
+    if (assetLongTermLoans !== 0) {
+      worksheetData.push(['', '', 'เงินให้กู้ยืมระยะยาว', '', '', '', assetLongTermLoans, '', processingType === 'multi-year' ? prevAssetLongTermLoans : '', '']);
       nonCurrentAssetRows.push(currentRow);
       currentRow++;
     }

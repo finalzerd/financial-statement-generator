@@ -141,23 +141,65 @@
   font-weight: bold;
 }
 
-.validation-errors, .validation-warnings, .unmapped-accounts {
+.validation-errors, .validation-warnings, .unmapped-accounts, .conflicting-accounts {
   margin-top: 10px;
 }
 
-.validation-errors h4, .validation-warnings h4, .unmapped-accounts h4 {
+.validation-errors h4, .validation-warnings h4, .unmapped-accounts h4, .conflicting-accounts h4 {
   margin: 5px 0;
   font-size: 14px;
 }
 
-.validation-errors ul, .validation-warnings ul, .unmapped-accounts ul {
+.validation-errors ul, .validation-warnings ul, .unmapped-accounts ul, .conflicting-accounts ul {
   margin: 5px 0 0 20px;
   padding: 0;
 }
 
-.validation-errors li, .validation-warnings li, .unmapped-accounts li {
+.validation-errors li, .validation-warnings li, .unmapped-accounts li, .conflicting-accounts li {
   margin: 2px 0;
   font-size: 13px;
+}
+
+.conflict-account-line {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.conflict-account-line .account-code {
+  font-weight: 600;
+  color: #343a40;
+}
+
+.conflict-account-line .account-name {
+  color: #495057;
+}
+
+.validation-summary.invalid .conflict-account-line .account-code,
+.validation-summary.invalid .conflict-account-line .account-name {
+  color: inherit;
+}
+
+.conflict-note-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 0 0;
+}
+
+.note-tag {
+  display: inline-block;
+  background-color: rgba(100, 108, 255, 0.15);
+  color: #646cff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.validation-summary.invalid .note-tag {
+  background-color: rgba(114, 28, 36, 0.15);
+  color: #721c24;
 }
 
 /* Mappings Grid */

@@ -7,8 +7,8 @@ import type { SelectionFirstResult } from '../../selection/SelectionFirstClassif
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
 
 /**
- * Generates short term loans note (Note 5) with row tracking
- * Covers loans to related parties (account 1141)
+ * Generates asset-side short term loans given note with row tracking
+ * Default numeric coverage: account 1141
  */
 export class ShortTermLoansNoteGenerator {
   
@@ -66,7 +66,9 @@ export class ShortTermLoansNoteGenerator {
       unitRows: []
     };
 
-    const selRows = selection?.byCategory?.short_term_loans ?? [];
+  // Use selection-first data for asset-side short-term loans given
+  // Category key must match SelectionFirstClassifier (asset_short_term_loans)
+  const selRows = selection?.byCategory?.asset_short_term_loans ?? [];
     if (selRows.length > 0) {
       let suppressed = 0;
       const detailRows = selRows.filter((a) => {

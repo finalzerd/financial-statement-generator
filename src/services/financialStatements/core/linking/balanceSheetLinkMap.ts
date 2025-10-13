@@ -20,6 +20,7 @@ export interface BalanceSheetLinkResolver {
     incomeTaxPayable: (n: NoteResults) => NoteTotal;
     longTermLoansFromFI: (n: NoteResults) => NoteTotal;
     otherLongTermLoans: (n: NoteResults) => NoteTotal;
+    hirePurchaseCreditors?: (n: NoteResults) => NoteTotal;
   };
 }
 
@@ -38,7 +39,8 @@ export const BalanceSheetLinkMap: BalanceSheetLinkResolver = {
     shortTermBorrowings: (n) => n.shortTermLoans, // populated in extractor extension
     incomeTaxPayable: (n) => n.incomeTaxPayable, // populated in extractor extension
     longTermLoansFromFI: (n) => n.longTermLoansFi, // populated in extractor extension
-    otherLongTermLoans: (n) => n.longTermLoansOther // populated in extractor extension
+    otherLongTermLoans: (n) => n.longTermLoansOther, // populated in extractor extension
+    hirePurchaseCreditors: (n) => n.hirePurchaseCreditors.total
   }
 };
 

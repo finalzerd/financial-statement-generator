@@ -14,7 +14,8 @@ import {
   OtherIncomeNoteGenerator,
   ShortTermLoansNoteGenerator,
   OtherAssetsNoteGenerator,
-  LongTermLoansNoteGenerator,
+  AssetLongTermLoansNoteGenerator,
+  HirePurchaseCreditorsNoteGenerator,
   OtherLongTermLoansNoteGenerator,
   RelatedPartyLoansNoteGenerator,
   ExpensesByNatureNoteGenerator,
@@ -252,6 +253,12 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'receivables', tracker: receivablesTracker });
     }
 
+    // Move Short-term Loans (asset-side) to appear right after Trade Receivables
+    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (shortTermLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'assetShortTermLoans', tracker: shortTermLoansTracker });
+    }
+
     // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting (should come before Payables)
     const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
     if (ppeTracker.headerRows.length > 0) {
@@ -263,21 +270,29 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'payables', tracker: payablesTracker });
     }
     
-    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
-    if (shortTermLoansTracker.headerRows.length > 0) {
-      formatters.push({ type: 'shortTermLoans', tracker: shortTermLoansTracker });
-    }
-    
     const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherAssetsTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherAssetsTracker });
     }
     
-    const longTermLoansTracker = LongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
-    if (longTermLoansTracker.headerRows.length > 0) {
-      formatters.push({ type: 'general', tracker: longTermLoansTracker });
+    const assetLongTermLoansTracker = AssetLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (assetLongTermLoansTracker.headerRows.length > 0) {
+      formatters.push({ type: 'assetLongTermLoans', tracker: assetLongTermLoansTracker });
     }
     
+    const hirePurchaseTracker = HirePurchaseCreditorsNoteGenerator.generateWithRowTracking(
+      notes,
+      trialBalanceData,
+      companyInfo,
+      processingType,
+      trialBalancePrevious,
+      noteNumber++,
+      selection
+    );
+    if (hirePurchaseTracker.headerRows.length > 0) {
+      formatters.push({ type: 'hirePurchaseCreditors', tracker: hirePurchaseTracker });
+    }
+
     const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherLongTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });

@@ -20,13 +20,26 @@ export interface NoteRowTracker {
  * Interface for note formatting information
  */
 export interface NoteFormatter {
-  type: 'cash' | 'receivables' | 'payables' | 'ppe' | 'inventory' | 'general' | 'shortTermLoans';
+  type:
+    | 'cash'
+    | 'receivables'
+    | 'payables'
+    | 'ppe'
+    | 'inventory'
+    | 'general'
+    | 'shortTermLoans'
+    | 'assetShortTermLoans'
+    | 'assetLongTermLoans'
+    | 'hirePurchaseCreditors';
   tracker: NoteRowTracker;
 }
 
 // Note category classification for selection-first architecture
 export type NoteCategory =
   | 'cash'
+  | 'asset_short_term_loans'
+  | 'asset_long_term_loans'
+  | 'hire_purchase_creditors'
   | 'receivables'
   | 'inventory'
   | 'prepaid'
@@ -52,6 +65,17 @@ export interface DetailedFinancialData {
       cash: { current: number; previous: number };          // เงินสดในมือ (1000)
       bankDeposits: { current: number; previous: number };  // เงินฝากธนาคาร (1010-1099)
       total: { current: number; previous: number };         // Total for Balance Sheet
+    };
+
+    // Asset loans given
+    assetShortTermLoans: { current: number; previous: number }; // เงินให้กู้ยืมระยะสั้น (e.g., 1141)
+    assetLongTermLoans: { current: number; previous: number };  // เงินให้กู้ยืมระยะยาว (e.g., 1710)
+    
+    hirePurchaseCreditors: {
+      principal: { current: number; previous: number };      // เจ้าหนี้ตามสัญญาเช่าซื้อ (2015)
+      deferredCharges: { current: number; previous: number }; // ดอกผลเช่าซื้อรอตัดบัญชี (1644.2)
+      taxCredit: { current: number; previous: number };       // ภาษีซื้อรอตัดบัญชี (1644.1)
+      total: { current: number; previous: number };           // Total for Balance Sheet
     };
     
     // Note 8: Trade and other receivables (DYNAMIC - no artificial grouping)
@@ -130,10 +154,12 @@ export interface DetailedFinancialData {
   balanceSheetTotals: {
     assets: {
       cashAndCashEquivalents: { current: number; previous: number };    // From noteCalculations.cash.total
+      shortTermLoansGiven?: { current: number; previous: number };       // From noteCalculations.assetShortTermLoans
       tradeReceivables: { current: number; previous: number };          // From noteCalculations.receivables.total
       inventory: { current: number; previous: number };                 // From noteCalculations.inventory.total
       prepaidExpenses: { current: number; previous: number };           // Individual calculation (1300-1399)
       propertyPlantEquipment: { current: number; previous: number };    // From noteCalculations.ppe.netBookValue
+      longTermLoansGiven?: { current: number; previous: number };        // From noteCalculations.assetLongTermLoans
       otherAssets: { current: number; previous: number };               // Individual calculation (1900-1999)
     };
     
@@ -144,6 +170,7 @@ export interface DetailedFinancialData {
       incomeTaxPayable: { current: number; previous: number };                // Individual (2120)
       longTermLoansFromFI: { current: number; previous: number };             // Individual (2410)
       otherLongTermLoans: { current: number; previous: number };              // Individual (2490)
+      hirePurchaseCreditors?: { current: number; previous: number };          // From noteCalculations.hirePurchaseCreditors.total
     };
     
     equity: {

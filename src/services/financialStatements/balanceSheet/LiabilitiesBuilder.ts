@@ -58,6 +58,9 @@ export class LiabilitiesBuilder {
           ? globalData.balanceSheetTotals.liabilities.otherLongTermLoans.current
           : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
             Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119))));
+    const hirePurchaseCreditors = (NOTE_FIRST_MODE && n && BalanceSheetLinkMap.liabilities.hirePurchaseCreditors)
+      ? BalanceSheetLinkMap.liabilities.hirePurchaseCreditors(n).current
+      : (globalData?.balanceSheetTotals.liabilities.hirePurchaseCreditors?.current ?? 0);
 
     // Equity related values (current)
     const registeredCapital = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
@@ -104,6 +107,9 @@ export class LiabilitiesBuilder {
           ? globalData.balanceSheetTotals.liabilities.otherLongTermLoans.previous
           : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2050, 2052)) +
             Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 2100, 2119))));
+    const prevHirePurchaseCreditors = (NOTE_FIRST_MODE && n && BalanceSheetLinkMap.liabilities.hirePurchaseCreditors)
+      ? BalanceSheetLinkMap.liabilities.hirePurchaseCreditors(n).previous
+      : (globalData?.balanceSheetTotals.liabilities.hirePurchaseCreditors?.previous ?? 0);
     const prevPaidUpCapital = globalData
       ? globalData.balanceSheetTotals.equity.paidUpCapital.previous
       : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 3010, 3010));
@@ -151,8 +157,10 @@ export class LiabilitiesBuilder {
       cellTracker,
       longTermLoansFromFI,
       otherLongTermLoans,
+      hirePurchaseCreditors,
       prevLongTermLoansFromFI,
       prevOtherLongTermLoans,
+      prevHirePurchaseCreditors,
       processingType
     );
 
@@ -230,8 +238,10 @@ export class LiabilitiesBuilder {
     cellTracker: CellTracker,
     longTermLoansFromFI: number,
     otherLongTermLoans: number,
+    hirePurchaseCreditors: number,
     prevLongTermLoansFromFI: number,
     prevOtherLongTermLoans: number,
+    prevHirePurchaseCreditors: number,
     processingType: 'single-year' | 'multi-year'
   ) {
     worksheetData.push(['', 'หนี้สินไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
@@ -245,6 +255,12 @@ export class LiabilitiesBuilder {
 
     if (otherLongTermLoans !== 0) {
       worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวอื่น', '', '', '20', otherLongTermLoans, '', processingType === 'multi-year' ? prevOtherLongTermLoans : '', '']);
+      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
+    }
+
+    if (hirePurchaseCreditors !== 0) {
+      worksheetData.push(['', '', 'เจ้าหนี้ตามสัญญาเช่าซื้อ', '', '', '21', hirePurchaseCreditors, '', processingType === 'multi-year' ? prevHirePurchaseCreditors : '', '']);
       cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
       cellTracker.currentRow++;
     }

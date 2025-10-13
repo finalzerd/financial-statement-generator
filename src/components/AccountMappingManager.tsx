@@ -51,6 +51,7 @@ export function AccountMappingManager({
   const [editingMapping, setEditingMapping] = useState<string | null>(null);
   const [formData, setFormData] = useState<MappingFormData | null>(null);
   const [validation, setValidation] = useState<AccountMappingValidation | null>(null);
+  const [addNoteType, setAddNoteType] = useState<string>('');
 
   // Load mappings on component mount
   useEffect(() => {
@@ -130,18 +131,19 @@ export function AccountMappingManager({
       const accountRanges: AccountMappingRules = {
         ranges: formData.ranges
           .filter(r => r.from && r.to)
-          .map(r => ({ from: parseInt(r.from), to: parseInt(r.to) })),
+          .map(r => ({ from: parseFloat(r.from), to: parseFloat(r.to) }))
+          .filter(r => !isNaN(r.from) && !isNaN(r.to)),
         includes: formData.includes
           .split(',')
           .map(s => s.trim())
           .filter(s => s)
-          .map(s => parseInt(s))
+          .map(s => parseFloat(s))
           .filter(n => !isNaN(n)),
         excludes: formData.excludes
           .split(',')
           .map(s => s.trim())
           .filter(s => s)
-          .map(s => parseInt(s))
+          .map(s => parseFloat(s))
           .filter(n => !isNaN(n))
       };
 
@@ -158,9 +160,22 @@ export function AccountMappingManager({
       let subCategoryRules: any = null;
       if (formData.noteType === 'cash' && formData.subCategoryRules) {
         const buildSub = (sc: { ranges: { from: string; to: string }[]; includes: string; excludes: string }) => {
-          const r = sc.ranges.filter(r => r.from && r.to).map(r => ({ from: parseInt(r.from), to: parseInt(r.to) }));
-          const inc = sc.includes.split(',').map(s => s.trim()).filter(s => s).map(s => parseInt(s)).filter(n => !isNaN(n));
-          const exc = sc.excludes.split(',').map(s => s.trim()).filter(s => s).map(s => parseInt(s)).filter(n => !isNaN(n));
+          const r = sc.ranges
+            .filter(r => r.from && r.to)
+            .map(r => ({ from: parseFloat(r.from), to: parseFloat(r.to) }))
+            .filter(r => !isNaN(r.from) && !isNaN(r.to));
+          const inc = sc.includes
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s)
+            .map(s => parseFloat(s))
+            .filter(n => !isNaN(n));
+          const exc = sc.excludes
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s)
+            .map(s => parseFloat(s))
+            .filter(n => !isNaN(n));
           return { ...(r.length ? { ranges: r } : {}), ...(inc.length ? { includes: inc } : {}), ...(exc.length ? { excludes: exc } : {}) };
         };
         const cashRules = buildSub(formData.subCategoryRules.cash!);
@@ -199,6 +214,43 @@ export function AccountMappingManager({
       onMappingsChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset mappings');
+    }
+  };
+
+  // Create a missing mapping (e.g., asset_short_term_loans) with sensible defaults
+  const handleAddMapping = async () => {
+    if (!addNoteType) return;
+    try {
+      const def = (STANDARD_NOTE_TYPES as any)[addNoteType];
+      if (!def) {
+        setError('Unknown note type');
+        return;
+      }
+
+      // Default accountRanges for new asset-side notes; others start empty
+      let accountRanges: AccountMappingRules = { ranges: [] } as any;
+      if (addNoteType === 'asset_short_term_loans') {
+        accountRanges = { includes: [1141] } as any; // เงินให้กู้ยืมระยะสั้น (asset)
+      } else if (addNoteType === 'asset_long_term_loans') {
+        accountRanges = { includes: [1710] } as any; // เงินให้กู้ยืมระยะยาว (asset)
+      } else if (addNoteType === 'hire_purchase_creditors') {
+        accountRanges = { includes: [2015, 1644.2, 1644.1] } as any; // เจ้าหนี้ตามสัญญาเช่าซื้อ
+      }
+
+      await ApiService.createAccountMapping(companyId, {
+        noteType: addNoteType,
+        noteNumber: def.noteNumber,
+        noteTitle: def.noteTitle,
+        accountRanges,
+        isActive: true
+      });
+
+      setAddNoteType('');
+      await loadMappings();
+      onMappingsChanged?.();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add mapping');
     }
   };
 
@@ -271,6 +323,28 @@ export function AccountMappingManager({
           <button onClick={validateMappings} className="btn-primary">
             Validate Mappings
           </button>
+          {/* Add Missing Mapping control */}
+          {(() => {
+            const existing = new Set(mappings.map(m => m.noteType));
+            const allTypes = Object.keys(STANDARD_NOTE_TYPES);
+            const missing = allTypes.filter(t => !existing.has(t));
+            if (missing.length === 0) return null;
+            return (
+              <div className="add-mapping-inline">
+                <select value={addNoteType} onChange={e => setAddNoteType(e.target.value)}>
+                  <option value="">Add mapping…</option>
+                  {missing.map(t => (
+                    <option key={t} value={t}>
+                      {`Note ${STANDARD_NOTE_TYPES[t as keyof typeof STANDARD_NOTE_TYPES]?.noteNumber || ''}: ${STANDARD_NOTE_TYPES[t as keyof typeof STANDARD_NOTE_TYPES]?.noteTitle || t}`}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-primary" onClick={handleAddMapping} disabled={!addNoteType}>
+                  Add
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -307,6 +381,30 @@ export function AccountMappingManager({
                 {validation.warnings.map((warning, i) => (
                   <li key={i}>{warning}</li>
                 ))}
+              </ul>
+            </div>
+          )}
+
+          {validation.conflictingAccounts.length > 0 && (
+            <div className="conflicting-accounts">
+              <h4>Conflicting Accounts (mapped to multiple notes):</h4>
+              <ul>
+                {validation.conflictingAccounts.slice(0, 10).map((account, i) => (
+                  <li key={i}>
+                    <div className="conflict-account-line">
+                      <span className="account-code">{account.accountCode}</span>
+                      <span className="account-name">{account.accountName}</span>
+                    </div>
+                    <div className="conflict-note-tags">
+                      {account.noteTypes.map((note, idx) => (
+                        <span key={idx} className="note-tag">{note}</span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+                {validation.conflictingAccounts.length > 10 && (
+                  <li>... and {validation.conflictingAccounts.length - 10} more</li>
+                )}
               </ul>
             </div>
           )}

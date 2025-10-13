@@ -1059,6 +1059,15 @@ export class ExcelJSFormatter {
         case 'shortTermLoans':
           this.formatShortTermLoansNote(worksheet, formatter.tracker);
           break;
+        case 'assetShortTermLoans':
+          this.formatShortTermLoansNote(worksheet, formatter.tracker);
+          break;
+        case 'assetLongTermLoans':
+          this.formatShortTermLoansNote(worksheet, formatter.tracker);
+          break;
+        case 'hirePurchaseCreditors':
+          this.formatShortTermLoansNote(worksheet, formatter.tracker);
+          break;
         default:
           this.formatGeneralNote(worksheet, formatter.tracker);
       }
@@ -1550,7 +1559,9 @@ export class ExcelJSFormatter {
       'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
       'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น',
       'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
-      'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+  'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+  'เงินให้กู้ยืมระยะสั้น',
+  'เงินให้กู้ยืมระยะยาว',
       'เงินกู้ยืมระยะยาวอื่น',
       'เงินกู้ยืมจากกิจการที่เกี่ยวข้องกัน',
       'รายได้อื่น',
