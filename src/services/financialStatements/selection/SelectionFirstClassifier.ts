@@ -99,14 +99,19 @@ export class SelectionFirstClassifier {
     const current = Math.abs(rawCurrent);
     const previous = Math.abs(rawPrevious);
 
-      let matched: NoteCategory | null = null;
+  let matched: NoteCategory | null = null;
+  const normalizedCode = codeStr.replace(/\s+/g, '');
       for (const cat of CATEGORY_PRIORITY) {
   const resolver = getResolver(cat);
   const res = resolver(codeStr);
         if (res.matched) { matched = cat; break; }
       }
 
-      const finalCat = matched ?? 'unmatched';
+      let finalCat: NoteCategory | 'unmatched' = matched ?? 'unmatched';
+
+      if (finalCat === 'ppe_cost' && normalizedCode.includes('.')) {
+        finalCat = 'ppe_accum_depr';
+      }
       const rec: ClassifiedAccount = {
         accountCode: codeStr,
         accountName,

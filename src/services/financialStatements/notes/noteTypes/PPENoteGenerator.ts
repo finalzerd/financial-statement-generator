@@ -4,6 +4,7 @@
 
 import type { NoteRowTracker } from '../../core/types';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
+import type { SelectionFirstResult, ClassifiedAccount } from '../../selection/SelectionFirstClassifier';
 
 /**
  * Generates Property, Plant and Equipment note (Note 10) with complex structure
@@ -20,8 +21,9 @@ export class PPENoteGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
-  _trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 6
+    _trialBalancePrevious?: TrialBalanceEntry[], 
+    noteNumber: number = 6,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
@@ -33,32 +35,83 @@ export class PPENoteGenerator {
       unitRows: []           // หน่วย:บาท rows
     };
 
-    // Get all PPE asset accounts (1610-1659 without decimal points)
-    const assetAccounts = trialBalanceData.filter(entry => {
-      const code = parseInt(entry.accountCode);
-      return code >= 1610 && code <= 1659 && !entry.accountCode.includes('.');
+    type PPEAccount = {
+      accountCode?: string;
+      accountName: string;
+      current: number;
+      previous: number;
+    };
+
+    const normalizeSelection = (accounts?: ClassifiedAccount[]): PPEAccount[] => {
+      if (!accounts) return [];
+      return accounts.map((acc) => ({
+        accountCode: acc.accountCode,
+        accountName: acc.accountName,
+        current: acc.current || 0,
+        previous: acc.previous || 0
+      }));
+    };
+
+    const isDecimalAccount = (code?: string) => Boolean(code && code.includes('.'));
+    const selectionCostSource = normalizeSelection(selection?.byCategory?.ppe_cost);
+    const selectionDeprSource = normalizeSelection(selection?.byCategory?.ppe_accum_depr);
+
+    const selectionCostAccounts = selectionCostSource.filter(acc => !isDecimalAccount(acc.accountCode));
+    const spilloverDecimalAccounts = selectionCostSource.filter(acc => isDecimalAccount(acc.accountCode));
+
+    const seenCodes = new Set<string>();
+    const addUnique = (list: PPEAccount[], target: PPEAccount[]) => {
+      for (const acc of list) {
+        const key = acc.accountCode ?? acc.accountName;
+        if (seenCodes.has(key)) continue;
+        seenCodes.add(key);
+        target.push(acc);
+      }
+    };
+
+    const selectionDeprAccounts: PPEAccount[] = [];
+    addUnique(selectionDeprSource, selectionDeprAccounts);
+    addUnique(spilloverDecimalAccounts, selectionDeprAccounts);
+
+    const normalizeTrialBalance = (entries: TrialBalanceEntry[], predicate: (entry: TrialBalanceEntry) => boolean): PPEAccount[] => {
+      return entries
+        .filter(predicate)
+        .map(entry => {
+          const balance = (entry.balance ?? entry.currentBalance ?? 0) as number;
+          const previous = (entry.previousBalance ?? 0) as number;
+          return {
+            accountCode: entry.accountCode,
+            accountName: entry.accountName ?? entry.accountCode ?? 'ไม่ระบุ',
+            current: Math.abs(balance),
+            previous: Math.abs(previous)
+          };
+        });
+    };
+
+    const assetFallback = normalizeTrialBalance(trialBalanceData, entry => {
+      const codeStr = entry.accountCode ?? '';
+      if (codeStr.includes('.')) return false;
+      const code = Number.parseInt(codeStr, 10);
+      return Number.isFinite(code) && code >= 1600 && code <= 1699;
     });
 
-    // Get all accumulated depreciation accounts (1610-1659 with decimal points)
-    const depreciationAccounts = trialBalanceData.filter(entry => {
-      const code = parseInt(entry.accountCode);
-      return code >= 1610 && code <= 1659 && entry.accountCode.includes('.');
+    const depreciationFallback = normalizeTrialBalance(trialBalanceData, entry => {
+      const codeStr = entry.accountCode ?? '';
+      if (!codeStr.includes('.')) return false;
+      const base = Math.floor(Number.parseFloat(codeStr));
+      return Number.isFinite(base) && base >= 1600 && base <= 1699;
     });
 
-    // Only create note if there are any PPE accounts with balances
+  const usingSelection = selectionCostAccounts.length > 0 || selectionDeprAccounts.length > 0;
+
+    const assetAccounts = (selectionCostAccounts.length > 0 ? selectionCostAccounts : assetFallback)
+      .filter(acc => acc.current !== 0 || acc.previous !== 0);
+    const depreciationAccounts = (selectionDeprAccounts.length > 0 ? selectionDeprAccounts : depreciationFallback)
+      .filter(acc => acc.current !== 0 || acc.previous !== 0);
+
+    console.log(`[PPE Note] Using ${usingSelection ? 'selection-first' : 'fallback'} data -> assets: ${assetAccounts.length}, depreciation: ${depreciationAccounts.length}`);
+
     if (assetAccounts.length === 0 && depreciationAccounts.length === 0) {
-      return tracker;
-    }
-
-    // Check if any accounts have non-zero balances
-    const hasAssetBalances = assetAccounts.some(acc => 
-      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
-    );
-    const hasDepreciationBalances = depreciationAccounts.some(acc => 
-      Math.abs(acc.balance) !== 0 || Math.abs(acc.previousBalance || 0) !== 0
-    );
-
-    if (!hasAssetBalances && !hasDepreciationBalances) {
       return tracker;
     }
 
@@ -93,8 +146,8 @@ export class PPENoteGenerator {
 
     // 4. Individual Asset Accounts (Detail Rows)
     assetAccounts.forEach(account => {
-      const currentAmount = Math.abs(account.balance);
-      const previousAmount = Math.abs(account.previousBalance || 0);
+      const currentAmount = account.current;
+      const previousAmount = account.previous;
       const purchases = Math.max(0, currentAmount - previousAmount); // Only positive purchases
       const disposals = Math.max(0, previousAmount - currentAmount); // Only positive disposals
       
@@ -142,8 +195,8 @@ export class PPENoteGenerator {
 
     // 8. Individual Depreciation Accounts (Detail Rows)
     depreciationAccounts.forEach(account => {
-      const currentAmount = Math.abs(account.balance); // Convert to positive
-      const previousAmount = Math.abs(account.previousBalance || 0); // Convert to positive
+      const currentAmount = account.current;
+      const previousAmount = account.previous;
       const expenseAmount = Math.max(0, currentAmount - previousAmount); // Depreciation expense for the year
       const disposalAmount = Math.max(0, previousAmount - currentAmount); // Depreciation disposal for the year
       
