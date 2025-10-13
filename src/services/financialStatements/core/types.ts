@@ -51,7 +51,8 @@ export type NoteCategory =
   | 'short_term_loans'
   | 'income_tax_payable'
   | 'long_term_loans_fi'
-  | 'long_term_loans_other';
+  | 'long_term_loans_other'
+  | 'other_income';
 
 /**
  * Foundation-first architecture: Note calculations drive Balance Sheet values

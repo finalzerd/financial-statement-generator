@@ -37,6 +37,7 @@ import { GlobalDataExtractor } from './financialStatements/core/GlobalDataExtrac
 import { NotesPolicyBuilder } from './financialStatements/notes/NotesPolicyBuilder';
 import type { IAccountMappingProvider } from './financialStatements/mapping/IAccountMappingProvider';
 import { SelectionFirstClassifier } from './financialStatements/selection/SelectionFirstClassifier';
+import type { SelectionFirstResult } from './financialStatements/selection/SelectionFirstClassifier';
 
 // ============================================================================
 // MAIN FINANCIAL STATEMENT GENERATOR CLASS
@@ -50,6 +51,7 @@ export class FinancialStatementGenerator {
   
   private extractedData: DetailedFinancialData | null = null;
   private mappingProvider?: IAccountMappingProvider;
+  private selectionData: SelectionFirstResult | null = null;
   
   /**
    * MAIN DATA EXTRACTION METHOD - Call this first to avoid redundant calculations
@@ -88,6 +90,7 @@ export class FinancialStatementGenerator {
     
   // Compute selection-first classification once for BS linkage as well
   const selectionForBS = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+  this.selectionData = selectionForBS;
   const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
   const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
     const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
@@ -228,6 +231,7 @@ export class FinancialStatementGenerator {
     console.log('=== NOTES_ACCOUNTING: Using Global Data Extraction with Row Tracking ===');
     // Compute selection-first classification once (mapping-first architecture)
   const selection = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+  this.selectionData = selection;
   const totalClassified = Object.keys(selection.byAccount).length;
   const unmatchedCount = selection.unmatched?.length ?? 0;
   console.log(`[SelectionFirst] Classified ${totalClassified} accounts; unmatched=${unmatchedCount}. Receivables selected=${selection.byCategory?.receivables?.length ?? 0}`);
@@ -298,12 +302,12 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });
     }
     
-    const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+  const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (relatedPartyLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: relatedPartyLoansTracker });
     }
     
-    const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++);
+  const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherIncomeTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherIncomeTracker });
     }
@@ -329,6 +333,9 @@ export class FinancialStatementGenerator {
   const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
     console.log('=== NOTES_DETAIL: Using Global Data Extraction ===');
+
+    const selection = this.selectionData ?? SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+    this.selectionData = selection;
     
     const detailNotes: any[][] = [];
     
@@ -339,7 +346,7 @@ export class FinancialStatementGenerator {
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT1 - Cost of goods sold / Service costs
-    const detailOneData = DetailOneGenerator.generateDetailOne(trialBalanceData, globalData);
+  const detailOneData = DetailOneGenerator.generateDetailOne(trialBalanceData, globalData, selection);
     detailNotes.push(...detailOneData);
     
     // Add some spacing

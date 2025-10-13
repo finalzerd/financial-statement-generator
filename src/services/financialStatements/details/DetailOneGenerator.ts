@@ -1,5 +1,6 @@
 import type { TrialBalanceEntry } from '../../../types/financial';
 import type { DetailedFinancialData } from '../core/types';
+import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 import { FinancialCalculations } from '../../financialCalculations';
 
 export class DetailOneGenerator {
@@ -10,10 +11,11 @@ export class DetailOneGenerator {
    */
   static generateDetailOne(
     trialBalanceData: TrialBalanceEntry[], 
-    globalData: DetailedFinancialData
+    globalData: DetailedFinancialData,
+    selection?: SelectionFirstResult
   ): any[][] {
     const detailNotes: any[][] = [];
-    const hasInventory = FinancialCalculations.checkHasInventory(trialBalanceData);
+    const hasInventory = globalData.flags?.hasInventory ?? FinancialCalculations.checkHasInventory(trialBalanceData);
     
     // Header
     detailNotes.push(['รายละเอียดประกอบที่ 1', '', '', '', '', '', '', '', 'หน่วย:บาท']);
@@ -24,7 +26,7 @@ export class DetailOneGenerator {
       this.addServiceBusinessDetail(detailNotes);
     } else {
       // Inventory-based business - use optimized global data
-      this.addInventoryBusinessDetail(detailNotes, trialBalanceData, globalData);
+      this.addInventoryBusinessDetail(detailNotes, trialBalanceData, globalData, selection);
     }
     
     return detailNotes;
@@ -45,26 +47,28 @@ export class DetailOneGenerator {
   private static addInventoryBusinessDetail(
     detailNotes: any[][],
     trialBalanceData: TrialBalanceEntry[], 
-    globalData: DetailedFinancialData
+    globalData: DetailedFinancialData,
+    selection?: SelectionFirstResult
   ): void {
     detailNotes.push(['ต้นทุนสินค้าที่ขาย', '', '', '', '', '', '', '', '']);
     
-    // *** USE FOUNDATION LAYER: Inventory from note calculations ***
-    const currentInventory = globalData.noteCalculations.inventory.total.current;
-    const previousInventory = globalData.noteCalculations.inventory.total.previous;
+    // Prefer selection-first inventory totals with legacy fallback to global data
+    const inventoryTotals = selection?.totals?.inventory;
+    const currentInventory = inventoryTotals?.current ?? globalData.noteCalculations.inventory.total.current;
+    const previousInventory = inventoryTotals?.previous ?? globalData.noteCalculations.inventory.total.previous;
     
     detailNotes.push(['', 'สินค้าคงเหลือต้นงวด', '', '', '', '', '', '', previousInventory]);
     
     // Process purchases (still need individual account details)
     let totalPurchases = 0;
-    const purchaseAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5010, 5010));
+    const purchaseAmount = this.resolveSelectionAmount(selection, '5010', () => Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5010, 5010)));
     if (purchaseAmount > 0) {
       detailNotes.push(['', 'บวก', 'ซื้อสินค้า', '', '', '', '', '', purchaseAmount]);
       totalPurchases += purchaseAmount;
     }
     
     // Purchase returns - still need individual calculation
-    const returnAmount = Math.abs(this.getAccountBalance(trialBalanceData, ['5010.1']));
+    const returnAmount = this.resolveSelectionAmount(selection, '5010.1', () => Math.abs(this.getAccountBalance(trialBalanceData, ['5010.1'])));
     if (returnAmount > 0) {
       detailNotes.push(['', 'หัก', 'ส่งคืนสินค้า', '', '', '', '', '', returnAmount]);
       totalPurchases -= returnAmount;
@@ -104,5 +108,23 @@ export class DetailOneGenerator {
     return trialBalanceData
       .filter(entry => accountCodes.includes(entry.accountCode || ''))
       .reduce((sum, entry) => sum + (entry.balance || 0), 0);
+  }
+
+  private static resolveSelectionAmount(
+    selection: SelectionFirstResult | undefined,
+    accountCode: string,
+    fallback: () => number
+  ): number {
+    const normalizedCode = accountCode.trim();
+    const account = selection?.byAccount?.[normalizedCode];
+    if (!account) {
+      return fallback();
+    }
+    const rawValue = account.rawCurrent ?? account.current ?? 0;
+    const amount = Math.abs(rawValue);
+    if (amount === 0) {
+      return fallback();
+    }
+    return amount;
   }
 }

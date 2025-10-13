@@ -137,6 +137,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'เงินให้กู้ยืมระยะยาว',
     balanceSheetSection: 'non_current_assets'
   },
+  other_income: {
+    noteNumber: 14,
+    noteTitle: 'รายได้อื่น',
+    balanceSheetSection: 'income_statement'
+  },
   
   // Balance Sheet Liabilities
   bank_overdrafts: {

@@ -60,7 +60,8 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'income_tax_payable',
   'long_term_loans_fi',
   'long_term_loans_other',
-  'payables'
+  'payables',
+  'other_income'
 ];
 
 export class SelectionFirstClassifier {
@@ -273,6 +274,7 @@ export class SelectionFirstClassifier {
           const excluded = codeNum === 2030 || codeNum === 2045 || (codeNum >= 2050 && codeNum <= 2052) || (codeNum >= 2100 && codeNum <= 2123);
           return codeNum >= 2010 && codeNum <= 2999 && !excluded;
         }
+        case 'other_income': return codeNum >= 4110 && codeNum <= 4999;
       }
     };
 

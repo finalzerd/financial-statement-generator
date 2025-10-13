@@ -235,6 +235,8 @@ export function AccountMappingManager({
         accountRanges = { includes: [1710] } as any; // เงินให้กู้ยืมระยะยาว (asset)
       } else if (addNoteType === 'hire_purchase_creditors') {
         accountRanges = { includes: [2015, 1644.2, 1644.1] } as any; // เจ้าหนี้ตามสัญญาเช่าซื้อ
+      } else if (addNoteType === 'other_income') {
+        accountRanges = { ranges: [{ from: 4110, to: 4999 }] } as any;
       }
 
       await ApiService.createAccountMapping(companyId, {

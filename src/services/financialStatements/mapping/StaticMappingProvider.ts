@@ -16,6 +16,7 @@ const DEFAULT_RULES: Record<string, AccountMappingRules> = {
   income_tax_payable: { includes: [2045] },
   long_term_loans_fi: { ranges: [{ from: 2120, to: 2123 }], excludes: [2121] },
   long_term_loans_other: { includes: [2050, 2051, 2052, 2100, 2101, 2102, 2103] },
+  other_income: { ranges: [{ from: 4110, to: 4999 }] },
   paid_up_capital: { includes: [3010] },
   legal_reserve: { ranges: [{ from: 3030, to: 3039 }] },
 };

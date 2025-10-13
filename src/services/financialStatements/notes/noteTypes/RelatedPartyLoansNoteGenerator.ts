@@ -3,6 +3,7 @@
 // ============================================================================
 
 import type { NoteRowTracker } from '../../core/types';
+import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
 
 /**
@@ -47,8 +48,16 @@ export class RelatedPartyLoansNoteGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 13
+    noteNumber: number = 13,
+    selection?: SelectionFirstResult
   ): NoteRowTracker {
+    const isZeroLike = (value: unknown) => (
+      value === null ||
+      value === undefined ||
+      (typeof value === 'number' && value === 0) ||
+      (typeof value === 'string' && value.trim() === '')
+    );
+    const normalizeCode = (code?: string) => (code || '').trim().replace(/\s+/g, '');
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,
@@ -58,6 +67,60 @@ export class RelatedPartyLoansNoteGenerator {
       totalRows: [],
       unitRows: []
     };
+
+    const selectionRows = selection?.byCategory?.long_term_loans_other ?? [];
+    if (selectionRows.length > 0) {
+      const relatedPartyRows = selectionRows.filter(account => normalizeCode(account.accountCode) === '2100');
+      let suppressed = 0;
+      const detailRows = relatedPartyRows.filter(account => {
+        const hide = isZeroLike(account.current) && (processingType === 'single-year' ? true : isZeroLike(account.previous));
+        if (hide) suppressed++;
+        return !hide;
+      });
+
+      const totalCurrent = detailRows.reduce((sum, account) => sum + (account.current ?? 0), 0);
+      const totalPrevious = detailRows.reduce((sum, account) => sum + (account.previous ?? 0), 0);
+      const totalsAreZero = processingType === 'multi-year'
+        ? totalCurrent === 0 && totalPrevious === 0
+        : totalCurrent === 0;
+
+      if (detailRows.length === 0 || totalsAreZero) {
+        console.log('[SelectionFirst] Related-party loans: skipping note - totals zero after filtering or no detail rows.');
+        return tracker;
+      }
+
+      console.log(`[SelectionFirst] Related-party loans: using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalCurrent}, previous=${totalPrevious}`);
+
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากบุคคลหรือกิจการที่เกี่ยวข้องกัน', '', '', '', '', '', '', 'หน่วย:บาท']);
+      tracker.headerRows.push(tracker.currentRow);
+      tracker.unitRows.push(tracker.currentRow);
+      tracker.currentRow++;
+
+      if (processingType === 'multi-year') {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
+      } else {
+        notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
+      }
+      tracker.yearHeaderRows.push(tracker.currentRow);
+      tracker.currentRow++;
+
+      detailRows.forEach(account => {
+        notes.push(['', '', account.accountName, '', '', '', account.current ?? 0, '', processingType === 'multi-year' ? account.previous ?? 0 : '']);
+        tracker.detailRows.push(tracker.currentRow);
+        tracker.currentRow++;
+      });
+
+      const firstDetailRow = tracker.detailRows[0];
+      const lastDetailRow = tracker.detailRows[tracker.detailRows.length - 1];
+      notes.push(['', '', 'รวม', '', '', '', { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` } as any, '', processingType === 'multi-year' ? ({ f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } as any) : '']);
+      tracker.totalRows.push(tracker.currentRow);
+      tracker.currentRow++;
+
+      notes.push(['', '', '', '', '', '', '', '', '']);
+      tracker.currentRow++;
+
+      return tracker;
+    }
 
     const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2100, 2100));
     const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 

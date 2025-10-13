@@ -16,7 +16,8 @@ export type NoteKey =
   | 'short_term_loans'
   | 'income_tax_payable'
   | 'long_term_loans_fi'
-  | 'long_term_loans_other';
+  | 'long_term_loans_other'
+  | 'other_income';
 
 export interface MatchedGroup {
   noteType: NoteKey;
@@ -45,7 +46,8 @@ const NOTE_TITLES: Record<NoteKey, string> = {
   short_term_loans: 'เงินกู้ยืมระยะสั้น',
   income_tax_payable: 'ภาษีเงินได้นิติบุคคลค้างจ่าย',
   long_term_loans_fi: 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
-  long_term_loans_other: 'เงินกู้ยืมระยะยาวอื่น'
+  long_term_loans_other: 'เงินกู้ยืมระยะยาวอื่น',
+  other_income: 'รายได้อื่น'
 };
 
 export function buildMappingPreview(
@@ -67,7 +69,8 @@ export function buildMappingPreview(
     'short_term_loans',
     'income_tax_payable',
     'long_term_loans_fi',
-    'long_term_loans_other'
+    'long_term_loans_other',
+    'other_income'
   ];
 
   const groups: MatchedGroup[] = noteOrder.map(noteType => {

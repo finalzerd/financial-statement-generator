@@ -600,6 +600,14 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
+      noteType: 'other_income',
+      noteNumber: 14,
+      noteTitle: 'รายได้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 4110, to: 4999 }]
+      })
+    },
+    {
       noteType: 'bank_overdrafts',
       noteNumber: 15,
       noteTitle: 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
