@@ -584,6 +584,12 @@ export class ExcelJSFormatter {
           continue; // Skip generic total formatting
         }
 
+        // Special case: Grand Total Assets row
+        if (primaryText === 'รวมสินทรัพย์') {
+          this.formatTotalAssetsSpecial(worksheet, row);
+          continue; // Skip generic total formatting
+        }
+
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
             value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
@@ -699,6 +705,47 @@ export class ExcelJSFormatter {
     prevCell.border = {
       top: { style: 'thin', color: { argb: 'FF000000' } },
       bottom: { style: 'thin', color: { argb: 'FF000000' } }
+    };
+  }
+
+  /**
+   * Special formatting for the Total Assets row ("รวมสินทรัพย์")
+   * - Row bold except amount cells G/I which are not bold
+   * - Borders: thin top and double bottom on G and I (previous always applied)
+   */
+  private static formatTotalAssetsSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: true,
+        color: { argb: 'FF000000' }
+      };
+      if (col === 'B') {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      } else if (col === 'F') {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+      if (col !== 'G' && col !== 'I') {
+        cell.border = {};
+      }
+    });
+    const currentCell = worksheet.getCell(`G${row}`);
+    currentCell.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'double', color: { argb: 'FF000000' } }
+    };
+    const prevCell = worksheet.getCell(`I${row}`);
+    prevCell.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'double', color: { argb: 'FF000000' } }
     };
   }
   
@@ -871,6 +918,7 @@ export class ExcelJSFormatter {
   const bCellValue = worksheet.getCell(row, 2).value; // column B
   const isCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์หมุนเวียน';
   const isNonCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์ไม่หมุนเวียน';
+  const isTotalAssetsRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์';
 
         if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
@@ -879,7 +927,7 @@ export class ExcelJSFormatter {
           
           
           // Skip clearing style for the special case: column I on the current assets total row
-          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow) && col === 9) {
+          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow) && col === 9) {
             // Clear value but keep existing style (borders) intact
             cell.value = null;
           } else {
