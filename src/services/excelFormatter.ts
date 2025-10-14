@@ -629,6 +629,8 @@ export class ExcelJSFormatter {
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
         cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        // Amount cells for this total row should not be bold
+        cell.font = { ...cell.font, bold: false };
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
@@ -818,17 +820,27 @@ export class ExcelJSFormatter {
         const shouldClearZeros = (col !== 6 && col !== 7);
         const isProtectedColumn = (col === 6 || col === 7);
         
+        // Identify special current assets total row to preserve borders on I column
+        const bCellValue = worksheet.getCell(row, 2).value; // column B
+        const isCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์หมุนเวียน';
+
         if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
             (typeof cell.value === 'string' && /^\s*$/.test(cell.value)) ||
             (typeof cell.value === 'number' && cell.value === 0 && row > 10 && shouldClearZeros && !isProtectedColumn)) {
           
           
-          // Clear the cell value completely
-          cell.value = null;
-          
-          // Also clear any formatting that might cause display issues
-          cell.style = {};
+          // Skip clearing style for the special case: column I on the current assets total row
+          if (isCurrentAssetsTotalRow && col === 9) {
+            // Clear value but keep existing style (borders) intact
+            cell.value = null;
+          } else {
+            // Clear the cell value completely
+            cell.value = null;
+            
+            // Also clear any formatting that might cause display issues
+            cell.style = {};
+          }
         }
       }
     }
