@@ -590,6 +590,20 @@ export class ExcelJSFormatter {
           continue; // Skip generic total formatting
         }
 
+        // Special cases: Liabilities total rows
+        if (primaryText === 'รวมหนี้สินหมุนเวียน') {
+          this.formatCurrentLiabilitiesTotalSpecial(worksheet, row);
+          continue;
+        }
+        if (primaryText === 'รวมหนี้สินไม่หมุนเวียน') {
+          this.formatNonCurrentLiabilitiesTotalSpecial(worksheet, row);
+          continue;
+        }
+        if (primaryText === 'รวมหนี้สิน') {
+          this.formatTotalLiabilitiesSpecial(worksheet, row);
+          continue;
+        }
+
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
             value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
@@ -747,6 +761,72 @@ export class ExcelJSFormatter {
       top: { style: 'thin', color: { argb: 'FF000000' } },
       bottom: { style: 'double', color: { argb: 'FF000000' } }
     };
+  }
+
+  /**
+   * Special formatting for Current Liabilities Total ("รวมหนี้สินหมุนเวียน")
+   * - Bold row, G/I non-bold
+   * - Borders: thin top + thin bottom on G and I
+   */
+  private static formatCurrentLiabilitiesTotalSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+  }
+
+  /**
+   * Special formatting for Non-Current Liabilities Total ("รวมหนี้สินไม่หมุนเวียน")
+   * - Bold row, G/I non-bold
+   * - Borders: thin top + thin bottom on G and I
+   */
+  private static formatNonCurrentLiabilitiesTotalSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+  }
+
+  /**
+   * Special formatting for Total Liabilities ("รวมหนี้สิน")
+   * - Bold row, G/I non-bold
+   * - Borders: thin top + double bottom on G and I
+   */
+  private static formatTotalLiabilitiesSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
   }
   
   /**
@@ -919,6 +999,9 @@ export class ExcelJSFormatter {
   const isCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์หมุนเวียน';
   const isNonCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์ไม่หมุนเวียน';
   const isTotalAssetsRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์';
+  const isCurrentLiabilitiesTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินหมุนเวียน';
+  const isNonCurrentLiabilitiesTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินไม่หมุนเวียน';
+  const isTotalLiabilitiesRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สิน';
 
         if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
@@ -927,7 +1010,7 @@ export class ExcelJSFormatter {
           
           
           // Skip clearing style for the special case: column I on the current assets total row
-          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow) && col === 9) {
+          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow) && col === 9) {
             // Clear value but keep existing style (borders) intact
             cell.value = null;
           } else {
