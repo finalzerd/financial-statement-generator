@@ -572,6 +572,13 @@ export class ExcelJSFormatter {
       if (valueSource && typeof valueSource === 'string') {
         const value = valueSource.toString().trim();
         
+        // Special case: Current Assets Total row should NOT be bold
+        // Apply top border (thin) and bottom border (double) across B:I
+        if (primaryText === 'รวมสินทรัพย์หมุนเวียน') {
+          this.formatCurrentAssetsTotalSpecial(worksheet, row);
+          continue; // Skip generic total formatting
+        }
+
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
             value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
@@ -595,6 +602,41 @@ export class ExcelJSFormatter {
         }
       }
     }
+  }
+
+  /**
+   * Special formatting for the Current Assets Total row ("รวมสินทรัพย์หมุนเวียน")
+   * - Not bold
+   * - Top border (thin)
+   * - Bottom border (double)
+   */
+  private static formatCurrentAssetsTotalSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      // Ensure font is not bold
+      cell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: false,
+        color: { argb: 'FF000000' }
+      };
+      // Alignments similar to totals but without bold
+      if (col === 'B') {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      } else if (col === 'F') {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+      // Apply borders: top thin, bottom double
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'double', color: { argb: 'FF000000' } }
+      };
+    });
   }
   
   /**
