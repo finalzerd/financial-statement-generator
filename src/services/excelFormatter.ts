@@ -563,10 +563,11 @@ export class ExcelJSFormatter {
     for (let row = 6; row <= 60; row++) {
       const primaryCell = worksheet.getCell(`B${row}`);
       const fallbackCell = worksheet.getCell(`C${row}`);
-      const valueSource =
-        typeof primaryCell.value === 'string' && primaryCell.value.trim().length > 0
-          ? primaryCell.value
-          : fallbackCell.value;
+      // Read values explicitly from B and C to make column-aware decisions
+      const primaryText = typeof primaryCell.value === 'string' ? primaryCell.value.trim() : '';
+      const fallbackText = typeof fallbackCell.value === 'string' ? fallbackCell.value.trim() : '';
+      // Prefer B when present else C (legacy behavior)
+      const valueSource = primaryText.length > 0 ? primaryText : fallbackText;
 
       if (valueSource && typeof valueSource === 'string') {
         const value = valueSource.toString().trim();
@@ -583,8 +584,9 @@ export class ExcelJSFormatter {
                  value === 'กำไร(ขาดทุน)สุทธิ') {
           this.formatKeyProfitLine(worksheet, row);
         }
-        // Sub-section headers (สินทรัพย์หมุนเวียน, สินทรัพย์ไม่หมุนเวียน)
-        else if (value.includes('หมุนเวียน') || value.includes('ไม่หมุนเวียน')) {
+        // Sub-section headers should only trigger when the header text is in column B
+        // Prevents bolding detail lines in column C that contain the word 'หมุนเวียน'
+        else if (primaryText && (primaryText.includes('หมุนเวียน') || primaryText.includes('ไม่หมุนเวียน'))) {
           this.formatSubSectionHeader(worksheet, row);
         }
         // Total lines (รวม...)
