@@ -9,6 +9,8 @@ import {
   STANDARD_NOTE_TYPES, 
   AccountMappingUtils
 } from '../types/accountMapping';
+import type { DetailOneMode } from '../types/detailSettings';
+import { DETAIL_ONE_MODE_OPTIONS } from '../types/detailSettings';
 import './AccountMappingManager.css';
 
 interface AccountMappingManagerProps {
@@ -52,10 +54,15 @@ export function AccountMappingManager({
   const [formData, setFormData] = useState<MappingFormData | null>(null);
   const [validation, setValidation] = useState<AccountMappingValidation | null>(null);
   const [addNoteType, setAddNoteType] = useState<string>('');
+  const [detailOneMode, setDetailOneMode] = useState<DetailOneMode>('auto');
+  const [detailSettingsLoaded, setDetailSettingsLoaded] = useState(false);
+  const [detailSettingsError, setDetailSettingsError] = useState<string | null>(null);
+  const [detailModeSaving, setDetailModeSaving] = useState(false);
 
   // Load mappings on component mount
   useEffect(() => {
     loadMappings();
+    loadDetailSettings();
   }, [companyId]);
 
   // Validate mappings when trial balance data changes
@@ -75,6 +82,21 @@ export function AccountMappingManager({
       setError(err instanceof Error ? err.message : 'Failed to load account mappings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDetailSettings = async () => {
+    try {
+      setDetailSettingsLoaded(false);
+      const settings = await ApiService.getCompanyDetailSettings(companyId);
+      setDetailOneMode(settings.detailOneMode);
+      setDetailSettingsError(null);
+    } catch (err) {
+      console.error('Failed to load detail settings:', err);
+      setDetailSettingsError(err instanceof Error ? err.message : 'Failed to load detail settings');
+      setDetailOneMode('auto');
+    } finally {
+      setDetailSettingsLoaded(true);
     }
   };
 
@@ -211,6 +233,7 @@ export function AccountMappingManager({
     try {
       await ApiService.resetAccountMappingsToDefault(companyId);
       await loadMappings();
+      await loadDetailSettings();
       onMappingsChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reset mappings');
@@ -310,6 +333,33 @@ export function AccountMappingManager({
     setFormData({ ...formData, subCategoryRules: sc });
   };
 
+  const handleDetailModeChange = async (mode: DetailOneMode) => {
+    if (mode === detailOneMode && detailSettingsLoaded) {
+      return;
+    }
+
+    const previousMode = detailOneMode;
+    setDetailOneMode(mode);
+    setDetailModeSaving(true);
+    setDetailSettingsError(null);
+
+    try {
+      const updated = await ApiService.updateCompanyDetailSettings(companyId, { detailOneMode: mode });
+      setDetailOneMode(updated.detailOneMode);
+      if (updated.persisted === false) {
+        setDetailSettingsError('ไม่สามารถบันทึกการตั้งค่ากับเซิร์ฟเวอร์ได้ (404). กรุณารีสตาร์ทหรืออัปเดตเซิร์ฟเวอร์ แล้วลองอีกครั้ง');
+      } else {
+        setDetailSettingsError(null);
+      }
+    } catch (err) {
+      console.error('Failed to update detail settings:', err);
+      setDetailOneMode(previousMode);
+      setDetailSettingsError(err instanceof Error ? err.message : 'Failed to update detail settings');
+    } finally {
+      setDetailModeSaving(false);
+    }
+  };
+
   // No sub-category helpers in simplified version
 
   if (loading) return <div className="loading">Loading account mappings...</div>;
@@ -348,6 +398,48 @@ export function AccountMappingManager({
             );
           })()}
         </div>
+      </div>
+
+      <div className="detail-settings-card">
+        <div className="detail-settings-header">
+          <h3>การตั้งค่าหมายเหตุ รายละเอียดประกอบที่ 1 (DT1)</h3>
+          {detailModeSaving && (
+            <span className="detail-settings-status">กำลังบันทึก…</span>
+          )}
+        </div>
+        <p className="detail-settings-description">
+          กำหนดรูปแบบที่ต้องการสำหรับ &quot;รายละเอียดประกอบที่ 1&quot; โดยเลือกว่าจะใช้โครงสร้างสำหรับธุรกิจบริการ ธุรกิจสินค้าคงเหลือ หรือแสดงทั้งสองรูปแบบ
+        </p>
+        {!detailSettingsLoaded ? (
+          <div className="detail-settings-loading">กำลังโหลดการตั้งค่า…</div>
+        ) : (
+          <>
+            {detailSettingsError && (
+              <div className="detail-settings-error">{detailSettingsError}</div>
+            )}
+            <div className="detail-mode-options">
+              {DETAIL_ONE_MODE_OPTIONS.map(option => (
+                <label
+                  key={option.value}
+                  className={`detail-mode-option ${detailOneMode === option.value ? 'active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="detail-one-mode"
+                    value={option.value}
+                    checked={detailOneMode === option.value}
+                    onChange={() => handleDetailModeChange(option.value)}
+                    disabled={detailModeSaving}
+                  />
+                  <div className="detail-mode-content">
+                    <span className="detail-mode-label">{option.label}</span>
+                    <span className="detail-mode-description">{option.description}</span>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {error && (

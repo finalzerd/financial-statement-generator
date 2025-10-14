@@ -7,19 +7,28 @@ export class DetailTwoGenerator {
    * Uses Excel formulas for dynamic totals calculation
    */
   static generateDetailTwo(
-    trialBalanceData: TrialBalanceEntry[]
+    trialBalanceData: TrialBalanceEntry[],
+    startingRow: number = 1
   ): any[][] {
     const detailNotes: any[][] = [];
-    
+    let currentRow = startingRow;
+    const pushRow = (row: any[]): number => {
+      detailNotes.push(row);
+      const insertedRow = currentRow;
+      currentRow += 1;
+      return insertedRow;
+    };
+
     // Header for Detail 2
-    detailNotes.push(['รายละเอียดประกอบที่ 2', '', '', '', '', '', '', '', 'หน่วย:บาท']);
+    pushRow(['รายละเอียดประกอบที่ 2', '', '', '', '', '', '', '', 'หน่วย:บาท']);
     
     // Column headers row
-    detailNotes.push(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', 'ค่าใช้จ่ายในการขาย', 'ค่าใช้จ่ายในการบริหาร', 'ค่าใช้จ่ายอื่น']);
+    pushRow(['ค่าใช้จ่ายในการขายและบริหาร', '', '', '', '', '', 'ค่าใช้จ่ายในการขาย', 'ค่าใช้จ่ายในการบริหาร', 'ค่าใช้จ่ายอื่น']);
     
-    // Track starting row for totals calculation
-    const dataStartRow = detailNotes.length + 1; // Next row number (1-indexed for Excel)
-    
+    // Track starting row for totals calculation (first detail row will be the next push)
+    let firstDetailRow = 0;
+    let lastDetailRow = 0;
+
     // Initialize totals for each category
     let sellingExpensesTotal = 0;
     let adminExpensesTotal = 0; 
@@ -67,23 +76,21 @@ export class DetailTwoGenerator {
         }
         
         // Add account row (account name in columns A-F merged, amounts in G,H,I)
-        detailNotes.push([accountName, '', '', '', '', '', sellingAmount, adminAmount, otherAmount]);
+        const r = pushRow([accountName, '', '', '', '', '', sellingAmount, adminAmount, otherAmount]);
+        if (firstDetailRow === 0) firstDetailRow = r;
+        lastDetailRow = r;
       }
     });
     
-    // Calculate ending row for totals
-    const dataEndRow = detailNotes.length; // Current row number (1-indexed for Excel)
-    
     // Add total row with formulas
-    detailNotes.push(['รวม', '', '', '', '', '', 
-      { f: `SUM(G${dataStartRow}:G${dataEndRow})` },
-      { f: `SUM(H${dataStartRow}:H${dataEndRow})` },
-      { f: `SUM(I${dataStartRow}:I${dataEndRow})` }
-    ]);
+    const totalsG = firstDetailRow > 0 ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` } : 0;
+    const totalsH = firstDetailRow > 0 ? { f: `SUM(H${firstDetailRow}:H${lastDetailRow})` } : 0;
+    const totalsI = firstDetailRow > 0 ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : 0;
+    pushRow(['รวม', '', '', '', '', '', totalsG, totalsH, totalsI]);
     
     // Add financial costs row if there are any
     if (financialCostsTotal > 0) {
-      detailNotes.push(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCostsTotal]);
+      pushRow(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCostsTotal]);
     }
     
     return detailNotes;

@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { DatabaseService } from '../services/databaseService';
+import { DetailSettingsService } from '../services/detailSettingsService';
 
 export class CompanyController {
   
@@ -132,6 +133,109 @@ export class CompanyController {
       res.status(500).json({ 
         success: false,
         error: 'Failed to fetch company',
+        details: error instanceof Error ? error.message : 'Unknown server error'
+      });
+    }
+  }
+
+  /**
+   * Get detail settings for a company
+   */
+  static async getDetailSettings(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Company ID is required',
+          details: 'Please provide a valid company ID'
+        });
+      }
+
+      const company = await DatabaseService.getCompanyById(id);
+      if (!company) {
+        return res.status(404).json({
+          success: false,
+          error: 'Company not found',
+          details: `No company found with ID: ${id}`
+        });
+      }
+
+      const settings = await DetailSettingsService.getOrInitialize(id);
+
+      res.json({
+        success: true,
+        detailOneMode: settings.detailOneMode,
+        updatedAt: settings.updatedAt.toISOString(),
+        persisted: settings.persisted
+      });
+
+    } catch (error) {
+      console.error('❌ Error fetching detail settings:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch detail settings',
+        details: error instanceof Error ? error.message : 'Unknown server error'
+      });
+    }
+  }
+
+  /**
+   * Update detail settings for a company
+   */
+  static async updateDetailSettings(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { detailOneMode } = req.body as { detailOneMode?: string };
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Company ID is required',
+          details: 'Please provide a valid company ID'
+        });
+      }
+
+      if (typeof detailOneMode !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid detailOneMode value',
+          details: 'detailOneMode must be provided as a string'
+        });
+      }
+
+      if (!DetailSettingsService.isValidMode(detailOneMode)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid detailOneMode value',
+          details: 'Allowed values: auto, service, inventory, both'
+        });
+      }
+
+      const company = await DatabaseService.getCompanyById(id);
+      if (!company) {
+        return res.status(404).json({
+          success: false,
+          error: 'Company not found',
+          details: `No company found with ID: ${id}`
+        });
+      }
+
+      const settings = await DetailSettingsService.update(id, detailOneMode);
+
+      res.json({
+        success: true,
+        detailOneMode: settings.detailOneMode,
+        updatedAt: settings.updatedAt.toISOString(),
+        message: 'Detail settings updated successfully'
+      });
+
+    } catch (error) {
+      console.error('❌ Error updating detail settings:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update detail settings',
         details: error instanceof Error ? error.message : 'Unknown server error'
       });
     }

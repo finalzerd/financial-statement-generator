@@ -142,6 +142,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'รายได้อื่น',
     balanceSheetSection: 'income_statement'
   },
+  detail_service_costs: {
+    noteNumber: 1,
+    noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',
+    balanceSheetSection: 'income_statement'
+  },
   
   // Balance Sheet Liabilities
   bank_overdrafts: {

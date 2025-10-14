@@ -1,3 +1,5 @@
+import type { DetailSettings, DetailOneMode } from '../types/detailSettings';
+
 export class ApiService {
   private static readonly BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -250,6 +252,69 @@ export class ApiService {
     } catch (error) {
       console.error('Error resetting account mappings:', error);
       throw error;
+    }
+  }
+
+  // ============== DETAIL SETTINGS OPERATIONS ==============
+
+  static async getCompanyDetailSettings(companyId: string): Promise<DetailSettings> {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/detail-settings`);
+      if (response.status === 404) {
+        console.warn('[ApiService] Detail settings endpoint returned 404. Falling back to default detailOneMode="auto".');
+        return { detailOneMode: 'auto', updatedAt: null, persisted: false };
+      }
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result?.details || result?.error || 'Failed to load detail settings');
+      }
+
+      return {
+        detailOneMode: (result?.detailOneMode as DetailOneMode) || 'auto',
+        updatedAt: result?.updatedAt ?? null,
+        persisted: true
+      };
+    } catch (error) {
+      console.warn('Error fetching detail settings, defaulting to auto:', error);
+      return { detailOneMode: 'auto', updatedAt: null, persisted: false };
+    }
+  }
+
+  static async updateCompanyDetailSettings(companyId: string, settings: { detailOneMode: DetailOneMode }): Promise<DetailSettings> {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/detail-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+
+      if (response.status === 404) {
+        console.warn('[ApiService] detail-settings PUT returned 404. Backend likely not updated yet; using in-memory preference.');
+        return {
+          detailOneMode: settings.detailOneMode,
+          updatedAt: null,
+          persisted: false
+        };
+      }
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.details || result?.error || 'Failed to update detail settings');
+      }
+
+      return {
+        detailOneMode: (result?.detailOneMode as DetailOneMode) || settings.detailOneMode,
+        updatedAt: result?.updatedAt ?? null,
+        persisted: true
+      };
+    } catch (error) {
+      console.error('Error updating detail settings:', error);
+      return {
+        detailOneMode: settings.detailOneMode,
+        updatedAt: null,
+        persisted: false
+      };
     }
   }
 

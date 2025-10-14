@@ -15,6 +15,16 @@ const PORT = process.env.PORT || 3001;
 const dbPath = './financial_statements.db';
 const db = new sqlite3.Database(dbPath);
 
+const VALID_DETAIL_ONE_MODES = new Set(['auto', 'service', 'inventory', 'both']);
+const DETAIL_SETTINGS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS company_detail_settings (
+    company_id INTEGER PRIMARY KEY,
+    detail_one_mode TEXT DEFAULT 'auto',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+  )
+`;
+
 // Add share columns to companies table if they don't exist
 db.run('ALTER TABLE companies ADD COLUMN number_of_shares INTEGER', (err) => {
   // Ignore error if column already exists
@@ -49,6 +59,13 @@ db.run(`
 // Add sub_category_rules column if it doesn't exist (for existing databases)
 db.run('ALTER TABLE company_account_mappings ADD COLUMN sub_category_rules TEXT', (err) => {
   // Ignore error if column already exists
+});
+
+// Ensure company_detail_settings table exists for detail note preferences
+db.run(DETAIL_SETTINGS_TABLE_SQL, (err) => {
+  if (err) {
+    console.error('Error ensuring company_detail_settings table exists:', err);
+  }
 });
 
 // Helper function to convert database row to Company format
@@ -349,6 +366,179 @@ app.delete('/api/companies/:id', (req, res) => {
   });
 });
 
+// ============== DETAIL SETTINGS ENDPOINTS ==============
+
+app.get('/api/companies/:companyId/detail-settings', (req, res) => {
+  const companyId = parseInt(req.params.companyId, 10);
+  const defaultMode = 'auto';
+
+  if (Number.isNaN(companyId)) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid company ID'
+    });
+    return;
+  }
+
+  db.get('SELECT id FROM companies WHERE id = ?', [companyId], (err, company) => {
+    if (err) {
+      console.error('Database error when fetching company for detail settings:', err);
+      res.status(500).json({
+        success: false,
+        error: 'Database error',
+        details: err.message
+      });
+      return;
+    }
+
+    if (!company) {
+      res.status(404).json({
+        success: false,
+        error: 'Company not found',
+        details: `No company found with ID ${companyId}`
+      });
+      return;
+    }
+
+    const sendDefault = () => {
+      const now = new Date().toISOString();
+      const insertQuery = `
+        INSERT INTO company_detail_settings (company_id, detail_one_mode, updated_at)
+        VALUES (?, ?, ?)
+      `;
+
+      db.run(insertQuery, [companyId, defaultMode, now], (insertErr) => {
+        if (insertErr && !(insertErr.message && insertErr.message.includes('UNIQUE constraint failed'))) {
+          console.error('Database error when initializing detail settings:', insertErr);
+          res.status(500).json({
+            success: false,
+            error: 'Failed to initialize detail settings',
+            details: insertErr.message
+          });
+          return;
+        }
+
+        res.json({
+          detailOneMode: defaultMode,
+          updatedAt: now
+        });
+      });
+    };
+
+    db.get(
+      'SELECT detail_one_mode, updated_at FROM company_detail_settings WHERE company_id = ?',
+      [companyId],
+      (settingsErr, row) => {
+        if (settingsErr) {
+          if (settingsErr.message && settingsErr.message.includes('no such table')) {
+            db.run(DETAIL_SETTINGS_TABLE_SQL, (createErr) => {
+              if (createErr) {
+                console.error('Failed to create detail settings table on-demand:', createErr);
+                res.status(500).json({
+                  success: false,
+                  error: 'Database error',
+                  details: createErr.message
+                });
+                return;
+              }
+              sendDefault();
+            });
+            return;
+          }
+
+          console.error('Database error when fetching detail settings:', settingsErr);
+          res.status(500).json({
+            success: false,
+            error: 'Database error',
+            details: settingsErr.message
+          });
+          return;
+        }
+
+        if (row) {
+          res.json({
+            detailOneMode: row.detail_one_mode || defaultMode,
+            updatedAt: row.updated_at
+          });
+          return;
+        }
+
+        sendDefault();
+      }
+    );
+  });
+});
+
+app.put('/api/companies/:companyId/detail-settings', (req, res) => {
+  const companyId = parseInt(req.params.companyId, 10);
+  const { detailOneMode } = req.body;
+
+  if (Number.isNaN(companyId)) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid company ID'
+    });
+    return;
+  }
+
+  if (typeof detailOneMode !== 'string' || !VALID_DETAIL_ONE_MODES.has(detailOneMode)) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid detailOneMode value',
+      details: `Allowed values: ${Array.from(VALID_DETAIL_ONE_MODES).join(', ')}`
+    });
+    return;
+  }
+
+  db.get('SELECT id FROM companies WHERE id = ?', [companyId], (err, company) => {
+    if (err) {
+      console.error('Database error when validating company for detail settings update:', err);
+      res.status(500).json({
+        success: false,
+        error: 'Database error',
+        details: err.message
+      });
+      return;
+    }
+
+    if (!company) {
+      res.status(404).json({
+        success: false,
+        error: 'Company not found',
+        details: `No company found with ID ${companyId}`
+      });
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const upsertQuery = `
+      INSERT INTO company_detail_settings (company_id, detail_one_mode, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(company_id) DO UPDATE SET
+        detail_one_mode = excluded.detail_one_mode,
+        updated_at = excluded.updated_at
+    `;
+
+    db.run(upsertQuery, [companyId, detailOneMode, timestamp], function(updateErr) {
+      if (updateErr) {
+        console.error('Database error when updating detail settings:', updateErr);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to update detail settings',
+          details: updateErr.message
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        detailOneMode,
+        updatedAt: timestamp
+      });
+    });
+  });
+});
+
 // ============== ACCOUNT MAPPING ENDPOINTS ==============
 
 // Get all account mappings for a company
@@ -608,6 +798,14 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
+      noteType: 'detail_service_costs',
+      noteNumber: 1,
+      noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5000, to: 5099 }]
+      })
+    },
+    {
       noteType: 'bank_overdrafts',
       noteNumber: 15,
       noteTitle: 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน',
@@ -716,9 +914,29 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
 
         completed++;
         if (completed === total) {
-          res.json({
-            success: true,
-            message: `Account mappings reset to default (${total} mappings created)`
+          const detailResetQuery = `
+            INSERT INTO company_detail_settings (company_id, detail_one_mode, updated_at)
+            VALUES (?, 'auto', ?)
+            ON CONFLICT(company_id) DO UPDATE SET
+              detail_one_mode = 'auto',
+              updated_at = excluded.updated_at
+          `;
+
+          db.run(detailResetQuery, [companyId, now], (detailErr) => {
+            if (detailErr) {
+              console.error('Error resetting detail settings during account mapping reset:', detailErr);
+              res.status(500).json({
+                success: false,
+                error: 'Failed to reset detail settings',
+                details: detailErr.message
+              });
+              return;
+            }
+
+            res.json({
+              success: true,
+              message: `Account mappings reset to default (${total} mappings created)`
+            });
           });
         }
       });

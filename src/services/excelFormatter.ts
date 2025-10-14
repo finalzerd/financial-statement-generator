@@ -561,9 +561,15 @@ export class ExcelJSFormatter {
   private static formatTotalLinesProfessional(worksheet: ExcelJS.Worksheet): void {
     // We'll dynamically detect and format total lines and section headers
     for (let row = 6; row <= 60; row++) {
-      const cell = worksheet.getCell(`B${row}`);
-      if (cell.value && typeof cell.value === 'string') {
-        const value = cell.value.toString().trim();
+      const primaryCell = worksheet.getCell(`B${row}`);
+      const fallbackCell = worksheet.getCell(`C${row}`);
+      const valueSource =
+        typeof primaryCell.value === 'string' && primaryCell.value.trim().length > 0
+          ? primaryCell.value
+          : fallbackCell.value;
+
+      if (valueSource && typeof valueSource === 'string') {
+        const value = valueSource.toString().trim();
         
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 

@@ -127,6 +127,16 @@ async function setupDatabase() {
       )
     `);
 
+    // Company detail settings table
+    await runAsync(`
+      CREATE TABLE IF NOT EXISTS company_detail_settings (
+        company_id INTEGER PRIMARY KEY,
+        detail_one_mode TEXT DEFAULT 'auto',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+      )
+    `);
+
     await runAsync('COMMIT');
 
     console.log('✅ Database setup completed successfully!');
@@ -136,7 +146,8 @@ async function setupDatabase() {
     console.log('   - trial_balance_entries');
     console.log('   - generated_statements');
     console.log('   - company_settings');
-  console.log('   - company_account_mappings');
+    console.log('   - company_account_mappings');
+    console.log('   - company_detail_settings');
     console.log(`📍 Database file: ${dbPath}`);
 
     // Insert a sample company for testing

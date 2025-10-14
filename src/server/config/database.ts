@@ -134,6 +134,17 @@ export class DatabaseConfig {
       `);
       console.log('⚙️  Company settings table created');
 
+      // Create company_detail_settings table for detail note preferences
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS company_detail_settings (
+          company_id UUID PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+          detail_one_mode VARCHAR(20) NOT NULL DEFAULT 'auto',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CHECK (detail_one_mode IN ('auto', 'service', 'inventory', 'both'))
+        );
+      `);
+      console.log('📝 Company detail settings table created');
+
       // Create indexes for performance
       await client.query(`
         CREATE INDEX IF NOT EXISTS idx_trial_balance_company_year ON trial_balance_sets(company_id, reporting_year);

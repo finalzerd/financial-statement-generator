@@ -10,6 +10,7 @@ import { CSVProcessor } from './services/csvProcessor'
 import { FinancialStatementGenerator } from './services/financialStatementGenerator'
 import { ApiService } from './services/apiService'
 import type { FinancialStatements, CompanyInfo } from './types/financial'
+import type { DetailSettings } from './types/detailSettings'
 import type { Company } from './types/database'
 import { DynamicMappingProvider } from './services/financialStatements/mapping/DynamicMappingProvider'
 import { StaticMappingProvider } from './services/financialStatements/mapping/StaticMappingProvider'
@@ -65,13 +66,27 @@ function App() {
       
       // Build mapping provider (dynamic from DB if available, otherwise static defaults)
       let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
+      let detailSettings: DetailSettings | undefined
       try {
         if (selectedCompany?.id) {
-          const mappings = await ApiService.getCompanyAccountMappings(selectedCompany.id)
-          if (Array.isArray(mappings) && mappings.length > 0) {
-            provider = new DynamicMappingProvider(mappings)
+          const [mappingsResult, detailSettingsResult] = await Promise.allSettled([
+            ApiService.getCompanyAccountMappings(selectedCompany.id),
+            ApiService.getCompanyDetailSettings(selectedCompany.id)
+          ])
+
+          if (mappingsResult.status === 'fulfilled' && Array.isArray(mappingsResult.value) && mappingsResult.value.length > 0) {
+            provider = new DynamicMappingProvider(mappingsResult.value)
           } else {
             provider = new StaticMappingProvider()
+            if (mappingsResult.status === 'rejected') {
+              console.warn('Failed to load account mappings, using static defaults:', mappingsResult.reason)
+            }
+          }
+
+          if (detailSettingsResult.status === 'fulfilled') {
+            detailSettings = detailSettingsResult.value
+          } else if (detailSettingsResult.status === 'rejected') {
+            console.warn('Failed to load detail settings, falling back to auto mode:', detailSettingsResult.reason)
           }
         }
       } catch (e) {
@@ -88,7 +103,8 @@ function App() {
         companyInfo,
         csvData.processingType,
         csvData.trialBalancePrevious,
-        provider
+        provider,
+        detailSettings
       )
       console.log('Financial statements generated:', statements)
       
@@ -154,13 +170,27 @@ function App() {
       
       // Build mapping provider (dynamic from DB if available, otherwise static defaults)
       let provider = undefined as undefined | DynamicMappingProvider | StaticMappingProvider
+      let detailSettings: DetailSettings | undefined
       try {
         if (selectedCompany?.id) {
-          const mappings = await ApiService.getCompanyAccountMappings(selectedCompany.id)
-          if (Array.isArray(mappings) && mappings.length > 0) {
-            provider = new DynamicMappingProvider(mappings)
+          const [mappingsResult, detailSettingsResult] = await Promise.allSettled([
+            ApiService.getCompanyAccountMappings(selectedCompany.id),
+            ApiService.getCompanyDetailSettings(selectedCompany.id)
+          ])
+
+          if (mappingsResult.status === 'fulfilled' && Array.isArray(mappingsResult.value) && mappingsResult.value.length > 0) {
+            provider = new DynamicMappingProvider(mappingsResult.value)
           } else {
             provider = new StaticMappingProvider()
+            if (mappingsResult.status === 'rejected') {
+              console.warn('Failed to load account mappings, using static defaults:', mappingsResult.reason)
+            }
+          }
+
+          if (detailSettingsResult.status === 'fulfilled') {
+            detailSettings = detailSettingsResult.value
+          } else if (detailSettingsResult.status === 'rejected') {
+            console.warn('Failed to load detail settings, falling back to auto mode:', detailSettingsResult.reason)
           }
         }
       } catch (e) {
@@ -177,7 +207,8 @@ function App() {
         companyInfo,
         csvData.processingType,
         csvData.trialBalancePrevious,
-        provider
+        provider,
+        detailSettings
       )
       console.log('Financial statements generated:', statements)
       

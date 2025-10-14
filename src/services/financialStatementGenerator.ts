@@ -6,6 +6,7 @@ import type {
   CompanyInfo, 
   FinancialStatements
 } from '../types/financial';
+import type { DetailSettings } from '../types/detailSettings';
 import { 
   CashNoteGenerator, 
   TradeReceivablesNoteGenerator, 
@@ -52,6 +53,7 @@ export class FinancialStatementGenerator {
   private extractedData: DetailedFinancialData | null = null;
   private mappingProvider?: IAccountMappingProvider;
   private selectionData: SelectionFirstResult | null = null;
+  private detailSettings: DetailSettings | null = null;
   
   /**
    * MAIN DATA EXTRACTION METHOD - Call this first to avoid redundant calculations
@@ -73,7 +75,8 @@ export class FinancialStatementGenerator {
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
     trialBalancePrevious?: TrialBalanceEntry[],
-    provider?: IAccountMappingProvider
+    provider?: IAccountMappingProvider,
+    detailSettings?: DetailSettings
   ): FinancialStatements {
     
     // *** EXTRACT ALL DATA ONCE ***
@@ -81,6 +84,7 @@ export class FinancialStatementGenerator {
   if (provider) {
     this.mappingProvider = provider;
   }
+  this.detailSettings = detailSettings ?? null;
   const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
   this.extractedData = globalData;
     
@@ -346,14 +350,24 @@ export class FinancialStatementGenerator {
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT1 - Cost of goods sold / Service costs
-  const detailOneData = DetailOneGenerator.generateDetailOne(trialBalanceData, globalData, selection);
+    const detailOneMode = this.detailSettings?.detailOneMode ?? 'auto';
+    const detailOneStartRow = detailNotes.length + 1;
+    const detailOneData = DetailOneGenerator.generateDetailOne(
+      trialBalanceData,
+      globalData,
+      selection,
+      detailOneMode,
+      this.mappingProvider,
+      detailOneStartRow
+    );
     detailNotes.push(...detailOneData);
     
     // Add some spacing
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT2 - Selling and administrative expenses  
-    const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData);
+  const detailTwoStart = detailNotes.length + 1;
+  const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData, detailTwoStart);
     detailNotes.push(...detailTwoData);
     
     return detailNotes;

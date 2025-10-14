@@ -8,6 +8,8 @@ router.post('/', CompanyController.createCompany);           // POST /api/compan
 router.get('/', CompanyController.getCompanies);             // GET /api/companies
 router.get('/:id', CompanyController.getCompanyById);        // GET /api/companies/:id
 router.put('/:id', CompanyController.updateCompany);         // PUT /api/companies/:id
+router.get('/:id/detail-settings', CompanyController.getDetailSettings);   // GET /api/companies/:id/detail-settings
+router.put('/:id/detail-settings', CompanyController.updateDetailSettings); // PUT /api/companies/:id/detail-settings
 
 // Company-specific data
 router.get('/:id/trial-balances', CompanyController.getCompanyHistory);  // GET /api/companies/:id/trial-balances

@@ -61,7 +61,8 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'long_term_loans_fi',
   'long_term_loans_other',
   'payables',
-  'other_income'
+  'other_income',
+  'detail_service_costs'
 ];
 
 export class SelectionFirstClassifier {
@@ -275,6 +276,7 @@ export class SelectionFirstClassifier {
           return codeNum >= 2010 && codeNum <= 2999 && !excluded;
         }
         case 'other_income': return codeNum >= 4110 && codeNum <= 4999;
+        case 'detail_service_costs': return codeNum >= 5000 && codeNum <= 5099;
       }
     };
 
