@@ -37,11 +37,7 @@ export class AssetsBuilder {
       : (globalData
           ? globalData.balanceSheetTotals.assets.inventory.current
           : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519))));
-    const prepaidExpenses = sel?.prepaid?.current ?? ((NOTE_FIRST_MODE && n)
-      ? BalanceSheetLinkMap.assets.prepaidExpenses(n).current
-      : (globalData
-          ? globalData.balanceSheetTotals.assets.prepaidExpenses.current
-          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1400, 1439))));
+    // Prepaid expenses removed from presentation
     // PPE (net) = cost - accum depreciation; if selection not present, fallback existing
     const ppeCostCurrent = sel?.ppe_cost?.current ?? 0;
     const ppeAccumCurrent = sel?.ppe_accum_depr?.current ?? 0;
@@ -78,11 +74,7 @@ export class AssetsBuilder {
       : (globalData
           ? globalData.balanceSheetTotals.assets.inventory.previous
           : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519)));
-    const prevPrepaidExpenses = sel?.prepaid?.previous ?? ((NOTE_FIRST_MODE && n)
-      ? BalanceSheetLinkMap.assets.prepaidExpenses(n).previous
-      : (globalData
-          ? globalData.balanceSheetTotals.assets.prepaidExpenses.previous
-          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1400, 1439)));
+    // Previous prepaid expenses removed from presentation
     const ppeCostPrev = sel?.ppe_cost?.previous ?? 0;
     const ppeAccumPrev = sel?.ppe_accum_depr?.previous ?? 0;
     const prevLandBuildingsEquipment = (sel && (sel.ppe_cost && sel.ppe_accum_depr))
@@ -117,35 +109,24 @@ export class AssetsBuilder {
     currentRow++;
 
     // Add current assets
-    if (cashAndCashEquivalents !== 0) {
-      worksheetData.push(['', '', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '7', cashAndCashEquivalents, '', processingType === 'multi-year' ? prevCashAndCashEquivalents : '', '']);
-      currentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    // Always show assets rows even when amounts are zero
+    worksheetData.push(['', '', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '7', cashAndCashEquivalents, '', processingType === 'multi-year' ? prevCashAndCashEquivalents : '', '']);
+    currentAssetRows.push(currentRow);
+    currentRow++;
 
-    if (tradeReceivables !== 0) {
-      worksheetData.push(['', '', 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '8', tradeReceivables, '', processingType === 'multi-year' ? prevTradeReceivables : '', '']);
-      currentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '8', tradeReceivables, '', processingType === 'multi-year' ? prevTradeReceivables : '', '']);
+    currentAssetRows.push(currentRow);
+    currentRow++;
 
-    if (assetShortTermLoans !== 0) {
-      worksheetData.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', assetShortTermLoans, '', processingType === 'multi-year' ? prevAssetShortTermLoans : '', '']);
-      currentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', assetShortTermLoans, '', processingType === 'multi-year' ? prevAssetShortTermLoans : '', '']);
+    currentAssetRows.push(currentRow);
+    currentRow++;
 
-    if (inventory !== 0) {
-      worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
-      currentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
+    currentAssetRows.push(currentRow);
+    currentRow++;
 
-    if (prepaidExpenses !== 0) {
-      worksheetData.push(['', '', 'ค่าใช้จ่ายจ่ายล่วงหน้า', '', '', '10', prepaidExpenses, '', processingType === 'multi-year' ? prevPrepaidExpenses : '', '']);
-      currentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    // Removed 'ค่าใช้จ่ายจ่ายล่วงหน้า' as it is not an accounting subject
 
     // Current Assets Total
     const currentAssetsFormula = FinancialCalculations.buildSumFormula(currentAssetRows, 'G');
@@ -168,11 +149,9 @@ export class AssetsBuilder {
     worksheetData.push(['', 'สินทรัพย์ไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
     currentRow++;
 
-    if (landBuildingsEquipment !== 0) {
-      worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', '11', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
-      nonCurrentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', '11', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+    nonCurrentAssetRows.push(currentRow);
+    currentRow++;
 
     // Long-term loans given (asset)
     const assetLongTermLoans = sel?.asset_long_term_loans?.current ?? (
@@ -184,17 +163,13 @@ export class AssetsBuilder {
       FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1710, 1710)
     );
 
-    if (assetLongTermLoans !== 0) {
-      worksheetData.push(['', '', 'เงินให้กู้ยืมระยะยาว', '', '', '', assetLongTermLoans, '', processingType === 'multi-year' ? prevAssetLongTermLoans : '', '']);
-      nonCurrentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะยาว', '', '', '', assetLongTermLoans, '', processingType === 'multi-year' ? prevAssetLongTermLoans : '', '']);
+    nonCurrentAssetRows.push(currentRow);
+    currentRow++;
 
-    if (otherAssets !== 0) {
-      worksheetData.push(['', '', 'สินทรัพย์อื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
-      nonCurrentAssetRows.push(currentRow);
-      currentRow++;
-    }
+    worksheetData.push(['', '', 'สินทรัพย์อื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
+    nonCurrentAssetRows.push(currentRow);
+    currentRow++;
 
     // Non-Current Assets Total
     const nonCurrentAssetsFormula = FinancialCalculations.buildSumFormula(nonCurrentAssetRows, 'G');

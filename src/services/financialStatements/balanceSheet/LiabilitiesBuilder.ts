@@ -202,28 +202,22 @@ export class LiabilitiesBuilder {
     worksheetData.push(['', 'หนี้สินหมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
     cellTracker.currentRow++;
 
-    if (bankOverdraftsAndShortTermLoans !== 0) {
-      worksheetData.push(['', '', 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', '15', bankOverdraftsAndShortTermLoans, '', processingType === 'multi-year' ? prevBankOverdrafts : '', '']);
-      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', '15', bankOverdraftsAndShortTermLoans, '', processingType === 'multi-year' ? prevBankOverdrafts : '', '']);
+    cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
     // Always include trade payables - VBA always shows this
     worksheetData.push(['', '', 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '16', tradeAndOtherPayables, '', processingType === 'multi-year' ? prevTradeAndOtherPayables : '', '']);
     cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
-    if (shortTermBorrowings !== 0) {
-      worksheetData.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', '17', shortTermBorrowings, '', processingType === 'multi-year' ? prevShortTermBorrowings : '', '']);
-      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', '17', shortTermBorrowings, '', processingType === 'multi-year' ? prevShortTermBorrowings : '', '']);
+    cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
-    if (incomeTaxPayable !== 0) {
-      worksheetData.push(['', '', 'ภาษีเงินได้นิติบุคคลค้างจ่าย', '', '', '18', incomeTaxPayable, '', processingType === 'multi-year' ? prevIncomeTaxPayable : '', '']);
-      cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'ภาษีเงินได้นิติบุคคลค้างจ่าย', '', '', '18', incomeTaxPayable, '', processingType === 'multi-year' ? prevIncomeTaxPayable : '', '']);
+    cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
     const currentLiabilitiesFormula = FinancialCalculations.buildSumFormula(cellTracker.currentLiabilitiesRows, 'G');
     const currentLiabilitiesFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(cellTracker.currentLiabilitiesRows, 'I') : '';
@@ -247,23 +241,17 @@ export class LiabilitiesBuilder {
     worksheetData.push(['', 'หนี้สินไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
     cellTracker.currentRow++;
 
-    if (longTermLoansFromFI !== 0) {
-      worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '19', longTermLoansFromFI, '', processingType === 'multi-year' ? prevLongTermLoansFromFI : '', '']);
-      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '19', longTermLoansFromFI, '', processingType === 'multi-year' ? prevLongTermLoansFromFI : '', '']);
+    cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
-    if (otherLongTermLoans !== 0) {
-      worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวอื่น', '', '', '20', otherLongTermLoans, '', processingType === 'multi-year' ? prevOtherLongTermLoans : '', '']);
-      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวอื่น', '', '', '20', otherLongTermLoans, '', processingType === 'multi-year' ? prevOtherLongTermLoans : '', '']);
+    cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
-    if (hirePurchaseCreditors !== 0) {
-      worksheetData.push(['', '', 'เจ้าหนี้ตามสัญญาเช่าซื้อ', '', '', '21', hirePurchaseCreditors, '', processingType === 'multi-year' ? prevHirePurchaseCreditors : '', '']);
-      cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
-      cellTracker.currentRow++;
-    }
+    worksheetData.push(['', '', 'เจ้าหนี้ตามสัญญาเช่าซื้อ', '', '', '21', hirePurchaseCreditors, '', processingType === 'multi-year' ? prevHirePurchaseCreditors : '', '']);
+    cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
 
     const nonCurrentLiabilitiesFormula = FinancialCalculations.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'G');
     const nonCurrentLiabilitiesFormulaPrev = processingType === 'multi-year' ? FinancialCalculations.buildSumFormula(cellTracker.nonCurrentLiabilitiesRows, 'I') : '';
@@ -331,11 +319,10 @@ export class LiabilitiesBuilder {
       cellTracker.equityDataRows.push(cellTracker.currentRow + 1);
       cellTracker.currentRow += 2;
 
-      if (legalReserve !== 0) {
-        worksheetData.push(['', '', 'ทุนสำรองตามกฎหมาย', '', '', '25', legalReserve, '', processingType === 'multi-year' ? legalReserve : '', '']);
-        cellTracker.equityDataRows.push(cellTracker.currentRow);
-        cellTracker.currentRow++;
-      }
+      // Always show legal reserve even if zero
+      worksheetData.push(['', '', 'ทุนสำรองตามกฎหมาย', '', '', '25', legalReserve, '', processingType === 'multi-year' ? legalReserve : '', '']);
+      cellTracker.equityDataRows.push(cellTracker.currentRow);
+      cellTracker.currentRow++;
 
       worksheetData.push(['', '', 'กำไรสะสม', '', '', '26', retainedEarnings, '', processingType === 'multi-year' ? prevRetainedEarnings : '', '']);
       cellTracker.equityDataRows.push(cellTracker.currentRow);
