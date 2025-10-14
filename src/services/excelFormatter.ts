@@ -614,11 +614,11 @@ export class ExcelJSFormatter {
     // Set fonts and alignments for the entire row (non-bold), but apply borders only to amount columns
     ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
-      // Ensure font is not bold on all cells in the row
+      // Ensure font is bold on all cells in the row (total line should be bold)
       cell.font = {
         name: this.THAI_FONT_NAME,
         size: 14,
-        bold: false,
+        bold: true,
         color: { argb: 'FF000000' }
       };
       // Alignments similar to totals but without bold
@@ -642,14 +642,14 @@ export class ExcelJSFormatter {
     const currentCell = worksheet.getCell(`G${row}`);
     currentCell.border = {
       top: { style: 'thin', color: { argb: 'FF000000' } },
-      bottom: { style: 'double', color: { argb: 'FF000000' } }
+      bottom: { style: 'thin', color: { argb: 'FF000000' } }
     };
 
     const prevCell = worksheet.getCell(`I${row}`);
     // Always apply borders to previous year amount column (I) regardless of value
     prevCell.border = {
       top: { style: 'thin', color: { argb: 'FF000000' } },
-      bottom: { style: 'double', color: { argb: 'FF000000' } }
+      bottom: { style: 'thin', color: { argb: 'FF000000' } }
     };
   }
   
