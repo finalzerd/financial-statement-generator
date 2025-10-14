@@ -611,9 +611,10 @@ export class ExcelJSFormatter {
    * - Bottom border (double)
    */
   private static formatCurrentAssetsTotalSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    // Set fonts and alignments for the entire row (non-bold), but apply borders only to amount columns
     ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
-      // Ensure font is not bold
+      // Ensure font is not bold on all cells in the row
       cell.font = {
         name: this.THAI_FONT_NAME,
         size: 14,
@@ -631,12 +632,30 @@ export class ExcelJSFormatter {
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
-      // Apply borders: top thin, bottom double
-      cell.border = {
+      // Clear any existing borders on non-amount columns to avoid visual lines on text
+      if (col !== 'G' && col !== 'I') {
+        cell.border = {};
+      }
+    });
+
+    // Apply borders only on current (G) and previous (I if present) amount cells
+    const currentCell = worksheet.getCell(`G${row}`);
+    currentCell.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'double', color: { argb: 'FF000000' } }
+    };
+
+    const prevCell = worksheet.getCell(`I${row}`);
+    const hasPrev = prevCell && prevCell.value !== undefined && prevCell.value !== null && !(typeof prevCell.value === 'string' && prevCell.value.trim() === '');
+    if (hasPrev) {
+      prevCell.border = {
         top: { style: 'thin', color: { argb: 'FF000000' } },
         bottom: { style: 'double', color: { argb: 'FF000000' } }
       };
-    });
+    } else {
+      // Ensure no border is applied when previous column is not used
+      prevCell.border = {};
+    }
   }
   
   /**
