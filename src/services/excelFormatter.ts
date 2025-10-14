@@ -646,16 +646,11 @@ export class ExcelJSFormatter {
     };
 
     const prevCell = worksheet.getCell(`I${row}`);
-    const hasPrev = prevCell && prevCell.value !== undefined && prevCell.value !== null && !(typeof prevCell.value === 'string' && prevCell.value.trim() === '');
-    if (hasPrev) {
-      prevCell.border = {
-        top: { style: 'thin', color: { argb: 'FF000000' } },
-        bottom: { style: 'double', color: { argb: 'FF000000' } }
-      };
-    } else {
-      // Ensure no border is applied when previous column is not used
-      prevCell.border = {};
-    }
+    // Always apply borders to previous year amount column (I) regardless of value
+    prevCell.border = {
+      top: { style: 'thin', color: { argb: 'FF000000' } },
+      bottom: { style: 'double', color: { argb: 'FF000000' } }
+    };
   }
   
   /**
