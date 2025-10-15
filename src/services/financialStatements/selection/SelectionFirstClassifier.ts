@@ -65,6 +65,7 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'revenue',
   'other_income',
   'detail_service_costs',
+  'selling_expenses',
   'admin_expenses',
   'other_expenses',
   'financial_costs',
@@ -284,7 +285,8 @@ export class SelectionFirstClassifier {
   case 'revenue': return codeNum >= 4000 && codeNum <= 4099;
   case 'other_income': return codeNum >= 4100 && codeNum <= 4999;
   case 'detail_service_costs': return codeNum >= 5000 && codeNum <= 5099;
-  case 'admin_expenses': return (codeNum >= 5300 && codeNum <= 5350) || (codeNum >= 5355 && codeNum <= 5357) || (codeNum >= 5362 && codeNum <= 5363) || codeNum === 5365;
+  case 'selling_expenses': return codeNum >= 5300 && codeNum <= 5311;
+  case 'admin_expenses': return (codeNum >= 5312 && codeNum <= 5350) || (codeNum >= 5355 && codeNum <= 5357) || (codeNum >= 5362 && codeNum <= 5363) || codeNum === 5365;
   case 'other_expenses': return (codeNum >= 5351 && codeNum <= 5354) || (codeNum >= 5358 && codeNum <= 5361) || codeNum === 5364 || (codeNum >= 5366 && codeNum <= 5999);
   case 'income_tax_expense': return codeNum === 5910;
   case 'financial_costs': return codeNum >= 5920 && codeNum <= 5929;

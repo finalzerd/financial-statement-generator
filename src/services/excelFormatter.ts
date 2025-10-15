@@ -626,7 +626,23 @@ export class ExcelJSFormatter {
             value === 'รายได้' || value === 'ค่าใช้จ่าย') {
           this.formatMainSectionHeader(worksheet, row);
         }
-        // Key profit line items (should be bold)
+        // P&L special lines with border rules
+        else if (primaryText === 'รวมรายได้') {
+          this.formatPLSubtotalThinBorders(worksheet, row);
+        }
+        else if (primaryText === 'รวมค่าใช้จ่าย') {
+          this.formatPLSubtotalThinBorders(worksheet, row);
+        }
+        else if (primaryText === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้') {
+          this.formatPLSubtotalThinBorders(worksheet, row);
+        }
+        else if (primaryText === 'กำไรก่อนภาษีเงินได้' || primaryText === 'กำไร(ขาดทุน)ก่อนภาษีเงินได้') {
+          this.formatPLSubtotalThinBorders(worksheet, row);
+        }
+        else if (primaryText === 'กำไร(ขาดทุน)สุทธิ') {
+          this.formatPLNetProfitDoubleBorder(worksheet, row);
+        }
+        // Key profit line items (generic bold without borders)
         else if (value === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้' || 
                  value === 'กำไรก่อนภาษีเงินได้' || 
                  value === 'กำไร(ขาดทุน)สุทธิ') {
@@ -643,6 +659,51 @@ export class ExcelJSFormatter {
         }
       }
     }
+  }
+
+  /**
+   * P&L subtotal lines formatter (e.g., รวมรายได้, รวมค่าใช้จ่าย, กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้, กำไรก่อนภาษีเงินได้)
+   * - Row bold for text; G/I amounts not bold
+   * - Borders on G/I: thin top + thin bottom
+   */
+  private static formatPLSubtotalThinBorders(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        // Amounts should NOT be bold
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+  }
+
+  /**
+   * P&L net profit line formatter (กำไร(ขาดทุน)สุทธิ)
+   * - Row bold text; G/I amounts not bold
+   * - Borders on G/I: thin top + double bottom
+   */
+  private static formatPLNetProfitDoubleBorder(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
   }
 
   /**
@@ -1087,6 +1148,12 @@ export class ExcelJSFormatter {
   const isTotalEquityShareholdersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้ถือหุ้น';
   const isTotalEquityPartnersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้เป็นหุ้นส่วน';
   const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น';
+  // P&L protected rows for column I borders
+  const isPLSumRevenue = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมรายได้';
+  const isPLSumExpenses = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมค่าใช้จ่าย';
+  const isPLProfitBeforeFinanceTax = typeof bCellValue === 'string' && bCellValue.trim() === 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้';
+  const isPLProfitBeforeTax = typeof bCellValue === 'string' && (bCellValue.trim() === 'กำไรก่อนภาษีเงินได้' || bCellValue.trim() === 'กำไร(ขาดทุน)ก่อนภาษีเงินได้');
+  const isPLNetProfit = typeof bCellValue === 'string' && bCellValue.trim() === 'กำไร(ขาดทุน)สุทธิ';
 
         if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
@@ -1095,7 +1162,7 @@ export class ExcelJSFormatter {
           
           
           // Skip clearing style for the special case: column I on the current assets total row
-          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow || isTotalLiabilitiesAndEquityRow) && col === 9) {
+          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow || isTotalLiabilitiesAndEquityRow || isPLSumRevenue || isPLSumExpenses || isPLProfitBeforeFinanceTax || isPLProfitBeforeTax || isPLNetProfit) && col === 9) {
             // Clear value but keep existing style (borders) intact
             cell.value = null;
           } else {

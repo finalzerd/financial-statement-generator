@@ -59,7 +59,8 @@ export type NoteCategory =
   | 'admin_expenses'
   | 'other_expenses'
   | 'income_tax_expense'
-  | 'financial_costs';
+  | 'financial_costs'
+  | 'selling_expenses';
 
 /**
  * Foundation-first architecture: Note calculations drive Balance Sheet values

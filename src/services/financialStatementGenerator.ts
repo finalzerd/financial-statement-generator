@@ -368,7 +368,7 @@ export class FinancialStatementGenerator {
     
     // Add DT2 - Selling and administrative expenses  
   const detailTwoStart = detailNotes.length + 1;
-  const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData, detailTwoStart);
+  const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData, selection, detailTwoStart);
     detailNotes.push(...detailTwoData);
     
     return detailNotes;

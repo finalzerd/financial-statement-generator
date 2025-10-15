@@ -260,6 +260,14 @@ export function AccountMappingManager({
         accountRanges = { includes: [2015, 1644.2, 1644.1] } as any; // เจ้าหนี้ตามสัญญาเช่าซื้อ
       } else if (addNoteType === 'other_income') {
         accountRanges = { ranges: [{ from: 4110, to: 4999 }] } as any;
+      } else if (addNoteType === 'selling_expenses') {
+        accountRanges = { ranges: [{ from: 5300, to: 5311 }] } as any; // ค่าใช้จ่ายในการขาย
+      } else if (addNoteType === 'admin_expenses') {
+        accountRanges = { ranges: [
+          { from: 5312, to: 5350 },
+          { from: 5355, to: 5357 },
+          { from: 5362, to: 5363 }
+        ], includes: [5365] } as any; // ค่าใช้จ่ายในการบริหาร
       }
 
       await ApiService.createAccountMapping(companyId, {

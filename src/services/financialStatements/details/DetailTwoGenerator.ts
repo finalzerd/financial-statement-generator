@@ -1,4 +1,5 @@
 import type { TrialBalanceEntry } from '../../../types/financial';
+import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 
 export class DetailTwoGenerator {
   /**
@@ -8,6 +9,7 @@ export class DetailTwoGenerator {
    */
   static generateDetailTwo(
     trialBalanceData: TrialBalanceEntry[],
+    selection?: SelectionFirstResult,
     startingRow: number = 1
   ): any[][] {
     const detailNotes: any[][] = [];
@@ -29,58 +31,50 @@ export class DetailTwoGenerator {
     let firstDetailRow = 0;
     let lastDetailRow = 0;
 
-    // Initialize totals for each category
-    let sellingExpensesTotal = 0;
-    let adminExpensesTotal = 0; 
-    let otherExpensesTotal = 0;
-    let financialCostsTotal = 0;
-    
-    // Get all expense accounts from trial balance data
-    const expenseAccounts = trialBalanceData.filter((entry: TrialBalanceEntry) => {
-      const code = parseInt(entry.accountCode || '0');
-      return code >= 5300 && code <= 5999 && entry.accountCode !== '5910';
-    });
-    
-    // Process each expense account
-    expenseAccounts.forEach((account: TrialBalanceEntry) => {
-      const accountCode = account.accountCode || '';
-      const accountName = account.accountName || '';
-      const amount = Math.abs(account.balance || 0); // Expenses are positive
-      
-      if (amount === 0) return; // Skip zero amounts
-      
-      // Check account code ranges
-      const codeNum = parseInt(accountCode);
-      
-      if (codeNum >= 5360 && codeNum <= 5364) {
-        // Financial costs - handle separately
-        financialCostsTotal += amount;
-      } else {
-        // Regular expense accounts
-        let sellingAmount = 0;
-        let adminAmount = 0;
-        let otherAmount = 0;
-        
-        if (codeNum >= 5300 && codeNum <= 5311) {
-          // Selling expenses
-          sellingAmount = amount;
-          sellingExpensesTotal += amount;
-        } else if (codeNum >= 5312 && codeNum <= 5350) {
-          // Admin expenses
-          adminAmount = amount;
-          adminExpensesTotal += amount;
-        } else if ((codeNum >= 5351 && codeNum <= 5359) || (codeNum >= 5365 && codeNum <= 5999)) {
-          // Other expenses
-          otherAmount = amount;
-          otherExpensesTotal += amount;
-        }
-        
-        // Add account row (account name in columns A-F merged, amounts in G,H,I)
-        const r = pushRow([accountName, '', '', '', '', '', sellingAmount, adminAmount, otherAmount]);
-        if (firstDetailRow === 0) firstDetailRow = r;
-        lastDetailRow = r;
+    // Selection-first: read categorized accounts; fallback to numeric if selection missing
+    const sellingAccs = selection?.byCategory?.selling_expenses ?? [];
+    const adminAccs = selection?.byCategory?.admin_expenses ?? [];
+    const otherAccs = selection?.byCategory?.other_expenses ?? [];
+    const financialAccs = selection?.byCategory?.financial_costs ?? [];
+
+    const emitAccount = (name: string, sell: number, admin: number, other: number) => {
+      const r = pushRow([name, '', '', '', '', '', sell, admin, other]);
+      if (firstDetailRow === 0) firstDetailRow = r;
+      lastDetailRow = r;
+    };
+
+    if (selection) {
+      // Emit rows grouped by category using selection-first data
+      for (const a of sellingAccs) {
+        if ((a.current ?? 0) !== 0) emitAccount(a.accountName, a.current, 0, 0);
       }
-    });
+      for (const a of adminAccs) {
+        if ((a.current ?? 0) !== 0) emitAccount(a.accountName, 0, a.current, 0);
+      }
+      for (const a of otherAccs) {
+        if ((a.current ?? 0) !== 0) emitAccount(a.accountName, 0, 0, a.current);
+      }
+    } else {
+      // Legacy fallback: filter by numeric ranges
+      const expenseAccounts = trialBalanceData.filter((entry: TrialBalanceEntry) => {
+        const code = parseInt(entry.accountCode || '0');
+        return code >= 5300 && code <= 5999 && entry.accountCode !== '5910';
+      });
+      expenseAccounts.forEach((account: TrialBalanceEntry) => {
+        const accountCode = account.accountCode || '';
+        const accountName = account.accountName || '';
+        const amount = Math.abs(account.balance || 0);
+        if (amount === 0) return;
+        const codeNum = parseInt(accountCode);
+        if (codeNum >= 5300 && codeNum <= 5311) {
+          emitAccount(accountName, amount, 0, 0);
+        } else if (codeNum >= 5312 && codeNum <= 5350) {
+          emitAccount(accountName, 0, amount, 0);
+        } else if ((codeNum >= 5351 && codeNum <= 5999)) {
+          emitAccount(accountName, 0, 0, amount);
+        }
+      });
+    }
     
     // Add total row with formulas
     const totalsG = firstDetailRow > 0 ? { f: `SUM(G${firstDetailRow}:G${lastDetailRow})` } : 0;
@@ -88,8 +82,11 @@ export class DetailTwoGenerator {
     const totalsI = firstDetailRow > 0 ? { f: `SUM(I${firstDetailRow}:I${lastDetailRow})` } : 0;
     pushRow(['รวม', '', '', '', '', '', totalsG, totalsH, totalsI]);
     
-    // Add financial costs row if there are any
-    if (financialCostsTotal > 0) {
+    // Add financial costs row if there are any (selection-first)
+    const financialCostsTotal = selection?.totals?.financial_costs?.current ?? (
+      financialAccs.reduce((s, a) => s + (a.current ?? 0), 0)
+    );
+    if ((financialCostsTotal ?? 0) > 0) {
       pushRow(['ค่าใช้จ่ายต้นทุนทางการเงิน', '', '', '', '', '', 0, 0, financialCostsTotal]);
     }
     
