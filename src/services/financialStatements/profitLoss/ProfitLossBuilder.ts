@@ -3,6 +3,7 @@
 // ============================================================================
 import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
 import { FinancialCalculations } from '../../financialCalculations';
+import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 
 /**
  * Builds the Profit & Loss (Single-step) statement table.
@@ -13,40 +14,42 @@ export class ProfitLossBuilder {
   static build(
     trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo,
-    processingType: 'single-year' | 'multi-year'
+    processingType: 'single-year' | 'multi-year',
+    selection?: SelectionFirstResult
   ): any[][] {
     console.log('=== PROFITLOSS BUILDER START ===');
 
-    const revenue = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4000, 4099));
-    const previousRevenue = processingType === 'multi-year' ? 0 : 0; // Placeholder until previous-year logic added
+    const sel = selection?.totals;
+    const revenue = sel?.revenue?.current ?? Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4000, 4099));
+    const previousRevenue = processingType === 'multi-year' ? (sel?.revenue?.previous ?? 0) : 0;
 
-    const otherIncome = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4100, 4999));
-    const previousOtherIncome = processingType === 'multi-year' ? 0 : 0;
+    const otherIncome = sel?.other_income?.current ?? Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 4100, 4999));
+    const previousOtherIncome = processingType === 'multi-year' ? (sel?.other_income?.previous ?? 0) : 0;
 
-    const costOfServices = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5000, 5099));
-    const previousCostOfServices = processingType === 'multi-year' ? 0 : 0;
+    const costOfServices = sel?.detail_service_costs?.current ?? Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5000, 5099));
+    const previousCostOfServices = processingType === 'multi-year' ? (sel?.detail_service_costs?.previous ?? 0) : 0;
 
-    const adminExpenses = Math.abs(
+    const adminExpenses = sel?.admin_expenses?.current ?? Math.abs(
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5300, 5350) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5355, 5357) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5362, 5363) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5365, 5365)
     );
-    const previousAdminExpenses = processingType === 'multi-year' ? 0 : 0;
+    const previousAdminExpenses = processingType === 'multi-year' ? (sel?.admin_expenses?.previous ?? 0) : 0;
 
-    const otherExpenses = Math.abs(
+    const otherExpenses = sel?.other_expenses?.current ?? Math.abs(
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5351, 5354) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5358, 5361) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5364, 5364) +
       FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5366, 5999)
     );
-    const previousOtherExpenses = processingType === 'multi-year' ? 0 : 0;
+    const previousOtherExpenses = processingType === 'multi-year' ? (sel?.other_expenses?.previous ?? 0) : 0;
 
-    const incomeTax = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
-    const previousIncomeTax = processingType === 'multi-year' ? 0 : 0;
+    const incomeTax = sel?.income_tax_expense?.current ?? Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5910, 5910));
+    const previousIncomeTax = processingType === 'multi-year' ? (sel?.income_tax_expense?.previous ?? 0) : 0;
 
-    const financialCosts = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5920, 5929));
-    const previousFinancialCosts = processingType === 'multi-year' ? 0 : 0;
+    const financialCosts = sel?.financial_costs?.current ?? Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 5920, 5929));
+    const previousFinancialCosts = processingType === 'multi-year' ? (sel?.financial_costs?.previous ?? 0) : 0;
 
     console.log('P&L components calculated:', { revenue, otherIncome, costOfServices, adminExpenses, otherExpenses, incomeTax, financialCosts });
 

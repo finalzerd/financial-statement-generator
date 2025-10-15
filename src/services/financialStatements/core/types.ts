@@ -53,7 +53,13 @@ export type NoteCategory =
   | 'long_term_loans_fi'
   | 'long_term_loans_other'
   | 'other_income'
-  | 'detail_service_costs';
+  | 'detail_service_costs'
+  // P&L categories (selection-first for Profit & Loss)
+  | 'revenue'
+  | 'admin_expenses'
+  | 'other_expenses'
+  | 'income_tax_expense'
+  | 'financial_costs';
 
 /**
  * Foundation-first architecture: Note calculations drive Balance Sheet values

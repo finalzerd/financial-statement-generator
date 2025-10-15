@@ -614,6 +614,12 @@ export class ExcelJSFormatter {
           continue;
         }
 
+        // Final grand total: Total Liabilities and Equity
+        if (primaryText === 'รวมหนี้สินและส่วนของผู้ถือหุ้น') {
+          this.formatTotalLiabilitiesAndEquitySpecial(worksheet, row);
+          continue;
+        }
+
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
             value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
@@ -857,8 +863,8 @@ export class ExcelJSFormatter {
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
     });
-    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
-    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'thin', color:{argb:'FF000000'} } };
   }
 
   /**
@@ -867,6 +873,28 @@ export class ExcelJSFormatter {
    * - Borders: thin top + double bottom on G and I
    */
   private static formatTotalEquityPartnersSpecial(worksheet: ExcelJS.Worksheet, row: number): void {
+    ['B','C','D','E','F','G','H','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
+      if (col === 'B') cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      else if (col === 'G' || col === 'I') {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        cell.font = { ...cell.font, bold: false };
+      } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      if (col !== 'G' && col !== 'I') cell.border = {};
+    });
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } };
+  }
+
+  /**
+   * Special formatting for Total Liabilities and Equity - "รวมหนี้สินและส่วนของผู้ถือหุ้น"
+   * - Bold row; G/I non-bold
+   * - Borders: thin top + double bottom on G and I
+   */
+  private static formatTotalLiabilitiesAndEquitySpecial(worksheet: ExcelJS.Worksheet, row: number): void {
     ['B','C','D','E','F','G','H','I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
       cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true, color: { argb: 'FF000000' } };
@@ -1058,6 +1086,7 @@ export class ExcelJSFormatter {
   const isTotalLiabilitiesRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สิน';
   const isTotalEquityShareholdersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้ถือหุ้น';
   const isTotalEquityPartnersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้เป็นหุ้นส่วน';
+  const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น';
 
         if ((cell.value === undefined || cell.value === null) ||
             (typeof cell.value === 'string' && cell.value.trim() === '') ||
@@ -1066,7 +1095,7 @@ export class ExcelJSFormatter {
           
           
           // Skip clearing style for the special case: column I on the current assets total row
-          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow) && col === 9) {
+          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow || isTotalLiabilitiesAndEquityRow) && col === 9) {
             // Clear value but keep existing style (borders) intact
             cell.value = null;
           } else {

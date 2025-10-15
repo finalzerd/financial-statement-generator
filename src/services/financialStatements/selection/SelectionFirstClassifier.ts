@@ -61,8 +61,14 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'long_term_loans_fi',
   'long_term_loans_other',
   'payables',
+  // P&L top lines
+  'revenue',
   'other_income',
-  'detail_service_costs'
+  'detail_service_costs',
+  'admin_expenses',
+  'other_expenses',
+  'financial_costs',
+  'income_tax_expense'
 ];
 
 export class SelectionFirstClassifier {
@@ -275,8 +281,13 @@ export class SelectionFirstClassifier {
           const excluded = codeNum === 2030 || codeNum === 2045 || (codeNum >= 2050 && codeNum <= 2052) || (codeNum >= 2100 && codeNum <= 2123);
           return codeNum >= 2010 && codeNum <= 2999 && !excluded;
         }
-        case 'other_income': return codeNum >= 4110 && codeNum <= 4999;
-        case 'detail_service_costs': return codeNum >= 5000 && codeNum <= 5099;
+  case 'revenue': return codeNum >= 4000 && codeNum <= 4099;
+  case 'other_income': return codeNum >= 4100 && codeNum <= 4999;
+  case 'detail_service_costs': return codeNum >= 5000 && codeNum <= 5099;
+  case 'admin_expenses': return (codeNum >= 5300 && codeNum <= 5350) || (codeNum >= 5355 && codeNum <= 5357) || (codeNum >= 5362 && codeNum <= 5363) || codeNum === 5365;
+  case 'other_expenses': return (codeNum >= 5351 && codeNum <= 5354) || (codeNum >= 5358 && codeNum <= 5361) || codeNum === 5364 || (codeNum >= 5366 && codeNum <= 5999);
+  case 'income_tax_expense': return codeNum === 5910;
+  case 'financial_costs': return codeNum >= 5920 && codeNum <= 5929;
       }
     };
 

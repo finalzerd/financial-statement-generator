@@ -97,7 +97,7 @@ export class FinancialStatementGenerator {
   this.selectionData = selectionForBS;
   const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
   const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-    const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
+  const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType, selectionForBS);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
     const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
@@ -196,10 +196,11 @@ export class FinancialStatementGenerator {
   private generateProfitLossStatement(
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year'
+    processingType: 'single-year' | 'multi-year',
+    selection?: SelectionFirstResult
   ): any[][] {
     // Delegated to ProfitLossBuilder (extracted verbatim)
-    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType);
+    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType, selection);
   }
 
   private generateStatementOfChangesInEquity(
