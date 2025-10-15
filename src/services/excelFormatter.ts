@@ -318,6 +318,20 @@ export class ExcelJSFormatter {
     
     // Special formatting for Statement of Changes in Equity
     this.formatStatementOfChangesInEquitySpecific(worksheet);
+  // Ensure numeric columns C, F, I are right-aligned with number format for data rows
+  this.formatEquityNumericColumns(worksheet);
+    // FINAL PASS: Re-apply borders for SCE year-end rows on C/F/I in case any generic formatter cleared them
+    try {
+      for (let row = 6; row <= 80; row++) {
+        const aVal = worksheet.getCell(`A${row}`).value;
+        const bVal = worksheet.getCell(`B${row}`).value;
+        const aText = typeof aVal === 'string' ? aVal.trim() : '';
+        const bText = typeof bVal === 'string' ? bVal.trim() : '';
+        if ((aText && aText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม')) || (bText && bText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'))) {
+          this.formatEquityYearEndDoubleBorder(worksheet, row);
+        }
+      }
+    } catch {}
     
     // Set consistent font across worksheet
     this.setWorksheetDefaultFont(worksheet);
@@ -561,9 +575,11 @@ export class ExcelJSFormatter {
   private static formatTotalLinesProfessional(worksheet: ExcelJS.Worksheet): void {
     // We'll dynamically detect and format total lines and section headers
     for (let row = 6; row <= 60; row++) {
+      const aCell = worksheet.getCell(`A${row}`);
       const primaryCell = worksheet.getCell(`B${row}`);
       const fallbackCell = worksheet.getCell(`C${row}`);
       // Read values explicitly from B and C to make column-aware decisions
+      const aText = typeof aCell.value === 'string' ? aCell.value.trim() : '';
       const primaryText = typeof primaryCell.value === 'string' ? primaryCell.value.trim() : '';
       const fallbackText = typeof fallbackCell.value === 'string' ? fallbackCell.value.trim() : '';
       // Prefer B when present else C (legacy behavior)
@@ -620,6 +636,13 @@ export class ExcelJSFormatter {
           continue;
         }
 
+        // Statement of Changes in Equity: Year-end rows must have top+double bottom borders on C/F/I
+        // Detect by column B or (SCE layout) column A
+        if (primaryText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม') || aText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม')) {
+          this.formatEquityYearEndDoubleBorder(worksheet, row);
+          continue;
+        }
+
         // Main section headers (สินทรัพย์, หนี้สินและส่วนของผู้ถือหุ้น, ส่วนของผู้ถือหุ้น, ส่วนของผู้เป็นหุ้นส่วน, รายได้, ค่าใช้จ่าย)
         if (value === 'สินทรัพย์' || value === 'หนี้สินและส่วนของผู้ถือหุ้น' || 
             value === 'ส่วนของผู้ถือหุ้น' || value === 'ส่วนของผู้เป็นหุ้นส่วน' ||
@@ -659,6 +682,34 @@ export class ExcelJSFormatter {
         }
       }
     }
+  }
+
+  /**
+   * SCE: Set numeric format and right alignment for columns C, F, I across typical data rows
+   */
+  private static formatEquityNumericColumns(worksheet: ExcelJS.Worksheet): void {
+    for (let row = 7; row <= 60; row++) {
+      ['C','F','I'].forEach(col => {
+        const cell = worksheet.getCell(`${col}${row}`);
+        if (cell.value !== undefined && cell.value !== null && cell.value !== '') {
+          cell.alignment = { horizontal: 'right', vertical: 'middle' } as any;
+          cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+        }
+      });
+    }
+  }
+
+  /**
+   * SCE: Apply thin top + double bottom borders to columns C, F, I for year-end total rows
+   */
+  private static formatEquityYearEndDoubleBorder(worksheet: ExcelJS.Worksheet, row: number): void {
+    // Numeric columns C/F/I: right, number format, borders
+    ['C','F','I'].forEach(col => {
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.alignment = { horizontal: 'right', vertical: 'middle' } as any;
+      cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
+      cell.border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } } as any;
+    });
   }
 
   /**
@@ -1137,8 +1188,9 @@ export class ExcelJSFormatter {
         const shouldClearZeros = (col !== 6 && col !== 7);
         const isProtectedColumn = (col === 6 || col === 7);
         
-        // Identify special current assets total row to preserve borders on I column
+    // Identify special current assets total row to preserve borders on I column
   const bCellValue = worksheet.getCell(row, 2).value; // column B
+  const aCellValue = worksheet.getCell(row, 1).value; // column A (SCE often places labels here)
   const isCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์หมุนเวียน';
   const isNonCurrentAssetsTotalRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์ไม่หมุนเวียน';
   const isTotalAssetsRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมสินทรัพย์';
@@ -1148,6 +1200,9 @@ export class ExcelJSFormatter {
   const isTotalEquityShareholdersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้ถือหุ้น';
   const isTotalEquityPartnersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้เป็นหุ้นส่วน';
   const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น';
+  // SCE protected rows for columns C/F/I borders
+  const isEquityYearEndRow = (typeof bCellValue === 'string' && bCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'))
+    || (typeof aCellValue === 'string' && aCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'));
   // P&L protected rows for column I borders
   const isPLSumRevenue = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมรายได้';
   const isPLSumExpenses = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมค่าใช้จ่าย';
@@ -1161,8 +1216,14 @@ export class ExcelJSFormatter {
             (typeof cell.value === 'number' && cell.value === 0 && row > 10 && shouldClearZeros && !isProtectedColumn)) {
           
           
-          // Skip clearing style for the special case: column I on the current assets total row
-          if ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow || isTotalLiabilitiesAndEquityRow || isPLSumRevenue || isPLSumExpenses || isPLProfitBeforeFinanceTax || isPLProfitBeforeTax || isPLNetProfit) && col === 9) {
+          // Skip clearing style for the special cases where borders must be preserved
+          // 1) BS/PL protected rows: preserve column I borders
+          // 2) SCE year-end rows: preserve borders on columns C(3), F(6), I(9)
+          if (
+            ((isCurrentAssetsTotalRow || isNonCurrentAssetsTotalRow || isTotalAssetsRow || isCurrentLiabilitiesTotalRow || isNonCurrentLiabilitiesTotalRow || isTotalLiabilitiesRow || isTotalEquityShareholdersRow || isTotalEquityPartnersRow || isTotalLiabilitiesAndEquityRow || isPLSumRevenue || isPLSumExpenses || isPLProfitBeforeFinanceTax || isPLProfitBeforeTax || isPLNetProfit) && col === 9)
+            ||
+            (isEquityYearEndRow && (col === 3 || col === 6 || col === 9))
+          ) {
             // Clear value but keep existing style (borders) intact
             cell.value = null;
           } else {
@@ -1310,6 +1371,12 @@ export class ExcelJSFormatter {
     
     // Apply special Notes_Policy formatting 
     this.formatNotesPolicySpecial(worksheet);
+    // Unbold everything for Notes_Policy per requirement
+    this.removeAllBoldInWorksheet(worksheet, 1, 150, 1, 9);
+    // Re-apply bold to specific requested cells in column B
+    this.applyBoldToCells(worksheet, [
+      'B5','B10','B13','B17','B18','B19','B21','B23','B25','B27','B29','B31','B33','B35','B37','B39','B41'
+    ]);
     
     console.log('Note_Policy formatting completed');
   }
@@ -1366,11 +1433,11 @@ export class ExcelJSFormatter {
     const c11Cell = worksheet.getCell('C11');
     c11Cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
     
-    // 7. B17:B18 (4.1 and 4.2) => Center align and middle align
-    ['B17', 'B18'].forEach(cellRef => {
-      const cell = worksheet.getCell(cellRef);
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-    });
+    // 7. B17 center, B18 should be left-aligned per requirement
+    const b17 = worksheet.getCell('B17');
+    b17.alignment = { horizontal: 'center', vertical: 'middle' };
+    const b18 = worksheet.getCell('B18');
+    b18.alignment = { horizontal: 'left', vertical: 'middle' };
     
     // 8. Merge C14:I14, C15:I15 for เกณฑ์การจัดทำงบการเงินของกิจการ section with wrapped text and align left
     ['C14:I14', 'C15:I15'].forEach(range => {
@@ -1403,8 +1470,8 @@ export class ExcelJSFormatter {
     // Rows 6,7,8,22,24 use autofit (no fixed height)
     // Rows 17,18,23,25,29 use autofit and no merging/wrapping
     const rowHeights = {
-      11: 42,  // Note 2 content (ฐานะการดำเนินงานของบริษัท) - 2 lines height (increased by 10%)
-      14: 49,  // เกณฑ์การจัดทำงบการเงินของกิจการ section text (increased by ~10% for 14pt font)
+      11: 60,  // Note 2 content (ฐานะการดำเนินงานของบริษัท) - 2 lines height (increased by 10%)
+      14: 98,  // เกณฑ์การจัดทำงบการเงินของกิจการ section text (increased by ~10% for 14pt font)
       15: 75,  // Longer description text (increased by ~10% for 14pt font)
       // 17: removed - autofit, no merge, no wrap
       // 18: removed - autofit, no merge, no wrap
@@ -1430,6 +1497,43 @@ export class ExcelJSFormatter {
     
     Object.entries(rowHeights).forEach(([rowNum, height]) => {
       worksheet.getRow(parseInt(rowNum)).height = height;
+    });
+
+    // 12. Column A rows 5-42 should be center aligned (horizontal)
+    for (let r = 5; r <= 42; r++) {
+      const cell = worksheet.getCell(`A${r}`);
+      cell.alignment = { horizontal: 'center', vertical: cell.alignment?.vertical || 'middle' } as any;
+    }
+  }
+
+  /**
+   * Remove bold formatting from all cells within a specified range.
+   * Used to ensure Notes_Policy contains no bold text anywhere.
+   */
+  private static removeAllBoldInWorksheet(
+    worksheet: ExcelJS.Worksheet,
+    rowStart: number,
+    rowEnd: number,
+    colStart: number,
+    colEnd: number
+  ): void {
+    for (let r = rowStart; r <= rowEnd; r++) {
+      for (let c = colStart; c <= colEnd; c++) {
+        const cell = worksheet.getCell(r, c);
+        const existing = cell.font || { name: this.THAI_FONT_NAME, size: 14 };
+        cell.font = { ...existing, bold: false } as any;
+      }
+    }
+  }
+
+  /**
+   * Apply bold to an explicit list of cells (preserving other font props).
+   */
+  private static applyBoldToCells(worksheet: ExcelJS.Worksheet, cells: string[]): void {
+    cells.forEach(addr => {
+      const cell = worksheet.getCell(addr);
+      const existing = cell.font || { name: this.THAI_FONT_NAME, size: 14, color: { argb: 'FF000000' } };
+      cell.font = { ...existing, bold: true } as any;
     });
   }
   
