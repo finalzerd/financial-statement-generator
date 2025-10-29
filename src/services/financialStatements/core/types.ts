@@ -30,7 +30,8 @@ export interface NoteFormatter {
     | 'shortTermLoans'
     | 'assetShortTermLoans'
     | 'assetLongTermLoans'
-    | 'hirePurchaseCreditors';
+    | 'hirePurchaseCreditors'
+    | 'bankOverdrafts';
   tracker: NoteRowTracker;
 }
 
@@ -42,6 +43,9 @@ export type NoteCategory =
   | 'hire_purchase_creditors'
   | 'receivables'
   | 'inventory'
+  | 'inventory_purchases'
+  | 'inventory_purchase_returns'
+  | 'inventory_purchase_discounts'
   | 'prepaid'
   | 'ppe_cost'
   | 'ppe_accum_depr'

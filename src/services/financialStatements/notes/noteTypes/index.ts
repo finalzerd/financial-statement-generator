@@ -15,6 +15,7 @@ export { LongTermLoansNoteGenerator } from './LongTermLoansNoteGenerator';
 export { HirePurchaseCreditorsNoteGenerator } from './HirePurchaseCreditorsNoteGenerator';
 export { OtherLongTermLoansNoteGenerator } from './OtherLongTermLoansNoteGenerator';
 export { RelatedPartyLoansNoteGenerator } from './RelatedPartyLoansNoteGenerator';
+export { BankOverdraftsNoteGenerator } from './BankOverdraftsNoteGenerator';
 export { ExpensesByNatureNoteGenerator } from './ExpensesByNatureNoteGenerator';
 export { FinancialApprovalNoteGenerator } from './FinancialApprovalNoteGenerator';
 

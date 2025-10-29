@@ -14,6 +14,7 @@ import {
   PPENoteGenerator,
   OtherIncomeNoteGenerator,
   ShortTermLoansNoteGenerator,
+  BankOverdraftsNoteGenerator,
   OtherAssetsNoteGenerator,
   AssetLongTermLoansNoteGenerator,
   HirePurchaseCreditorsNoteGenerator,
@@ -272,6 +273,12 @@ export class FinancialStatementGenerator {
   const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (ppeTracker.headerRows.length > 0) {
       formatters.push({ type: 'ppe', tracker: ppeTracker });
+    }
+    
+    // Bank Overdrafts and Short-term Borrowings from Financial Institutions Note (before payables)
+    const bankOverdraftsTracker = BankOverdraftsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (bankOverdraftsTracker.headerRows.length > 0) {
+      formatters.push({ type: 'bankOverdrafts', tracker: bankOverdraftsTracker });
     }
     
     const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);

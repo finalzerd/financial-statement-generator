@@ -1579,6 +1579,9 @@ export class ExcelJSFormatter {
         case 'hirePurchaseCreditors':
           this.formatShortTermLoansNote(worksheet, formatter.tracker);
           break;
+        case 'bankOverdrafts':
+          this.formatBankOverdraftsNote(worksheet, formatter.tracker);
+          break;
         default:
           this.formatGeneralNote(worksheet, formatter.tracker);
       }
@@ -1684,6 +1687,10 @@ export class ExcelJSFormatter {
           cell.numFmt = '#,##0.00_);[Red](#,##0.00)';
         }
       });
+
+      // Apply borders on amount columns: thin top + double bottom (per requirement)
+      worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+      worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
     });
   }
 
@@ -1791,6 +1798,12 @@ export class ExcelJSFormatter {
           cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
         }
       }
+
+      // Apply double-bottom borders to D/F/G/I totals to match requirement
+      worksheet.getCell(`D${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+      worksheet.getCell(`F${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+      worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+      worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
     });
 
     console.log(`PPE Note formatting completed: ${tracker.headerRows.length} headers, ${tracker.detailRows.length} details, ${tracker.totalRows.length} totals`);
@@ -1801,6 +1814,16 @@ export class ExcelJSFormatter {
    */
   private static formatShortTermLoansNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
     console.log('Formatting Short Term Loans Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // Use same structure as Cash Note - simple note format
+    this.formatCashNote(worksheet, tracker);
+  }
+
+  /**
+   * Format Bank Overdrafts Note specifically
+   */
+  private static formatBankOverdraftsNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Bank Overdrafts Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
     
     // Use same structure as Cash Note - simple note format
     this.formatCashNote(worksheet, tracker);
@@ -2050,6 +2073,10 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
     });
+
+    // Enforce borders on amount columns for total line: thin top + double bottom
+    worksheet.getCell(`G${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+    worksheet.getCell(`I${row}`).border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
   }
 
   /**

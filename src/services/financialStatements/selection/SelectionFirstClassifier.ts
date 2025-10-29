@@ -51,6 +51,9 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'hire_purchase_creditors',
   'receivables',
   'inventory',
+  'inventory_purchases',
+  'inventory_purchase_returns',
+  'inventory_purchase_discounts',
   'prepaid',
   'ppe_cost',
   'ppe_accum_depr',
@@ -269,6 +272,9 @@ export class SelectionFirstClassifier {
           return normalized === '2015' || normalized === '1644.2' || normalized === '1644.1';
         case 'receivables': return codeNum >= 1140 && codeNum <= 1215;
         case 'inventory': return codeNum >= 1500 && codeNum <= 1519;
+  case 'inventory_purchases': return codeNum === 5010;
+  case 'inventory_purchase_returns': return normalized === '5010.1' || codeNum === 5010.1;
+  case 'inventory_purchase_discounts': return normalized === '5010.2' || codeNum === 5010.2;
         case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;
         case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
         case 'ppe_accum_depr': return codeNum >= 1630 && codeNum <= 1659;

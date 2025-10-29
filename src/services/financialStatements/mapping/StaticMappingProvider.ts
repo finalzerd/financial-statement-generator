@@ -6,6 +6,10 @@ const DEFAULT_RULES: Record<string, AccountMappingRules> = {
   cash: { ranges: [{ from: 1000, to: 1099 }] },
   receivables: { ranges: [{ from: 1140, to: 1215 }] },
   inventory: { ranges: [{ from: 1500, to: 1519 }], includes: [1510] },
+  // Detail note mappings for cost of goods sold
+  inventory_purchases: { includes: [5010] },
+  inventory_purchase_returns: { includes: [5010.1] },
+  inventory_purchase_discounts: { includes: [5010.2] },
   prepaid_expenses: { ranges: [{ from: 1400, to: 1439 }] },
   ppe_cost: { ranges: [{ from: 1600, to: 1629 }] },
   ppe_accum_depr: { ranges: [{ from: 1630, to: 1659 }] },

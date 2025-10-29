@@ -34,6 +34,11 @@ db.run('ALTER TABLE companies ADD COLUMN share_value REAL', (err) => {
   // Ignore error if column already exists
 });
 
+// Add default reporting year to companies if not exists (supports Buddhist calendar years)
+db.run('ALTER TABLE companies ADD COLUMN default_reporting_year INTEGER', (err) => {
+  // Ignore error if column already exists
+});
+
 // Ensure company_account_mappings table exists
 db.run(`
   CREATE TABLE IF NOT EXISTS company_account_mappings (
@@ -79,7 +84,7 @@ const mapDbRowToCompany = (row) => ({
   taxId: row.tax_id,
   numberOfShares: row.number_of_shares,
   shareValue: row.share_value,
-  defaultReportingYear: new Date().getFullYear(), // Default to current year
+  defaultReportingYear: row.default_reporting_year || new Date().getFullYear(),
   createdAt: new Date(row.created_at),
   updatedAt: new Date(row.updated_at || row.created_at)
 });
@@ -156,8 +161,11 @@ app.post('/api/companies', (req, res) => {
 
   const now = new Date().toISOString();
   const query = `
-    INSERT INTO companies (name, thai_name, company_type, registration_number, address, business_type, phone, email, number_of_shares, share_value, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
+    INSERT INTO companies (
+      name, thai_name, company_type, registration_number, address, business_type,
+      phone, email, number_of_shares, share_value, default_reporting_year, created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
   `;
 
   db.run(query, [
@@ -169,7 +177,8 @@ app.post('/api/companies', (req, res) => {
     businessDescription, 
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
-    now, 
+    defaultReportingYear || new Date().getFullYear(),
+    now,
     now
   ], function(err) {
     if (err) {
@@ -215,7 +224,8 @@ app.put('/api/companies/:id', (req, res) => {
     businessDescription, 
     taxId,
     numberOfShares,
-    shareValue
+    shareValue,
+    defaultReportingYear
   } = req.body;
   
   if (!name || !type) {
@@ -231,7 +241,8 @@ app.put('/api/companies/:id', (req, res) => {
   const query = `
     UPDATE companies 
     SET name = ?, thai_name = ?, company_type = ?, registration_number = ?, 
-        address = ?, business_type = ?, number_of_shares = ?, share_value = ?, updated_at = ?
+        address = ?, business_type = ?, number_of_shares = ?, share_value = ?,
+        default_reporting_year = ?, updated_at = ?
     WHERE id = ?
   `;
 
@@ -244,7 +255,8 @@ app.put('/api/companies/:id', (req, res) => {
     businessDescription, 
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
-    now, 
+    defaultReportingYear || new Date().getFullYear(),
+    now,
     companyId
   ], function(err) {
     if (err) {

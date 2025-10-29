@@ -42,7 +42,7 @@ export class DetailOneGenerator {
       if (hasServiceRows) {
         pushRow(['', '', '', '', '', '', '', '', '']);
       }
-      this.addInventoryBusinessDetail(pushRow, trialBalanceData, globalData, selection);
+      this.addInventoryBusinessDetail(pushRow, trialBalanceData, globalData, selection, provider);
       return detailNotes;
     }
 
@@ -51,8 +51,8 @@ export class DetailOneGenerator {
       return detailNotes;
     }
 
-    // Default to inventory calculation
-    this.addInventoryBusinessDetail(pushRow, trialBalanceData, globalData, selection);
+  // Default to inventory calculation
+  this.addInventoryBusinessDetail(pushRow, trialBalanceData, globalData, selection, provider);
     
     return detailNotes;
   }
@@ -122,7 +122,8 @@ export class DetailOneGenerator {
     pushRow: (row: any[]) => number,
     trialBalanceData: TrialBalanceEntry[], 
     globalData: DetailedFinancialData,
-    selection?: SelectionFirstResult
+    selection?: SelectionFirstResult,
+    provider?: IAccountMappingProvider
   ): void {
     pushRow(['ต้นทุนสินค้าที่ขาย', '', '', '', '', '', '', '', '']);
     
@@ -133,22 +134,22 @@ export class DetailOneGenerator {
     
     pushRow(['', 'สินค้าคงเหลือต้นงวด', '', '', '', '', '', '', previousInventory]);
     
-    // Process purchases (still need individual account details)
-    let totalPurchases = 0;
-    const purchaseAmount = this.resolveSelectionAmount(selection, '5010', () => Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 5010, 5010)));
-    if (purchaseAmount > 0) {
-      pushRow(['', 'บวก', 'ซื้อสินค้า', '', '', '', '', '', purchaseAmount]);
-      totalPurchases += purchaseAmount;
+    // Process purchases, returns, discounts as grouped lines using selection-first (with provider/legacy fallbacks)
+    const purchases = this.sumInventoryCategory(trialBalanceData, provider, selection, 'inventory_purchases');
+    const purchaseReturns = this.sumInventoryCategory(trialBalanceData, provider, selection, 'inventory_purchase_returns');
+    const purchaseDiscounts = this.sumInventoryCategory(trialBalanceData, provider, selection, 'inventory_purchase_discounts');
+
+    if (purchases.current > 0) {
+      pushRow(['', 'บวก', 'ซื้อสินค้า', '', '', '', '', '', purchases.current]);
+    }
+    if (purchaseReturns.current > 0) {
+      pushRow(['', 'หัก', 'ส่งคืนสินค้า', '', '', '', '', '', purchaseReturns.current]);
+    }
+    if (purchaseDiscounts.current > 0) {
+      pushRow(['', 'หัก', 'ส่วนลดรับ', '', '', '', '', '', purchaseDiscounts.current]);
     }
     
-    // Purchase returns - still need individual calculation
-    const returnAmount = this.resolveSelectionAmount(selection, '5010.1', () => Math.abs(this.getAccountBalance(trialBalanceData, ['5010.1'])));
-    if (returnAmount > 0) {
-      pushRow(['', 'หัก', 'ส่งคืนสินค้า', '', '', '', '', '', returnAmount]);
-      totalPurchases -= returnAmount;
-    }
-    
-    const availableForSale = previousInventory + totalPurchases;
+  const availableForSale = previousInventory + purchases.current - purchaseReturns.current - purchaseDiscounts.current;
     pushRow(['', '', 'สินค้าที่มีไว้เพื่อขาย', '', '', '', '', '', availableForSale]);
     pushRow(['', 'หัก', 'สินค้าคงเหลือปลายงวด', '', '', '', '', '', currentInventory]);
     
@@ -156,33 +157,7 @@ export class DetailOneGenerator {
     pushRow(['', '', 'ต้นทุนสินค้าที่ขาย', '', '', '', '', '', costOfGoodsSold]);
   }
 
-  /**
-   * Helper method: Sum accounts by numeric range
-   */
-  private static sumAccountsByNumericRange(
-    trialBalanceData: TrialBalanceEntry[], 
-    startCode: number, 
-    endCode: number
-  ): number {
-    return trialBalanceData
-      .filter(entry => {
-        const code = parseInt(entry.accountCode || '0');
-        return code >= startCode && code <= endCode;
-      })
-      .reduce((sum, entry) => sum + (entry.balance || 0), 0);
-  }
-
-  /**
-   * Helper method: Get account balance by specific codes
-   */
-  private static getAccountBalance(
-    trialBalanceData: TrialBalanceEntry[], 
-    accountCodes: string[]
-  ): number {
-    return trialBalanceData
-      .filter(entry => accountCodes.includes(entry.accountCode || ''))
-      .reduce((sum, entry) => sum + (entry.balance || 0), 0);
-  }
+  // (legacy helpers removed: sumAccountsByNumericRange, getAccountBalance)
 
   private static getServiceCostAccounts(
     trialBalanceData: TrialBalanceEntry[],
@@ -230,6 +205,45 @@ export class DetailOneGenerator {
     return this.sortAccounts(normalized);
   }
 
+  // (legacy helper removed: getInventoryPurchaseAccounts)
+
+  // NEW: Sum totals for inventory purchases/returns/discounts categories
+  private static sumInventoryCategory(
+    trialBalanceData: TrialBalanceEntry[],
+    provider: IAccountMappingProvider | undefined,
+    selection: SelectionFirstResult | undefined,
+    category: 'inventory_purchases' | 'inventory_purchase_returns' | 'inventory_purchase_discounts'
+  ): { current: number; previous: number } {
+    // Prefer selection-first
+    const selectionAccounts = (selection?.byCategory as any)?.[category] ?? [];
+    if (selectionAccounts.length > 0) {
+      return selectionAccounts.reduce((acc: { current: number; previous: number }, a: any) => {
+        acc.current += Math.abs(a.rawCurrent ?? a.current ?? 0);
+        acc.previous += Math.abs(a.rawPrevious ?? a.previous ?? 0);
+        return acc;
+      }, { current: 0, previous: 0 });
+    }
+
+    // Provider rules fallback
+    const rules = provider?.getRules(category);
+    const rawEntries = rules
+      ? AccountMappingUtils.getMatchingAccounts(trialBalanceData as any[], rules)
+      : trialBalanceData.filter(entry => {
+          const codeStr = (entry.accountCode || '').trim();
+          const codeNum = parseFloat(codeStr || '0');
+          const normalized = codeStr.replace(/\s+/g, '');
+          if (category === 'inventory_purchases') return codeNum === 5010;
+          if (category === 'inventory_purchase_returns') return normalized === '5010.1' || codeNum === 5010.1;
+          return normalized === '5010.2' || codeNum === 5010.2; // discounts
+        });
+
+    return rawEntries.reduce((acc, e) => {
+      acc.current += Math.abs((e.balance ?? (e as any).currentBalance ?? 0) as number);
+      acc.previous += Math.abs((e.previousBalance ?? 0) as number);
+      return acc;
+    }, { current: 0, previous: 0 });
+  }
+
   private static sortAccounts(
     accounts: Array<{ accountCode: string; accountName: string; current: number; previous: number }>
   ): Array<{ accountCode: string; accountName: string; current: number; previous: number }> {
@@ -245,21 +259,5 @@ export class DetailOneGenerator {
     });
   }
 
-  private static resolveSelectionAmount(
-    selection: SelectionFirstResult | undefined,
-    accountCode: string,
-    fallback: () => number
-  ): number {
-    const normalizedCode = accountCode.trim();
-    const account = selection?.byAccount?.[normalizedCode];
-    if (!account) {
-      return fallback();
-    }
-    const rawValue = account.rawCurrent ?? account.current ?? 0;
-    const amount = Math.abs(rawValue);
-    if (amount === 0) {
-      return fallback();
-    }
-    return amount;
-  }
+  // (legacy helper removed: resolveSelectionAmount)
 }

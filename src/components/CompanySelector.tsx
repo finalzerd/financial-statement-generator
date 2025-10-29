@@ -29,7 +29,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     businessDescription: '',
     taxId: '',
     numberOfShares: 1000000,
-    shareValue: 1
+    shareValue: 1,
+    defaultReportingYear: new Date().getFullYear()
   });
 
   const [editForm, setEditForm] = useState({
@@ -40,7 +41,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     businessDescription: '',
     taxId: '',
     numberOfShares: 1000000,
-    shareValue: 1
+    shareValue: 1,
+    defaultReportingYear: new Date().getFullYear()
   });
 
   // Load companies on component mount
@@ -70,7 +72,7 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     try {
       const result = await ApiService.createCompany({
         ...newCompany,
-        defaultReportingYear: new Date().getFullYear()
+        defaultReportingYear: newCompany.defaultReportingYear
       });
       
       // Clear form
@@ -82,7 +84,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
         businessDescription: '',
         taxId: '',
         numberOfShares: 1000000,
-        shareValue: 1
+        shareValue: 1,
+        defaultReportingYear: new Date().getFullYear()
       });
       setShowNewCompanyForm(false);
       
@@ -106,7 +109,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       businessDescription: '',
       taxId: '',
       numberOfShares: 1000000,
-      shareValue: 1
+      shareValue: 1,
+      defaultReportingYear: new Date().getFullYear()
     });
     setShowNewCompanyForm(false);
     setError(null);
@@ -126,7 +130,7 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       
       const result = await ApiService.updateCompany(editingCompany.id, {
         ...editForm,
-        defaultReportingYear: editingCompany.defaultReportingYear
+        defaultReportingYear: editForm.defaultReportingYear
       });
       
       await loadCompanies();
@@ -150,7 +154,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       businessDescription: company.businessDescription || '',
       taxId: company.taxId || '',
       numberOfShares: company.numberOfShares || 1000000,
-      shareValue: company.shareValue || 1
+      shareValue: company.shareValue || 1,
+      defaultReportingYear: company.defaultReportingYear
     });
     setShowNewCompanyForm(false);
   };
@@ -165,7 +170,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       businessDescription: '',
       taxId: '',
       numberOfShares: 1000000,
-      shareValue: 1
+      shareValue: 1,
+      defaultReportingYear: new Date().getFullYear()
     });
   };
 
@@ -323,6 +329,19 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                   disabled={isUpdating}
                 />
               </div>
+              <div className="form-group">
+                <label htmlFor="edit-default-year">ปีรายงานเริ่มต้น / Default Reporting Year *</label>
+                <input
+                  type="number"
+                  id="edit-default-year"
+                  value={editForm.defaultReportingYear}
+                  onChange={e => setEditForm({...editForm, defaultReportingYear: Number(e.target.value) || new Date().getFullYear()})}
+                  disabled={isUpdating}
+                  min="1900"
+                  required
+                />
+                <small className="form-help">รองรับปีพุทธศักราช (พ.ศ.) ได้ เช่น 2568</small>
+              </div>
             </div>
             
             <div className="form-group">
@@ -458,6 +477,19 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                   onChange={e => setNewCompany({...newCompany, registrationNumber: e.target.value})}
                   disabled={isCreating}
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="default-year">ปีรายงานเริ่มต้น / Default Reporting Year *</label>
+                <input
+                  type="number"
+                  id="default-year"
+                  value={newCompany.defaultReportingYear}
+                  onChange={e => setNewCompany({...newCompany, defaultReportingYear: Number(e.target.value) || new Date().getFullYear()})}
+                  disabled={isCreating}
+                  min="1900"
+                  required
+                />
+                <small className="form-help">รองรับปีพุทธศักราช (พ.ศ.) ได้ เช่น 2568</small>
               </div>
             </div>
             

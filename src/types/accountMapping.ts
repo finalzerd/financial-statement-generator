@@ -157,6 +157,21 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',
     balanceSheetSection: 'income_statement'
   },
+  inventory_purchases: {
+    noteNumber: 1,
+    noteTitle: 'ซื้อสินค้า (รายละเอียดที่ 1)',
+    balanceSheetSection: 'income_statement'
+  },
+  inventory_purchase_returns: {
+    noteNumber: 1,
+    noteTitle: 'ส่งคืนสินค้า (รายละเอียดที่ 1)',
+    balanceSheetSection: 'income_statement'
+  },
+  inventory_purchase_discounts: {
+    noteNumber: 1,
+    noteTitle: 'ส่วนลดรับ (รายละเอียดที่ 1)',
+    balanceSheetSection: 'income_statement'
+  },
   
   // Balance Sheet Liabilities
   bank_overdrafts: {
