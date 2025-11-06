@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ApiService } from '../services/apiService';
 import type { 
   CompanyAccountMapping, 
@@ -239,6 +239,42 @@ export function AccountMappingManager({
       setError(err instanceof Error ? err.message : 'Failed to reset mappings');
     }
   };
+
+  // Compute display order based on the smallest starting number among ranges/includes
+  const orderedMappings = useMemo(() => {
+    const getSortKey = (m: CompanyAccountMapping): number => {
+      let minVal = Number.POSITIVE_INFINITY;
+      const ranges = m.accountRanges?.ranges || [];
+      const includes = m.accountRanges?.includes || [];
+      for (const r of ranges) {
+        if (typeof r.from === 'number' && isFinite(r.from)) {
+          if (r.from < minVal) minVal = r.from;
+        }
+      }
+      for (const inc of includes) {
+        const n = typeof inc === 'number' ? inc : parseFloat(String(inc));
+        if (Number.isFinite(n) && n < minVal) minVal = n;
+      }
+      if (!Number.isFinite(minVal)) {
+        // Fallback: push to end, but keep relative order by note number
+        const nn = m.noteNumber ?? 9999;
+        return 1_000_000 + nn;
+      }
+      return minVal;
+    };
+
+    return [...mappings].sort((a, b) => {
+      const ka = getSortKey(a);
+      const kb = getSortKey(b);
+      if (ka !== kb) return ka - kb;
+      // tie-breakers: note number, then title
+      const na = (a.noteNumber ?? 0) - (b.noteNumber ?? 0);
+      if (na !== 0) return na;
+      const ta = (a.noteTitle || '').localeCompare(b.noteTitle || '');
+      if (ta !== 0) return ta;
+      return (a.noteType || '').localeCompare(b.noteType || '');
+    });
+  }, [mappings]);
 
   // Create a missing mapping (e.g., asset_short_term_loans) with sensible defaults
   const handleAddMapping = async () => {
@@ -531,7 +567,7 @@ export function AccountMappingManager({
       )}
 
       <div className="mappings-grid">
-        {mappings.map(mapping => (
+        {orderedMappings.map(mapping => (
           <div key={mapping.noteType} className="mapping-card">
             <div className="mapping-header">
               <h3>Note {mapping.noteNumber}: {mapping.noteTitle}</h3>
