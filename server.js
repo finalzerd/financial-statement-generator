@@ -810,6 +810,40 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
+      noteType: 'selling_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายในการขาย',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5300, to: 5311 }]
+      })
+    },
+    {
+      noteType: 'admin_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายในการบริหาร',
+      accountRanges: JSON.stringify({
+        ranges: [
+          { from: 5312, to: 5350 },
+          { from: 5355, to: 5357 },
+          { from: 5362, to: 5363 }
+        ],
+        includes: [5365]
+      })
+    },
+    {
+      noteType: 'other_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [
+          { from: 5351, to: 5354 },
+          { from: 5358, to: 5361 },
+          { from: 5366, to: 5999 }
+        ],
+        includes: [5364]
+      })
+    },
+    {
       noteType: 'detail_service_costs',
       noteNumber: 1,
       noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',

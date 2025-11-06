@@ -152,6 +152,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ค่าใช้จ่ายในการบริหาร',
     balanceSheetSection: 'income_statement'
   },
+  other_expenses: {
+    noteNumber: 0,
+    noteTitle: 'ค่าใช้จ่ายอื่น',
+    balanceSheetSection: 'income_statement'
+  },
   detail_service_costs: {
     noteNumber: 1,
     noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',
