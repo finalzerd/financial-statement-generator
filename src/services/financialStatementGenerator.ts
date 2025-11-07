@@ -98,7 +98,7 @@ export class FinancialStatementGenerator {
   this.selectionData = selectionForBS;
   const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
   const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-  const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType, selectionForBS);
+  const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
     const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
@@ -197,11 +197,26 @@ export class FinancialStatementGenerator {
   private generateProfitLossStatement(
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year',
-    selection?: SelectionFirstResult
+    processingType: 'single-year' | 'multi-year'
   ): any[][] {
-    // Delegated to ProfitLossBuilder (extracted verbatim)
-    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType, selection);
+    // Use strict selection (no numeric fallback) for all P&L buckets so UI rules drive the result
+    const selectionStrict = SelectionFirstClassifier.classify(
+      trialBalanceData,
+      companyInfo,
+      this.mappingProvider,
+      { disableFallbackFor: [
+        'revenue',
+        'other_income',
+        'detail_service_costs',
+        'selling_expenses',
+        'admin_expenses',
+        'other_expenses',
+        'financial_costs',
+        'income_tax_expense'
+      ] as any }
+    );
+    console.log('[P&L] Using strict selection (no fallback) for P&L categories');
+    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType, selectionStrict);
   }
 
   private generateStatementOfChangesInEquity(
