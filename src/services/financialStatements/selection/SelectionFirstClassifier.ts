@@ -79,7 +79,8 @@ export class SelectionFirstClassifier {
   static classify(
     trialBalanceData: TrialBalanceEntry[],
     company: CompanyInfo,
-    provider?: IAccountMappingProvider
+    provider?: IAccountMappingProvider,
+    options?: { disableFallbackFor?: NoteCategory[] }
   ): SelectionFirstResult {
     const byAccount: Record<string, ClassifiedAccount> = {};
     const byCategory: Record<NoteCategory | 'unmatched', ClassifiedAccount[]> = Object.create(null);
@@ -94,10 +95,11 @@ export class SelectionFirstClassifier {
     });
 
     // Build rule resolvers for speed
+    const disableFallbackSet = new Set<NoteCategory>(options?.disableFallbackFor ?? []);
     const ruleCache = new Map<NoteCategory, ReturnType<typeof SelectionFirstClassifier.buildResolver>>();
     const getResolver = (cat: NoteCategory) => {
       if (ruleCache.has(cat)) return ruleCache.get(cat)!;
-      const resolver = SelectionFirstClassifier.buildResolver(cat, provider);
+      const resolver = SelectionFirstClassifier.buildResolver(cat, provider, disableFallbackSet.has(cat));
       ruleCache.set(cat, resolver);
       return resolver;
     };
@@ -253,7 +255,8 @@ export class SelectionFirstClassifier {
   // Build a predicate using provider rules; fall back to numeric ranges
   private static buildResolver(
     cat: NoteCategory,
-    provider?: IAccountMappingProvider
+    provider?: IAccountMappingProvider,
+    disableFallback: boolean = false
   ) {
     const rules = provider?.getRules(cat);
     const includes = new Set<string>((rules?.includes ?? []).map(String));
@@ -311,7 +314,10 @@ export class SelectionFirstClassifier {
         return { matched: true };
       }
 
-      // Fallback numeric mapping
+      // Fallback numeric mapping (unless disabled for this category)
+      if (disableFallback) {
+        return { matched: false };
+      }
       return { matched: Number.isFinite(codeNum) && fallback(codeNum, codeStr) === true };
     };
   }

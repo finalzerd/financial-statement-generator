@@ -43,6 +43,51 @@ function App() {
 
   const statementGenerator = new FinancialStatementGenerator()
 
+  // Helper: regenerate statements using current TB + company + latest mappings
+  const regenerateFromCurrentState = async () => {
+    if (!selectedCompany?.id || !currentCompanyInfo || !currentTrialBalanceData.length) {
+      console.warn('Regenerate skipped: missing company, trial balance, or company info');
+      return;
+    }
+    setProcessing(true);
+    setError(undefined);
+    try {
+      const [mappingsResult, detailSettingsResult] = await Promise.allSettled([
+        ApiService.getCompanyAccountMappings(selectedCompany.id),
+        ApiService.getCompanyDetailSettings(selectedCompany.id)
+      ]);
+
+      let provider: IAccountMappingProvider = new StaticMappingProvider();
+      let detailSettings: DetailSettings | undefined = undefined;
+      if (mappingsResult.status === 'fulfilled' && Array.isArray(mappingsResult.value) && mappingsResult.value.length > 0) {
+        provider = new DynamicMappingProvider(mappingsResult.value);
+      } else if (mappingsResult.status === 'rejected') {
+        console.warn('Failed to reload account mappings during regenerate, using static defaults:', mappingsResult.reason);
+      }
+      if (detailSettingsResult.status === 'fulfilled') {
+        detailSettings = detailSettingsResult.value;
+      }
+
+      setCurrentMappingProvider(provider);
+
+      const statements = statementGenerator.generateFinancialStatements(
+        currentTrialBalanceData as any,
+        currentCompanyInfo,
+        currentProcessingType,
+        undefined,
+        provider,
+        detailSettings
+      );
+      setFinancialStatements(statements);
+      console.log('Regenerated financial statements with latest mappings');
+    } catch (e: any) {
+      console.error('Regenerate failed:', e);
+      setError(e?.message || 'Regenerate failed');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // Check API health on app start
   useEffect(() => {
     ApiService.checkHealth()
@@ -353,9 +398,8 @@ function App() {
                   companyId={selectedCompany?.id || '1'}
                   trialBalanceData={currentTrialBalanceData}
                   onMappingsChanged={() => {
-                    console.log('Account mappings updated - you may want to regenerate statements');
-                    // Optionally clear financial statements to force regeneration
-                    // setFinancialStatements(null);
+                    console.log('Account mappings updated - regenerating statements with new rules');
+                    regenerateFromCurrentState();
                   }}
                 />
 

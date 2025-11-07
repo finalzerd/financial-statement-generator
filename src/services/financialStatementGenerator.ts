@@ -346,8 +346,21 @@ export class FinancialStatementGenerator {
     this.extractedData = globalData;
     console.log('=== NOTES_DETAIL: Using Global Data Extraction ===');
 
-    const selection = this.selectionData ?? SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
-    this.selectionData = selection;
+  const selection = this.selectionData ?? SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+  this.selectionData = selection;
+
+    // Diagnostics: show rule snapshots used for Detail Two categories
+    try {
+      const rulesSelling = this.mappingProvider?.getRules('selling_expenses') || null;
+      const rulesAdmin = this.mappingProvider?.getRules('admin_expenses') || null;
+      const rulesOther = this.mappingProvider?.getRules('other_expenses') || null;
+      console.log('[DetailTwo][Rules] selling_expenses:', rulesSelling);
+      console.log('[DetailTwo][Rules] admin_expenses:', rulesAdmin);
+      console.log('[DetailTwo][Rules] other_expenses:', rulesOther);
+      console.log('[DetailTwo][Selection sizes] selling:', selection.byCategory?.selling_expenses?.length ?? 0,
+        'admin:', selection.byCategory?.admin_expenses?.length ?? 0,
+        'other:', selection.byCategory?.other_expenses?.length ?? 0);
+    } catch {}
     
     const detailNotes: any[][] = [];
     
@@ -373,10 +386,19 @@ export class FinancialStatementGenerator {
     // Add some spacing
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
-    // Add DT2 - Selling and administrative expenses  
-  const detailTwoStart = detailNotes.length + 1;
-  const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData, selection, detailTwoStart);
+    // Add DT2 - Selling and administrative expenses
+    // Use strict selection (no numeric fallback) for expense buckets so UI rules drive the result
+    const selectionStrict = SelectionFirstClassifier.classify(
+      trialBalanceData,
+      companyInfo,
+      this.mappingProvider,
+      { disableFallbackFor: ['selling_expenses','admin_expenses','other_expenses'] as any }
+    );
+    console.log('[DetailTwo] Using strict selection (no fallback) for selling/admin/other expenses');
+    const detailTwoStart = detailNotes.length + 1;
+    const detailTwoData = DetailTwoGenerator.generateDetailTwo(trialBalanceData, selectionStrict, detailTwoStart);
     detailNotes.push(...detailTwoData);
+    console.log('[DetailTwo] Generated rows:', detailTwoData.length, 'starting at row', detailTwoStart);
     
     return detailNotes;
   }

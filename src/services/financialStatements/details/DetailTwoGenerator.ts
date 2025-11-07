@@ -37,6 +37,19 @@ export class DetailTwoGenerator {
     const otherAccs = selection?.byCategory?.other_expenses ?? [];
     const financialAccs = selection?.byCategory?.financial_costs ?? [];
 
+    // Diagnostics: confirm selection-first buckets being used
+    try {
+      const dbg = {
+        sellingCount: sellingAccs.length,
+        adminCount: adminAccs.length,
+        otherCount: otherAccs.length,
+        sampleSelling: sellingAccs.slice(0, 3).map(a => a.accountCode),
+        sampleAdmin: adminAccs.slice(0, 3).map(a => a.accountCode),
+        sampleOther: otherAccs.slice(0, 3).map(a => a.accountCode)
+      };
+      console.log('[DetailTwo] Selection-first buckets', dbg);
+    } catch {}
+
     const emitAccount = (name: string, sell: number, admin: number, other: number) => {
       const r = pushRow([name, '', '', '', '', '', sell, admin, other]);
       if (firstDetailRow === 0) firstDetailRow = r;
