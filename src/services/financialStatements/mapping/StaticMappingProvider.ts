@@ -21,6 +21,8 @@ const DEFAULT_RULES: Record<string, AccountMappingRules> = {
   long_term_loans_fi: { ranges: [{ from: 2120, to: 2123 }], excludes: [2121] },
   long_term_loans_other: { includes: [2050, 2051, 2052, 2100, 2101, 2102, 2103] },
   other_income: { ranges: [{ from: 4110, to: 4999 }] },
+  // Main revenue from sales/services
+  revenue: { ranges: [{ from: 4000, to: 4099 }] },
   // Other expenses (follow classifier fallback):
   // (5351-5354), (5358-5361), 5364, (5366-5999)
   other_expenses: { 

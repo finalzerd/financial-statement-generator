@@ -142,6 +142,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'รายได้อื่น',
     balanceSheetSection: 'income_statement'
   },
+  revenue: {
+    noteNumber: 0,
+    noteTitle: 'รายได้จากการขายหรือการให้บริการ',
+    balanceSheetSection: 'income_statement'
+  },
   selling_expenses: {
     noteNumber: 0,
     noteTitle: 'ค่าใช้จ่ายในการขาย',

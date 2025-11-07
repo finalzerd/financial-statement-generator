@@ -810,6 +810,14 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
+      noteType: 'revenue',
+      noteNumber: 0,
+      noteTitle: 'รายได้จากการขายหรือการให้บริการ',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 4000, to: 4099 }]
+      })
+    },
+    {
       noteType: 'selling_expenses',
       noteNumber: 0,
       noteTitle: 'ค่าใช้จ่ายในการขาย',
