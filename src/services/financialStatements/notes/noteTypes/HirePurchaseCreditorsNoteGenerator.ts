@@ -5,6 +5,7 @@
 import type { NoteRowTracker } from '../../core/types';
 import type { SelectionFirstResult } from '../../selection/SelectionFirstClassifier';
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
+import type { SubCategoryRuleContainer } from '../../../../types/accountMapping';
 
 interface DetailDefinition {
   code: string;
@@ -13,7 +14,7 @@ interface DetailDefinition {
 }
 
 export class HirePurchaseCreditorsNoteGenerator {
-  private static readonly DETAIL_DEFINITIONS: DetailDefinition[] = [
+  private static readonly DEFAULT_DETAIL_DEFINITIONS: DetailDefinition[] = [
     { code: '2015', label: 'เจ้าหนี้ตามสัญญาเช่าซื้อ', type: 'principal' },
     { code: '1644.2', label: 'หัก ดอกผลเช่าซื้อรอตัดบัญชี', type: 'offset' },
     { code: '1644.1', label: 'หัก ภาษีซื้อรอตัดบัญชี', type: 'offset' }
@@ -26,7 +27,8 @@ export class HirePurchaseCreditorsNoteGenerator {
     processingType: 'single-year' | 'multi-year',
     _trialBalancePrevious?: TrialBalanceEntry[],
     noteNumber: number = 21,
-    selection?: SelectionFirstResult
+    selection?: SelectionFirstResult,
+    subCategoryRules?: SubCategoryRuleContainer | null
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
@@ -59,7 +61,36 @@ export class HirePurchaseCreditorsNoteGenerator {
       rawPrevious: number;
     }> = [];
 
-    for (const def of this.DETAIL_DEFINITIONS) {
+    // Build dynamic definitions if subCategoryRules.hirePurchase is provided
+    let dynamicDefs: DetailDefinition[] | null = null;
+    try {
+      const hp = subCategoryRules?.hirePurchase;
+      if (hp) {
+        const build = (rule: any, label: string, type: 'principal' | 'offset'): DetailDefinition | null => {
+          if (!rule) return null;
+          // Prefer first include; else first range.from as code reference
+          const code = Array.isArray(rule.includes) && rule.includes.length > 0
+            ? String(rule.includes[0])
+            : (Array.isArray(rule.ranges) && rule.ranges.length > 0 ? String(rule.ranges[0].from) : null);
+          if (!code) return null;
+          return { code, label, type };
+        };
+        const principalDef = build(hp.principal, 'เจ้าหนี้ตามสัญญาเช่าซื้อ', 'principal');
+        const interestDef = build(hp.interestDeferred, 'หัก ดอกผลเช่าซื้อรอตัดบัญชี', 'offset');
+        const vatDef = build(hp.vatDeferred, 'หัก ภาษีซื้อรอตัดบัญชี', 'offset');
+        const collected = [principalDef, interestDef, vatDef].filter(Boolean) as DetailDefinition[];
+        if (collected.length > 0) {
+          dynamicDefs = collected;
+          console.log('[HirePurchaseNote] Using dynamic sub-category definitions:', collected.map(d => d.code));
+        }
+      }
+    } catch (e) {
+      console.warn('[HirePurchaseNote] Failed building dynamic definitions, using defaults:', e);
+    }
+
+    const effectiveDefs = dynamicDefs ?? this.DEFAULT_DETAIL_DEFINITIONS;
+
+    for (const def of effectiveDefs) {
       const key = normalize(def.code);
       const selectionEntry = selectionMap.get(key);
       const rawCurrent = selectionEntry?.rawCurrent ?? this.sumRawByCode(trialBalanceData, key, 'current');

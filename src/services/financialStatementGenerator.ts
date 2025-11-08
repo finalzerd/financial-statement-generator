@@ -318,7 +318,8 @@ export class FinancialStatementGenerator {
       processingType,
       trialBalancePrevious,
       noteNumber++,
-      selection
+      selection,
+      this.mappingProvider?.getSubCategoryRules('hire_purchase_creditors') || null
     );
     if (hirePurchaseTracker.headerRows.length > 0) {
       formatters.push({ type: 'hirePurchaseCreditors', tracker: hirePurchaseTracker });

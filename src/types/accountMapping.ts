@@ -33,9 +33,16 @@ export interface CashSubCategoryRuleSet {
   bankDeposits?: SubCategoryRule;  // เงินฝากธนาคาร 1020-1099 typical
 }
 
+export interface HirePurchaseSubCategoryRuleSet {
+  principal?: SubCategoryRule;         // e.g., includes [2015]
+  interestDeferred?: SubCategoryRule;  // e.g., includes [1644.2]
+  vatDeferred?: SubCategoryRule;       // e.g., includes [1644.1]
+}
+
 // Generic container for future categories (only cash implemented now)
 export type SubCategoryRuleContainer = {
   cash?: CashSubCategoryRuleSet;
+  hirePurchase?: HirePurchaseSubCategoryRuleSet;
   // future: receivables?: {...}; etc.
 };
 

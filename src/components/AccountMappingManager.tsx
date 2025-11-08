@@ -39,6 +39,22 @@ interface MappingFormData {
       includes: string;
       excludes: string;
     };
+    // Hire Purchase dynamic components
+    principal?: {
+      ranges: Array<{ from: string; to: string }>;
+      includes: string;
+      excludes: string;
+    };
+    interestDeferred?: {
+      ranges: Array<{ from: string; to: string }>;
+      includes: string;
+      excludes: string;
+    };
+    vatDeferred?: {
+      ranges: Array<{ from: string; to: string }>;
+      includes: string;
+      excludes: string;
+    };
   } | null;
 }
 
@@ -58,6 +74,9 @@ export function AccountMappingManager({
   const [detailSettingsLoaded, setDetailSettingsLoaded] = useState(false);
   const [detailSettingsError, setDetailSettingsError] = useState<string | null>(null);
   const [detailModeSaving, setDetailModeSaving] = useState(false);
+  // Slider state for unmapped accounts visibility
+  const [unmappedVisibleCount, setUnmappedVisibleCount] = useState<number>(50);
+  const [showAllUnmapped, setShowAllUnmapped] = useState<boolean>(false);
 
   // Load mappings on component mount
   useEffect(() => {
@@ -125,18 +144,39 @@ export function AccountMappingManager({
       includes: mapping.accountRanges.includes?.join(', ') || '',
       excludes: mapping.accountRanges.excludes?.join(', ') || '',
       isActive: mapping.isActive,
-      subCategoryRules: mapping.subCategoryRules?.cash ? {
-        cash: {
-          ranges: mapping.subCategoryRules.cash.cash?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
-          includes: mapping.subCategoryRules.cash.cash?.includes?.join(', ') || '',
-          excludes: mapping.subCategoryRules.cash.cash?.excludes?.join(', ') || ''
-        },
-        bankDeposits: {
-          ranges: mapping.subCategoryRules.cash.bankDeposits?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
-          includes: mapping.subCategoryRules.cash.bankDeposits?.includes?.join(', ') || '',
-          excludes: mapping.subCategoryRules.cash.bankDeposits?.excludes?.join(', ') || ''
+      subCategoryRules: (() => {
+        const sc: any = {};
+        if (mapping.subCategoryRules?.cash) {
+          sc.cash = {
+            ranges: mapping.subCategoryRules.cash.cash?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+            includes: mapping.subCategoryRules.cash.cash?.includes?.join(', ') || '',
+            excludes: mapping.subCategoryRules.cash.cash?.excludes?.join(', ') || ''
+          };
+          sc.bankDeposits = {
+            ranges: mapping.subCategoryRules.cash.bankDeposits?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+            includes: mapping.subCategoryRules.cash.bankDeposits?.includes?.join(', ') || '',
+            excludes: mapping.subCategoryRules.cash.bankDeposits?.excludes?.join(', ') || ''
+          };
         }
-      } : null
+        if (mapping.subCategoryRules?.hirePurchase) {
+          sc.principal = {
+            ranges: mapping.subCategoryRules.hirePurchase.principal?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+            includes: mapping.subCategoryRules.hirePurchase.principal?.includes?.join(', ') || '',
+            excludes: mapping.subCategoryRules.hirePurchase.principal?.excludes?.join(', ') || ''
+          };
+          sc.interestDeferred = {
+            ranges: mapping.subCategoryRules.hirePurchase.interestDeferred?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+            includes: mapping.subCategoryRules.hirePurchase.interestDeferred?.includes?.join(', ') || '',
+            excludes: mapping.subCategoryRules.hirePurchase.interestDeferred?.excludes?.join(', ') || ''
+          };
+          sc.vatDeferred = {
+            ranges: mapping.subCategoryRules.hirePurchase.vatDeferred?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
+            includes: mapping.subCategoryRules.hirePurchase.vatDeferred?.includes?.join(', ') || '',
+            excludes: mapping.subCategoryRules.hirePurchase.vatDeferred?.excludes?.join(', ') || ''
+          };
+        }
+        return Object.keys(sc).length ? sc : null;
+      })()
     });
   };
 
@@ -178,9 +218,9 @@ export function AccountMappingManager({
         return;
       }
 
-      // Build subCategoryRules structure (only for cash)
+      // Build subCategoryRules structure (cash + hire purchase)
       let subCategoryRules: any = null;
-      if (formData.noteType === 'cash' && formData.subCategoryRules) {
+      if (formData.subCategoryRules) {
         const buildSub = (sc: { ranges: { from: string; to: string }[]; includes: string; excludes: string }) => {
           const r = sc.ranges
             .filter(r => r.from && r.to)
@@ -200,10 +240,24 @@ export function AccountMappingManager({
             .filter(n => !isNaN(n));
           return { ...(r.length ? { ranges: r } : {}), ...(inc.length ? { includes: inc } : {}), ...(exc.length ? { excludes: exc } : {}) };
         };
-        const cashRules = buildSub(formData.subCategoryRules.cash!);
-        const bankRules = buildSub(formData.subCategoryRules.bankDeposits!);
-        if (Object.keys(cashRules).length || Object.keys(bankRules).length) {
-          subCategoryRules = { cash: { cash: cashRules, bankDeposits: bankRules } };
+        const out: any = {};
+        if (formData.noteType === 'cash' && formData.subCategoryRules.cash && formData.subCategoryRules.bankDeposits) {
+          const cashRules = buildSub(formData.subCategoryRules.cash);
+          const bankRules = buildSub(formData.subCategoryRules.bankDeposits);
+          if (Object.keys(cashRules).length || Object.keys(bankRules).length) {
+            out.cash = { cash: cashRules, bankDeposits: bankRules };
+          }
+        }
+        if (formData.noteType === 'hire_purchase_creditors') {
+          const principalRules = formData.subCategoryRules.principal ? buildSub(formData.subCategoryRules.principal) : {};
+          const interestRules = formData.subCategoryRules.interestDeferred ? buildSub(formData.subCategoryRules.interestDeferred) : {};
+          const vatRules = formData.subCategoryRules.vatDeferred ? buildSub(formData.subCategoryRules.vatDeferred) : {};
+          if (Object.keys(principalRules).length || Object.keys(interestRules).length || Object.keys(vatRules).length) {
+            out.hirePurchase = { principal: principalRules, interestDeferred: interestRules, vatDeferred: vatRules };
+          }
+        }
+        if (Object.keys(out).length) {
+          subCategoryRules = out;
         }
       }
 
@@ -349,17 +403,20 @@ export function AccountMappingManager({
     }
   };
 
-  const addSubRange = (category: 'cash' | 'bankDeposits') => {
+  const addSubRange = (category: 'cash' | 'bankDeposits' | 'principal' | 'interestDeferred' | 'vatDeferred') => {
     if (!formData) return;
     const sc = formData.subCategoryRules || {
       cash: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
-      bankDeposits: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' }
+      bankDeposits: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+      principal: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+      interestDeferred: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+      vatDeferred: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' }
     };
     sc[category]!.ranges = [...sc[category]!.ranges, { from: '', to: '' }];
     setFormData({ ...formData, subCategoryRules: sc });
   };
 
-  const updateSubRange = (category: 'cash' | 'bankDeposits', index: number, field: 'from' | 'to', value: string) => {
+  const updateSubRange = (category: 'cash' | 'bankDeposits' | 'principal' | 'interestDeferred' | 'vatDeferred', index: number, field: 'from' | 'to', value: string) => {
     if (!formData) return;
     if (!formData.subCategoryRules) return;
     const sc = { ...formData.subCategoryRules } as any;
@@ -369,7 +426,7 @@ export function AccountMappingManager({
     setFormData({ ...formData, subCategoryRules: sc });
   };
 
-  const removeSubRange = (category: 'cash' | 'bankDeposits', index: number) => {
+  const removeSubRange = (category: 'cash' | 'bankDeposits' | 'principal' | 'interestDeferred' | 'vatDeferred', index: number) => {
     if (!formData || !formData.subCategoryRules) return;
     const sc = { ...formData.subCategoryRules } as any;
     sc[category]!.ranges = sc[category]!.ranges.filter((_: any, i: number) => i !== index);
@@ -550,16 +607,42 @@ export function AccountMappingManager({
           {validation.unmappedAccounts.length > 0 && (
             <div className="unmapped-accounts">
               <h4>Unmapped Accounts:</h4>
+              <div className="unmapped-controls">
+                <label>
+                  จำนวนที่แสดง: {showAllUnmapped ? validation.unmappedAccounts.length : unmappedVisibleCount} / {validation.unmappedAccounts.length}
+                </label>
+                {!showAllUnmapped && (
+                  <input
+                    type="range"
+                    min={10}
+                    max={Math.min(validation.unmappedAccounts.length, 1000)}
+                    step={10}
+                    value={unmappedVisibleCount}
+                    onChange={(e) => setUnmappedVisibleCount(parseInt(e.target.value) || 10)}
+                    style={{ width: '240px' }}
+                  />
+                )}
+                <div className="unmapped-buttons">
+                  {!showAllUnmapped && validation.unmappedAccounts.length > unmappedVisibleCount && (
+                    <button
+                      className="btn-secondary-small"
+                      onClick={() => setShowAllUnmapped(true)}
+                    >Show All</button>
+                  )}
+                  {showAllUnmapped && (
+                    <button
+                      className="btn-secondary-small"
+                      onClick={() => { setShowAllUnmapped(false); setUnmappedVisibleCount(50); }}
+                    >Collapse</button>
+                  )}
+                </div>
+              </div>
               <ul>
-                {validation.unmappedAccounts.slice(0, 10).map((account, i) => (
+                {(showAllUnmapped ? validation.unmappedAccounts : validation.unmappedAccounts.slice(0, unmappedVisibleCount)).map((account, i) => (
                   <li key={i}>
-                    {account.accountCode}: {account.accountName} 
-                    (Balance: {account.balance.toLocaleString()})
+                    {account.accountCode}: {account.accountName} (Balance: {account.balance.toLocaleString()})
                   </li>
                 ))}
-                {validation.unmappedAccounts.length > 10 && (
-                  <li>... and {validation.unmappedAccounts.length - 10} more</li>
-                )}
               </ul>
             </div>
           )}
@@ -708,6 +791,83 @@ export function AccountMappingManager({
                             <div className="sub-inline-inputs">
                               <input type="text" placeholder="Bank includes" value={sc.bankDeposits?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, bankDeposits: { ...sc.bankDeposits!, includes: e.target.value } } })} />
                               <input type="text" placeholder="Bank excludes" value={sc.bankDeposits?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, bankDeposits: { ...sc.bankDeposits!, excludes: e.target.value } } })} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {formData.noteType === 'hire_purchase_creditors' && (
+                  <div className="form-group">
+                    <label>Hire Purchase Components</label>
+                    {(() => {
+                      if (!formData.subCategoryRules) {
+                        return (
+                          <button
+                            type="button"
+                            className="btn-secondary-small"
+                            onClick={() => setFormData({
+                              ...formData,
+                              subCategoryRules: {
+                                principal: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+                                interestDeferred: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' },
+                                vatDeferred: { ranges: [{ from: '', to: '' }], includes: '', excludes: '' }
+                              }
+                            })}
+                          >Enable Components</button>
+                        );
+                      }
+                      const sc = formData.subCategoryRules;
+                      return (
+                        <div className="sub-category-panels">
+                          <div className="sub-cat-panel">
+                            <h4>เจ้าหนี้ตามสัญญาเช่าซื้อ (Principal)</h4>
+                            {sc.principal?.ranges?.map((r, idx) => (
+                              <div key={idx} className="range-input">
+                                <input type="number" placeholder="From" value={r.from} onChange={(e) => updateSubRange('principal', idx, 'from', e.target.value)} />
+                                <span>to</span>
+                                <input type="number" placeholder="To" value={r.to} onChange={(e) => updateSubRange('principal', idx, 'to', e.target.value)} />
+                                <button className="btn-danger-small" onClick={() => removeSubRange('principal', idx)} disabled={sc.principal!.ranges.length === 1}>Remove</button>
+                              </div>
+                            ))}
+                            <button className="btn-secondary-small" onClick={() => addSubRange('principal')}>Add Principal Range</button>
+                            <div className="sub-inline-inputs">
+                              <input type="text" placeholder="Principal includes" value={sc.principal?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, principal: { ...sc.principal!, includes: e.target.value } } })} />
+                              <input type="text" placeholder="Principal excludes" value={sc.principal?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, principal: { ...sc.principal!, excludes: e.target.value } } })} />
+                            </div>
+                          </div>
+                          <div className="sub-cat-panel">
+                            <h4>ดอกผลเช่าซื้อรอตัดบัญชี (Interest Deferred)</h4>
+                            {sc.interestDeferred?.ranges?.map((r, idx) => (
+                              <div key={idx} className="range-input">
+                                <input type="number" placeholder="From" value={r.from} onChange={(e) => updateSubRange('interestDeferred', idx, 'from', e.target.value)} />
+                                <span>to</span>
+                                <input type="number" placeholder="To" value={r.to} onChange={(e) => updateSubRange('interestDeferred', idx, 'to', e.target.value)} />
+                                <button className="btn-danger-small" onClick={() => removeSubRange('interestDeferred', idx)} disabled={sc.interestDeferred!.ranges.length === 1}>Remove</button>
+                              </div>
+                            ))}
+                            <button className="btn-secondary-small" onClick={() => addSubRange('interestDeferred')}>Add Interest Range</button>
+                            <div className="sub-inline-inputs">
+                              <input type="text" placeholder="Interest includes" value={sc.interestDeferred?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, interestDeferred: { ...sc.interestDeferred!, includes: e.target.value } } })} />
+                              <input type="text" placeholder="Interest excludes" value={sc.interestDeferred?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, interestDeferred: { ...sc.interestDeferred!, excludes: e.target.value } } })} />
+                            </div>
+                          </div>
+                          <div className="sub-cat-panel">
+                            <h4>ภาษีซื้อรอตัดบัญชี (VAT Deferred)</h4>
+                            {sc.vatDeferred?.ranges?.map((r, idx) => (
+                              <div key={idx} className="range-input">
+                                <input type="number" placeholder="From" value={r.from} onChange={(e) => updateSubRange('vatDeferred', idx, 'from', e.target.value)} />
+                                <span>to</span>
+                                <input type="number" placeholder="To" value={r.to} onChange={(e) => updateSubRange('vatDeferred', idx, 'to', e.target.value)} />
+                                <button className="btn-danger-small" onClick={() => removeSubRange('vatDeferred', idx)} disabled={sc.vatDeferred!.ranges.length === 1}>Remove</button>
+                              </div>
+                            ))}
+                            <button className="btn-secondary-small" onClick={() => addSubRange('vatDeferred')}>Add VAT Range</button>
+                            <div className="sub-inline-inputs">
+                              <input type="text" placeholder="VAT includes" value={sc.vatDeferred?.includes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, vatDeferred: { ...sc.vatDeferred!, includes: e.target.value } } })} />
+                              <input type="text" placeholder="VAT excludes" value={sc.vatDeferred?.excludes || ''} onChange={(e) => setFormData({ ...formData, subCategoryRules: { ...sc, vatDeferred: { ...sc.vatDeferred!, excludes: e.target.value } } })} />
                             </div>
                           </div>
                         </div>
