@@ -117,7 +117,7 @@ export class HirePurchaseCreditorsNoteGenerator {
     }
 
     // Header
-    notes.push([noteNumber.toString(), 'เจ้าหนี้ตามสัญญาเช่าซื้อ', '', '', '', '', '', '', 'หน่วย:บาท']);
+    notes.push([noteNumber.toString(), 'หนี้สินตามสัญญาเช่าเงินทุน', '', '', '', '', '', '', 'หน่วย:บาท']);
     tracker.headerRows.push(tracker.currentRow);
     tracker.unitRows.push(tracker.currentRow);
     tracker.currentRow++;
@@ -187,7 +187,7 @@ export class HirePurchaseCreditorsNoteGenerator {
     notes.push([
       '',
       '',
-      'รวมเจ้าหนี้ตามสัญญาเช่าซื้อสุทธิ',
+      'รวมหนี้สินตามสัญญาเช่าเงินทุน',
       '',
       '',
       '',
@@ -198,8 +198,8 @@ export class HirePurchaseCreditorsNoteGenerator {
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    const dueWithinLabel = 'เจ้าหนี้ตามสัญญาเช่าซื้อสุทธิส่วนที่ถึงกำหนดชำระภายในหนึ่งปี';
-    const dueBeyondLabel = 'เจ้าหนี้ตามสัญญาเช่าซื้อสุทธิจากส่วนที่ถึงกำหนดชำระในหนึ่งปี';
+    const dueWithinLabel = 'ส่วนของหนี้สินตามสัญญาเช่าเงินทุนที่ถึงกำหนดชำระภายในหนึ่งปี';
+    const dueBeyondLabel = 'ส่วนของหนี้สินตามสัญญาเช่าเงินทุนจากส่วนที่ถึงกำหนดชำระในหนึ่งปี';
 
     const dueWithinRow = tracker.currentRow;
     notes.push([

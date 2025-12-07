@@ -37,6 +37,9 @@ export class AssetsBuilder {
       : (globalData
           ? globalData.balanceSheetTotals.assets.inventory.current
           : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1500, 1519))));
+    const otherCurrentAssets = sel?.other_current_assets?.current ?? 0;
+    const prevOtherCurrentAssets = sel?.other_current_assets?.previous ?? 0;
+
     // Prepaid expenses removed from presentation
     // PPE (net) = cost - accum depreciation; if selection not present, fallback existing
     const ppeCostCurrent = sel?.ppe_cost?.current ?? 0;
@@ -93,7 +96,7 @@ export class AssetsBuilder {
     // Initialize worksheet data with headers
     const worksheetData: (string | number | { f: string })[][] = [
       [companyInfo.name, '', '', '', '', '', '', '', '', ''],
-      ['งบแสดงฐานะการเงิน', '', '', '', '', '', '', '', '', ''],
+      ['งบฐานะการเงิน', '', '', '', '', '', '', '', '', ''],
       [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
       ['', '', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท', ''],
@@ -123,6 +126,10 @@ export class AssetsBuilder {
     currentRow++;
 
     worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
+    currentAssetRows.push(currentRow);
+    currentRow++;
+
+    worksheetData.push(['', '', 'สินทรัพย์หมุนเวียนอื่น', '', '', '11', otherCurrentAssets, '', processingType === 'multi-year' ? prevOtherCurrentAssets : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
@@ -167,7 +174,7 @@ export class AssetsBuilder {
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'สินทรัพย์อื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
+    worksheetData.push(['', '', 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 

@@ -49,6 +49,7 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'asset_short_term_loans',
   'asset_long_term_loans',
   'hire_purchase_creditors',
+  'other_current_assets',
   'receivables',
   'inventory',
   'inventory_purchases',
@@ -61,8 +62,10 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'bank_overdrafts',
   'short_term_loans',
   'income_tax_payable',
+  'other_current_liabilities',
   'long_term_loans_fi',
   'long_term_loans_other',
+  'other_non_current_liabilities',
   'payables',
   // P&L top lines
   'revenue',

@@ -31,7 +31,10 @@ export interface NoteFormatter {
     | 'assetShortTermLoans'
     | 'assetLongTermLoans'
     | 'hirePurchaseCreditors'
-    | 'bankOverdrafts';
+    | 'bankOverdrafts'
+    | 'otherCurrentAssets'
+    | 'otherCurrentLiabilities'
+    | 'otherNonCurrentLiabilities';
   tracker: NoteRowTracker;
 }
 
@@ -47,6 +50,7 @@ export type NoteCategory =
   | 'inventory_purchase_returns'
   | 'inventory_purchase_discounts'
   | 'prepaid'
+  | 'other_current_assets'
   | 'ppe_cost'
   | 'ppe_accum_depr'
   | 'other_assets'
@@ -54,8 +58,10 @@ export type NoteCategory =
   | 'payables'
   | 'short_term_loans'
   | 'income_tax_payable'
+  | 'other_current_liabilities'
   | 'long_term_loans_fi'
   | 'long_term_loans_other'
+  | 'other_non_current_liabilities'
   | 'other_income'
   | 'detail_service_costs'
   // P&L categories (selection-first for Profit & Loss)

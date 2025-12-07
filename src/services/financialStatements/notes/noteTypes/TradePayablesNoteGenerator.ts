@@ -59,7 +59,7 @@ export class TradePayablesNoteGenerator {
     console.log(`=== PAYABLES NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
 
     // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    notes.push([noteNumber.toString(), 'เจ้าหนี้การค้าและเจ้าหนี้หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
     tracker.headerRows.push(tracker.currentRow);
     tracker.unitRows.push(tracker.currentRow);
     tracker.currentRow++;

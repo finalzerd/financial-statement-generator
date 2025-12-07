@@ -62,6 +62,12 @@ export class LiabilitiesBuilder {
       ? BalanceSheetLinkMap.liabilities.hirePurchaseCreditors(n).current
       : (globalData?.balanceSheetTotals.liabilities.hirePurchaseCreditors?.current ?? 0);
 
+    const otherCurrentLiabilities = sel?.other_current_liabilities?.current ?? 0;
+    const prevOtherCurrentLiabilities = sel?.other_current_liabilities?.previous ?? 0;
+
+    const otherNonCurrentLiabilities = sel?.other_non_current_liabilities?.current ?? 0;
+    const prevOtherNonCurrentLiabilities = sel?.other_non_current_liabilities?.previous ?? 0;
+
     // Equity related values (current)
     const registeredCapital = Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 3000, 3009));
     const paidUpCapital = FinancialCalculations.getSingleAccountBalance(trialBalanceData, '3010');
@@ -120,7 +126,7 @@ export class LiabilitiesBuilder {
     // Initialize worksheet data with headers
     const worksheetData: (string | number | { f: string })[][] = [
       [companyInfo.name, '', '', '', '', '', '', '', '', ''],
-      ['งบแสดงฐานะการเงิน (ต่อ)', '', '', '', '', '', '', '', '', ''],
+      ['งบฐานะการเงิน (ต่อ)', '', '', '', '', '', '', '', '', ''],
       [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
       ['', '', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', '', ''],
@@ -149,6 +155,8 @@ export class LiabilitiesBuilder {
       prevTradeAndOtherPayables,
       prevShortTermBorrowings,
       prevIncomeTaxPayable,
+      otherCurrentLiabilities,
+      prevOtherCurrentLiabilities,
       processingType
     );
 
@@ -161,6 +169,8 @@ export class LiabilitiesBuilder {
       prevLongTermLoansFromFI,
       prevOtherLongTermLoans,
       prevHirePurchaseCreditors,
+      otherNonCurrentLiabilities,
+      prevOtherNonCurrentLiabilities,
       processingType
     );
 
@@ -197,6 +207,8 @@ export class LiabilitiesBuilder {
     prevTradeAndOtherPayables: number,
     prevShortTermBorrowings: number,
     prevIncomeTaxPayable: number,
+    otherCurrentLiabilities: number,
+    prevOtherCurrentLiabilities: number,
     processingType: 'single-year' | 'multi-year'
   ) {
     worksheetData.push(['', 'หนี้สินหมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
@@ -207,7 +219,7 @@ export class LiabilitiesBuilder {
     cellTracker.currentRow++;
 
     // Always include trade payables - VBA always shows this
-    worksheetData.push(['', '', 'เจ้าหนี้การค้าและเจ้าหนี้อื่น', '', '', '16', tradeAndOtherPayables, '', processingType === 'multi-year' ? prevTradeAndOtherPayables : '', '']);
+    worksheetData.push(['', '', 'เจ้าหนี้การค้าและเจ้าหนี้หมุนเวียนอื่น', '', '', '16', tradeAndOtherPayables, '', processingType === 'multi-year' ? prevTradeAndOtherPayables : '', '']);
     cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
@@ -216,6 +228,10 @@ export class LiabilitiesBuilder {
     cellTracker.currentRow++;
 
     worksheetData.push(['', '', 'ภาษีเงินได้นิติบุคคลค้างจ่าย', '', '', '18', incomeTaxPayable, '', processingType === 'multi-year' ? prevIncomeTaxPayable : '', '']);
+    cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
+
+    worksheetData.push(['', '', 'หนี้สินหมุนเวียนอื่น', '', '', '19', otherCurrentLiabilities, '', processingType === 'multi-year' ? prevOtherCurrentLiabilities : '', '']);
     cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
@@ -236,6 +252,8 @@ export class LiabilitiesBuilder {
     prevLongTermLoansFromFI: number,
     prevOtherLongTermLoans: number,
     prevHirePurchaseCreditors: number,
+    otherNonCurrentLiabilities: number,
+    prevOtherNonCurrentLiabilities: number,
     processingType: 'single-year' | 'multi-year'
   ) {
     worksheetData.push(['', 'หนี้สินไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
@@ -249,7 +267,11 @@ export class LiabilitiesBuilder {
     cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
-    worksheetData.push(['', '', 'เจ้าหนี้ตามสัญญาเช่าซื้อ', '', '', '21', hirePurchaseCreditors, '', processingType === 'multi-year' ? prevHirePurchaseCreditors : '', '']);
+    worksheetData.push(['', '', 'หนี้สินไม่หมุนเวียนอื่น', '', '', '22', otherNonCurrentLiabilities, '', processingType === 'multi-year' ? prevOtherNonCurrentLiabilities : '', '']);
+    cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
+    cellTracker.currentRow++;
+
+    worksheetData.push(['', '', 'หนี้สินตามสัญญาเช่าเงินทุน', '', '', '21', hirePurchaseCreditors, '', processingType === 'multi-year' ? prevHirePurchaseCreditors : '', '']);
     cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 

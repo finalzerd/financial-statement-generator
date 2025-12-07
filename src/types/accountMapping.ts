@@ -129,6 +129,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ค่าใช้จ่ายจ่ายล่วงหน้า',
     balanceSheetSection: 'current_assets'
   },
+  other_current_assets: {
+    noteNumber: 11,
+    noteTitle: 'สินทรัพย์หมุนเวียนอื่น',
+    balanceSheetSection: 'current_assets'
+  },
   ppe_cost: {
     noteNumber: 11,
     noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
@@ -211,6 +216,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ภาษีเงินได้นิติบุคคลค้างจ่าย',
     balanceSheetSection: 'current_liabilities'
   },
+  other_current_liabilities: {
+    noteNumber: 19,
+    noteTitle: 'หนี้สินหมุนเวียนอื่น',
+    balanceSheetSection: 'current_liabilities'
+  },
   long_term_loans_fi: {
     noteNumber: 19,
     noteTitle: 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
@@ -224,6 +234,11 @@ export const STANDARD_NOTE_TYPES = {
   long_term_loans_other: {
     noteNumber: 20,
     noteTitle: 'เงินกู้ยืมระยะยาวอื่น',
+    balanceSheetSection: 'non_current_liabilities'
+  },
+  other_non_current_liabilities: {
+    noteNumber: 22,
+    noteTitle: 'หนี้สินไม่หมุนเวียนอื่น',
     balanceSheetSection: 'non_current_liabilities'
   }
 } as const;

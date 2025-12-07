@@ -1582,6 +1582,11 @@ export class ExcelJSFormatter {
         case 'bankOverdrafts':
           this.formatBankOverdraftsNote(worksheet, formatter.tracker);
           break;
+        case 'otherCurrentAssets':
+        case 'otherCurrentLiabilities':
+        case 'otherNonCurrentLiabilities':
+          this.formatGeneralNote(worksheet, formatter.tracker);
+          break;
         default:
           this.formatGeneralNote(worksheet, formatter.tracker);
       }

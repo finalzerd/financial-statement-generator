@@ -16,6 +16,9 @@ import {
   ShortTermLoansNoteGenerator,
   BankOverdraftsNoteGenerator,
   OtherAssetsNoteGenerator,
+  OtherCurrentAssetsNoteGenerator,
+  OtherCurrentLiabilitiesNoteGenerator,
+  OtherNonCurrentLiabilitiesNoteGenerator,
   AssetLongTermLoansNoteGenerator,
   HirePurchaseCreditorsNoteGenerator,
   OtherLongTermLoansNoteGenerator,
@@ -284,6 +287,11 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'assetShortTermLoans', tracker: shortTermLoansTracker });
     }
 
+    const otherCurrentAssetsTracker = OtherCurrentAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (otherCurrentAssetsTracker.headerRows.length > 0) {
+      formatters.push({ type: 'otherCurrentAssets', tracker: otherCurrentAssetsTracker });
+    }
+
     // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting (should come before Payables)
   const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (ppeTracker.headerRows.length > 0) {
@@ -299,6 +307,11 @@ export class FinancialStatementGenerator {
     const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
     if (payablesTracker.headerRows.length > 0) {
       formatters.push({ type: 'payables', tracker: payablesTracker });
+    }
+
+    const otherCurrentLiabilitiesTracker = OtherCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (otherCurrentLiabilitiesTracker.headerRows.length > 0) {
+      formatters.push({ type: 'otherCurrentLiabilities', tracker: otherCurrentLiabilitiesTracker });
     }
     
     const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
@@ -328,6 +341,11 @@ export class FinancialStatementGenerator {
     const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
     if (otherLongTermLoansTracker.headerRows.length > 0) {
       formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });
+    }
+
+    const otherNonCurrentLiabilitiesTracker = OtherNonCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    if (otherNonCurrentLiabilitiesTracker.headerRows.length > 0) {
+      formatters.push({ type: 'otherNonCurrentLiabilities', tracker: otherNonCurrentLiabilitiesTracker });
     }
     
   const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);

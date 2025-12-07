@@ -16,6 +16,9 @@ export { HirePurchaseCreditorsNoteGenerator } from './HirePurchaseCreditorsNoteG
 export { OtherLongTermLoansNoteGenerator } from './OtherLongTermLoansNoteGenerator';
 export { RelatedPartyLoansNoteGenerator } from './RelatedPartyLoansNoteGenerator';
 export { BankOverdraftsNoteGenerator } from './BankOverdraftsNoteGenerator';
+export { OtherCurrentAssetsNoteGenerator } from './OtherCurrentAssetsNoteGenerator';
+export { OtherCurrentLiabilitiesNoteGenerator } from './OtherCurrentLiabilitiesNoteGenerator';
+export { OtherNonCurrentLiabilitiesNoteGenerator } from './OtherNonCurrentLiabilitiesNoteGenerator';
 export { ExpensesByNatureNoteGenerator } from './ExpensesByNatureNoteGenerator';
 export { FinancialApprovalNoteGenerator } from './FinancialApprovalNoteGenerator';
 
