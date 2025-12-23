@@ -1,5 +1,5 @@
 import { FinancialCalculations } from '../../financialCalculations';
-import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
+import type { TrialBalanceEntry, CompanyInfo, BalanceSheetResult } from '../../../types/financial';
 import type { CellTracker, DetailedFinancialData } from '../core/types';
 import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 import { BalanceSheetLinkMap, NOTE_FIRST_MODE } from '../core/linking/balanceSheetLinkMap';
@@ -14,7 +14,7 @@ export class LiabilitiesBuilder {
     processingType: 'single-year' | 'multi-year',
     globalData?: DetailedFinancialData,
     selection?: SelectionFirstResult
-  ): (string | number | { f: string })[][] {
+  ): BalanceSheetResult {
     const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
     const liabilityAndEquityTerm = isLimitedPartnership ? 'หนี้สินและส่วนของผู้เป็นหุ้นส่วน' : 'หนี้สินและส่วนของผู้ถือหุ้น';
     const equityTerm = isLimitedPartnership ? 'ส่วนของผู้เป็นหุ้นส่วน' : 'ส่วนของผู้ถือหุ้น';
@@ -189,11 +189,35 @@ export class LiabilitiesBuilder {
       processingType
     );
 
-    // Footer
-    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    // Footer with director signature block
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']); // Blank spacer
     worksheetData.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '', '']);
+    
+    // Approval meeting line
+    const meetingNumber = companyInfo.approvalMeetingNumber || '....';
+    const meetingDate = companyInfo.approvalMeetingDate || '....';
+    worksheetData.push([`งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมสามัญผู้ถือหุ้นครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`, '', '', '', '', '', '', '', '', '']);
+    
+    // Certification line
+    worksheetData.push(['ขอรับรองว่าเป็นรายการอันถูกต้องและเป็นความจริง', '', '', '', '', '', '', '', '', '']);
+    
+    // Two blank rows
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    worksheetData.push(['', '', '', '', '', '', '', '', '', '']);
+    
+    // Signature line (row to be center-aligned)
+    const signatureRowIndex = worksheetData.length + 1; // 1-based
+    worksheetData.push(['ลงชื่อ ………………………………..................................... กรรมการตามอำนาจ', '', '', '', '', '', '', '', '', '']);
+    
+    // Director name line (row to be center-aligned)
+    const directorNameRowIndex = worksheetData.length + 1; // 1-based
+    const directorName = companyInfo.directorName || '...........................';
+    worksheetData.push([`(${directorName})`, '', '', '', '', '', '', '', '', '']);
 
-    return worksheetData;
+    return {
+      data: worksheetData,
+      signatureRows: [signatureRowIndex, directorNameRowIndex]
+    };
   }
 
   private static buildCurrentLiabilitiesSection(

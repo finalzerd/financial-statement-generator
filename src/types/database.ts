@@ -13,6 +13,10 @@ export interface Company {
   // Share information for บริษัทจำกัด
   numberOfShares?: number; // จำนวนหุ้นสามัญ
   shareValue?: number; // มูลค่าหุ้นสามัญ (บาทต่อหุ้น)
+  // Director signature fields
+  directorName?: string;
+  approvalMeetingNumber?: string;
+  approvalMeetingDate?: string;
   createdAt: Date;
   updatedAt: Date;
 }

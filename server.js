@@ -39,6 +39,24 @@ db.run('ALTER TABLE companies ADD COLUMN default_reporting_year INTEGER', (err) 
   // Ignore error if column already exists
 });
 
+// Add tax_id column if it doesn't exist (bug fix - was in code but never created in DB)
+db.run('ALTER TABLE companies ADD COLUMN tax_id TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
+// Add director signature fields
+db.run('ALTER TABLE companies ADD COLUMN director_name TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
+db.run('ALTER TABLE companies ADD COLUMN approval_meeting_number TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
+db.run('ALTER TABLE companies ADD COLUMN approval_meeting_date TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
 // Ensure company_account_mappings table exists
 db.run(`
   CREATE TABLE IF NOT EXISTS company_account_mappings (
@@ -85,6 +103,9 @@ const mapDbRowToCompany = (row) => ({
   numberOfShares: row.number_of_shares,
   shareValue: row.share_value,
   defaultReportingYear: row.default_reporting_year || new Date().getFullYear(),
+  directorName: row.director_name,
+  approvalMeetingNumber: row.approval_meeting_number,
+  approvalMeetingDate: row.approval_meeting_date,
   createdAt: new Date(row.created_at),
   updatedAt: new Date(row.updated_at || row.created_at)
 });
@@ -147,7 +168,10 @@ app.post('/api/companies', (req, res) => {
     taxId, 
     defaultReportingYear,
     numberOfShares,
-    shareValue
+    shareValue,
+    directorName,
+    approvalMeetingNumber,
+    approvalMeetingDate
   } = req.body;
   
   if (!name || !type) {
@@ -162,10 +186,11 @@ app.post('/api/companies', (req, res) => {
   const now = new Date().toISOString();
   const query = `
     INSERT INTO companies (
-      name, thai_name, company_type, registration_number, address, business_type,
-      phone, email, number_of_shares, share_value, default_reporting_year, created_at, updated_at
+      name, thai_name, company_type, registration_number, address, business_type, tax_id,
+      phone, email, number_of_shares, share_value, default_reporting_year,
+      director_name, approval_meeting_number, approval_meeting_date, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(query, [
@@ -174,10 +199,14 @@ app.post('/api/companies', (req, res) => {
     type, 
     registrationNumber, 
     address, 
-    businessDescription, 
+    businessDescription,
+    taxId,
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
     defaultReportingYear || new Date().getFullYear(),
+    directorName || null,
+    approvalMeetingNumber || null,
+    approvalMeetingDate || null,
     now,
     now
   ], function(err) {
@@ -225,7 +254,10 @@ app.put('/api/companies/:id', (req, res) => {
     taxId,
     numberOfShares,
     shareValue,
-    defaultReportingYear
+    defaultReportingYear,
+    directorName,
+    approvalMeetingNumber,
+    approvalMeetingDate
   } = req.body;
   
   if (!name || !type) {
@@ -241,8 +273,9 @@ app.put('/api/companies/:id', (req, res) => {
   const query = `
     UPDATE companies 
     SET name = ?, thai_name = ?, company_type = ?, registration_number = ?, 
-        address = ?, business_type = ?, number_of_shares = ?, share_value = ?,
-        default_reporting_year = ?, updated_at = ?
+        address = ?, business_type = ?, tax_id = ?, number_of_shares = ?, share_value = ?,
+        default_reporting_year = ?, director_name = ?, approval_meeting_number = ?, 
+        approval_meeting_date = ?, updated_at = ?
     WHERE id = ?
   `;
 
@@ -252,10 +285,14 @@ app.put('/api/companies/:id', (req, res) => {
     type, 
     registrationNumber, 
     address, 
-    businessDescription, 
+    businessDescription,
+    taxId,
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
     defaultReportingYear || new Date().getFullYear(),
+    directorName || null,
+    approvalMeetingNumber || null,
+    approvalMeetingDate || null,
     now,
     companyId
   ], function(err) {

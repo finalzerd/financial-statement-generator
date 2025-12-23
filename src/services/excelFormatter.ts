@@ -225,7 +225,7 @@ export class ExcelJSFormatter {
   /**
    * Format Balance Sheet Assets (no green background)
    */
-  static formatBalanceSheetAssets(worksheet: ExcelJS.Worksheet): void {
+  static formatBalanceSheetAssets(worksheet: ExcelJS.Worksheet, signatureRows?: number[]): void {
     console.log('Applying professional Thai Balance Sheet formatting (no green background)');
     
     // Set column widths with font size adjustment for Balance Sheet format
@@ -258,6 +258,22 @@ export class ExcelJSFormatter {
     this.formatAccountLinesProfessional(worksheet);
     this.formatTotalLinesProfessional(worksheet);
     this.setRowHeightsProfessional(worksheet);
+    
+    // Apply center-across-selection formatting for signature rows
+    if (signatureRows && signatureRows.length > 0) {
+      console.log('Applying center-across-selection formatting to signature rows:', signatureRows);
+      signatureRows.forEach(rowIndex => {
+        const row = worksheet.getRow(rowIndex);
+        
+        // For center-across-selection: merge cells A:I for this row
+        // This will center the text from column A across the merged range
+        worksheet.mergeCells(rowIndex, 1, rowIndex, 9); // Merge A:I
+        
+        // Then apply center alignment to the merged cell
+        const mergedCell = row.getCell(1);
+        mergedCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+    }
     
     // Debug height calculations after setting heights
     this.debugHeightCalculations(worksheet);

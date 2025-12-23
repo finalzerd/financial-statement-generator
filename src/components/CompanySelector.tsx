@@ -30,7 +30,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     taxId: '',
     numberOfShares: 1000000,
     shareValue: 1,
-    defaultReportingYear: new Date().getFullYear()
+    defaultReportingYear: new Date().getFullYear(),
+    directorName: '',
+    approvalMeetingNumber: '',
+    approvalMeetingDate: ''
   });
 
   const [editForm, setEditForm] = useState({
@@ -42,7 +45,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     taxId: '',
     numberOfShares: 1000000,
     shareValue: 1,
-    defaultReportingYear: new Date().getFullYear()
+    defaultReportingYear: new Date().getFullYear(),
+    directorName: '',
+    approvalMeetingNumber: '',
+    approvalMeetingDate: ''
   });
 
   // Load companies on component mount
@@ -85,7 +91,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
         taxId: '',
         numberOfShares: 1000000,
         shareValue: 1,
-        defaultReportingYear: new Date().getFullYear()
+        defaultReportingYear: new Date().getFullYear(),
+        directorName: '',
+        approvalMeetingNumber: '',
+        approvalMeetingDate: ''
       });
       setShowNewCompanyForm(false);
       
@@ -110,7 +119,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       taxId: '',
       numberOfShares: 1000000,
       shareValue: 1,
-      defaultReportingYear: new Date().getFullYear()
+      defaultReportingYear: new Date().getFullYear(),
+      directorName: '',
+      approvalMeetingNumber: '',
+      approvalMeetingDate: ''
     });
     setShowNewCompanyForm(false);
     setError(null);
@@ -155,7 +167,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       taxId: company.taxId || '',
       numberOfShares: company.numberOfShares || 1000000,
       shareValue: company.shareValue || 1,
-      defaultReportingYear: company.defaultReportingYear
+      defaultReportingYear: company.defaultReportingYear,
+      directorName: company.directorName || '',
+      approvalMeetingNumber: company.approvalMeetingNumber || '',
+      approvalMeetingDate: company.approvalMeetingDate || ''
     });
     setShowNewCompanyForm(false);
   };
@@ -171,7 +186,10 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       taxId: '',
       numberOfShares: 1000000,
       shareValue: 1,
-      defaultReportingYear: new Date().getFullYear()
+      defaultReportingYear: new Date().getFullYear(),
+      directorName: '',
+      approvalMeetingNumber: '',
+      approvalMeetingDate: ''
     });
   };
 
@@ -415,6 +433,46 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
               </>
             )}
             
+            {/* Director signature fields */}
+            <div className="form-group">
+              <label htmlFor="edit-director-name">ชื่อกรรมการ</label>
+              <input
+                type="text"
+                id="edit-director-name"
+                value={editForm.directorName}
+                onChange={e => setEditForm({...editForm, directorName: e.target.value})}
+                disabled={isUpdating}
+                placeholder="ชื่อกรรมการผู้มีอำนาจลงนาม"
+              />
+              <small className="form-help">ชื่อกรรมการที่จะแสดงในส่วนท้ายงบการเงิน</small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="edit-approval-meeting-number">ครั้งที่ประชุม</label>
+              <input
+                type="text"
+                id="edit-approval-meeting-number"
+                value={editForm.approvalMeetingNumber}
+                onChange={e => setEditForm({...editForm, approvalMeetingNumber: e.target.value})}
+                disabled={isUpdating}
+                placeholder="เช่น 1/2567"
+              />
+              <small className="form-help">ครั้งที่ประชุมสามัญผู้ถือหุ้นที่อนุมัติงบการเงิน</small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="edit-approval-meeting-date">วันที่ประชุม</label>
+              <input
+                type="text"
+                id="edit-approval-meeting-date"
+                value={editForm.approvalMeetingDate}
+                onChange={e => setEditForm({...editForm, approvalMeetingDate: e.target.value})}
+                disabled={isUpdating}
+                placeholder="เช่น 28 มีนาคม 2567"
+              />
+              <small className="form-help">วันที่ประชุมอนุมัติงบการเงิน (ข้อความอิสระ)</small>
+            </div>
+            
             <div className="form-actions">
               <button
                 type="submit"
@@ -563,6 +621,46 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                 </div>
               </>
             )}
+            
+            {/* Director signature fields */}
+            <div className="form-group">
+              <label htmlFor="director-name">ชื่อกรรมการ</label>
+              <input
+                type="text"
+                id="director-name"
+                value={newCompany.directorName}
+                onChange={e => setNewCompany({...newCompany, directorName: e.target.value})}
+                disabled={isCreating}
+                placeholder="ชื่อกรรมการผู้มีอำนาจลงนาม"
+              />
+              <small className="form-help">ชื่อกรรมการที่จะแสดงในส่วนท้ายงบการเงิน</small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="approval-meeting-number">ครั้งที่ประชุม</label>
+              <input
+                type="text"
+                id="approval-meeting-number"
+                value={newCompany.approvalMeetingNumber}
+                onChange={e => setNewCompany({...newCompany, approvalMeetingNumber: e.target.value})}
+                disabled={isCreating}
+                placeholder="เช่น 1/2567"
+              />
+              <small className="form-help">ครั้งที่ประชุมสามัญผู้ถือหุ้นที่อนุมัติงบการเงิน</small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="approval-meeting-date">วันที่ประชุม</label>
+              <input
+                type="text"
+                id="approval-meeting-date"
+                value={newCompany.approvalMeetingDate}
+                onChange={e => setNewCompany({...newCompany, approvalMeetingDate: e.target.value})}
+                disabled={isCreating}
+                placeholder="เช่น 28 มีนาคม 2567"
+              />
+              <small className="form-help">วันที่ประชุมอนุมัติงบการเงิน (ข้อความอิสระ)</small>
+            </div>
             
             <div className="form-actions">
               <button

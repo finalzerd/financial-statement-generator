@@ -99,8 +99,8 @@ export class FinancialStatementGenerator {
   // Compute selection-first classification once for BS linkage as well
   const selectionForBS = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
   this.selectionData = selectionForBS;
-  const balanceSheetAssets = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-  const balanceSheetLiabilities = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
+  const balanceSheetAssetsResult = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
+  const balanceSheetLiabilitiesResult = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
   const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
@@ -109,8 +109,10 @@ export class FinancialStatementGenerator {
 
     return {
       balanceSheet: {
-        assets: balanceSheetAssets,
-        liabilities: balanceSheetLiabilities
+        assets: balanceSheetAssetsResult.data,
+        liabilities: balanceSheetLiabilitiesResult.data,
+        assetsSignatureRows: balanceSheetAssetsResult.signatureRows,
+        liabilitiesSignatureRows: balanceSheetLiabilitiesResult.signatureRows
       },
       profitLossStatement,
       changesInEquity: statementOfChangesInEquity,
@@ -133,11 +135,11 @@ export class FinancialStatementGenerator {
 
     // Create Balance Sheet - Assets
     const assetsWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Assets', statements.balanceSheet.assets);
-    ExcelJSFormatter.formatBalanceSheetAssets(assetsWs);
+    ExcelJSFormatter.formatBalanceSheetAssets(assetsWs, statements.balanceSheet.assetsSignatureRows);
 
     // Create Balance Sheet - Liabilities
     const liabilitiesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Liabilities', statements.balanceSheet.liabilities);
-    ExcelJSFormatter.formatBalanceSheetAssets(liabilitiesWs); // Use available formatter
+    ExcelJSFormatter.formatBalanceSheetAssets(liabilitiesWs, statements.balanceSheet.liabilitiesSignatureRows); // Pass signature rows
 
     // Create Profit & Loss Statement
     const plWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'P&L', statements.profitLossStatement);

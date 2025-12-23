@@ -21,6 +21,10 @@ export interface CompanyInfo {
   reportingYear: number;
   shares?: number; // Number of shares for Limited Company
   shareValue?: number; // Par value per share for Limited Company
+  // Director signature fields
+  directorName?: string;
+  approvalMeetingNumber?: string;
+  approvalMeetingDate?: string;
 }
 
 export interface SheetValidation {
@@ -70,4 +74,10 @@ export interface UploadedFile {
   name: string;
   size: number;
   type: string;
+}
+
+// Balance Sheet result with signature row metadata for formatting
+export interface BalanceSheetResult {
+  data: (string | number | { f: string })[][];
+  signatureRows: number[]; // Row indices (1-based) for center-across-selection formatting
 }
