@@ -34,7 +34,7 @@ export class ExpensesByNatureNoteGenerator {
     console.log(`=== EXPENSES BY NATURE NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
 
     // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'ค่าใช้จ่ายจำแนกตามลักษณะของค่าใช้จ่าย', '', '', '', '', '', '', 'หน่วย:บาท']);
+    notes.push([noteNumber.toString(), 'ค่าใช้จ่ายจำแนกตามธรรมชาติของค่าใช้จ่าย', '', '', '', '', '', '', 'หน่วย:บาท']);
     tracker.headerRows.push(tracker.currentRow);
     tracker.unitRows.push(tracker.currentRow);
     tracker.currentRow++;
