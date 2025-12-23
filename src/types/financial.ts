@@ -57,10 +57,12 @@ export interface InventoryInfo {
 export interface FinancialStatements {
   balanceSheet: any;
   profitLossStatement: any;
+  profitLossSignatureRows?: number[];
   notes: (string | number | {f: string})[][];
   accountingNotes: (string | number | {f: string})[][];
   accountingNotesFormatters?: any[]; // Row tracking formatters for specific note formatting
   changesInEquity?: any;
+  changesInEquitySignatureRows?: number[];
   detailNotes?: {
     detail1?: (string | number | {f: string})[][];
     detail2?: (string | number | {f: string})[][];
@@ -76,8 +78,11 @@ export interface UploadedFile {
   type: string;
 }
 
-// Balance Sheet result with signature row metadata for formatting
-export interface BalanceSheetResult {
+// Generic statement result with signature row metadata for formatting
+export interface StatementResult {
   data: (string | number | { f: string })[][];
   signatureRows: number[]; // Row indices (1-based) for center-across-selection formatting
 }
+
+// Alias for backward compatibility
+export type BalanceSheetResult = StatementResult;

@@ -290,7 +290,7 @@ export class ExcelJSFormatter {
   /**
    * Format Statement of Changes in Equity (no green background, SCE-specific layout)
    */
-  static formatStatementOfChangesInEquity(worksheet: ExcelJS.Worksheet): void {
+  static formatStatementOfChangesInEquity(worksheet: ExcelJS.Worksheet, signatureRows?: number[]): void {
     console.log('Applying SCE-specific formatting (no green background)');
     
     // Set column widths based on VBA specification for Statement of Changes in Equity

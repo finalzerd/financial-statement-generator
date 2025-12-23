@@ -1,7 +1,7 @@
 // ============================================================================
 // PROFIT & LOSS STATEMENT BUILDER (EXTRACTED)
 // ============================================================================
-import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
+import type { TrialBalanceEntry, CompanyInfo, StatementResult } from '../../../types/financial';
 import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 
 /**
@@ -15,7 +15,7 @@ export class ProfitLossBuilder {
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
     selection?: SelectionFirstResult
-  ): any[][] {
+  ): StatementResult {
     console.log('=== PROFITLOSS BUILDER START ===');
   const sel = selection?.totals as Record<string, { current: number; previous: number }> | undefined;
     // STRICT SELECTION-FIRST: Do not fall back to numeric ranges. If a bucket is undefined -> treat as 0.
@@ -48,7 +48,7 @@ export class ProfitLossBuilder {
 
     console.log('[P&L Strict] Components (no numeric fallback):', { revenue, otherIncome, costOfServices, sellingExpenses, adminExpenses, otherExpenses, incomeTax, financialCosts });
 
-    return [
+    const plData = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['งบกำไรขาดทุน จำแนกค่าใช้จ่ายตามหน้าที่ - แบบขั้นเดียว', '', '', '', '', '', '', '', ''],
       [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ 1 มกราคม ${companyInfo.reportingYear} ถึงวันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
@@ -74,5 +74,25 @@ export class ProfitLossBuilder {
       ['', '', '', '', '', '', '', '', ''],
       ['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']
     ];
+    
+    // Add director signature block
+    const meetingNumber = companyInfo.approvalMeetingNumber || '....';
+    const meetingDate = companyInfo.approvalMeetingDate || '....';
+    plData.push([`งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมสามัญผู้ถือหุ้นครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`, '', '', '', '', '', '', '', '']);
+    plData.push(['ขอรับรองว่าเป็นรายการอันถูกต้องและเป็นความจริง', '', '', '', '', '', '', '', '']);
+    plData.push(['', '', '', '', '', '', '', '', '']);
+    plData.push(['', '', '', '', '', '', '', '', '']);
+    
+    const signatureRowIndex = plData.length + 1;
+    plData.push(['ลงชื่อ ……………………..................................... กรรมการตามอำนาจ', '', '', '', '', '', '', '', '']);
+    
+    const directorNameRowIndex = plData.length + 1;
+    const directorName = companyInfo.directorName || '...........................';
+    plData.push([`(${directorName})`, '', '', '', '', '', '', '', '']);
+
+    return {
+      data: plData,
+      signatureRows: [signatureRowIndex, directorNameRowIndex]
+    };
   }
 }

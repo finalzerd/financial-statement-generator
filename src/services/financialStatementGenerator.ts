@@ -101,8 +101,8 @@ export class FinancialStatementGenerator {
   this.selectionData = selectionForBS;
   const balanceSheetAssetsResult = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
   const balanceSheetLiabilitiesResult = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-  const profitLossStatement = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
-    const statementOfChangesInEquity = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
+  const profitLossResult = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
+    const changesInEquityResult = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
     const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
     const detailNotes = this.generateDetailNotes(trialBalanceData, companyInfo);
@@ -114,8 +114,10 @@ export class FinancialStatementGenerator {
         assetsSignatureRows: balanceSheetAssetsResult.signatureRows,
         liabilitiesSignatureRows: balanceSheetLiabilitiesResult.signatureRows
       },
-      profitLossStatement,
-      changesInEquity: statementOfChangesInEquity,
+      profitLossStatement: profitLossResult.data,
+      profitLossSignatureRows: profitLossResult.signatureRows,
+      changesInEquity: changesInEquityResult.data,
+      changesInEquitySignatureRows: changesInEquityResult.signatureRows,
       notes: notesToFinancialStatements,
       accountingNotes: accountingNotesResult.notes,
       accountingNotesFormatters: accountingNotesResult.formatters,
@@ -143,11 +145,11 @@ export class FinancialStatementGenerator {
 
     // Create Profit & Loss Statement
     const plWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'P&L', statements.profitLossStatement);
-    ExcelJSFormatter.formatBalanceSheetAssets(plWs); // Use available formatter
+    ExcelJSFormatter.formatBalanceSheetAssets(plWs, statements.profitLossSignatureRows); // Pass signature rows
 
     // Create Statement of Changes in Equity
     const equityWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Changes_in_Equity', statements.changesInEquity);
-    ExcelJSFormatter.formatStatementOfChangesInEquity(equityWs); // Use correct SCE formatter
+    ExcelJSFormatter.formatStatementOfChangesInEquity(equityWs, statements.changesInEquitySignatureRows); // Pass signature rows
 
     // Create Notes to Financial Statements (Policy Notes)
     const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Policy', statements.notes);
@@ -203,7 +205,7 @@ export class FinancialStatementGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year'
-  ): any[][] {
+  ): StatementResult {
     // Use strict selection (no numeric fallback) for all P&L buckets so UI rules drive the result
     const selectionStrict = SelectionFirstClassifier.classify(
       trialBalanceData,
@@ -228,7 +230,7 @@ export class FinancialStatementGenerator {
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year'
-  ): any[][] {
+  ): StatementResult {
     // Delegated to EquityBuilder
     const globalData = this.extractedData!; // already populated
     return EquityBuilder.build(trialBalanceData, companyInfo, processingType, globalData);

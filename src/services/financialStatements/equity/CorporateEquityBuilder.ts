@@ -1,7 +1,7 @@
 // ============================================================================
 // CORPORATE EQUITY STATEMENT BUILDER (EXTRACTED)
 // ============================================================================
-import type { TrialBalanceEntry, CompanyInfo } from '../../../types/financial';
+import type { TrialBalanceEntry, CompanyInfo, StatementResult } from '../../../types/financial';
 import type { DetailedFinancialData } from '../core/types';
 
 export class CorporateEquityBuilder {
@@ -10,7 +10,7 @@ export class CorporateEquityBuilder {
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
     globalData: DetailedFinancialData
-  ): any[][] {
+  ): StatementResult {
     const isMultiYear = processingType === 'multi-year';
     const currentYear = companyInfo.reportingYear;
     const previousYear = currentYear - 1;
@@ -56,7 +56,25 @@ export class CorporateEquityBuilder {
 
     result.push(['', '', '', '', '', '', '', '', '']);
     result.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']);
+    
+    // Add director signature block
+    const meetingNumber = companyInfo.approvalMeetingNumber || '....';
+    const meetingDate = companyInfo.approvalMeetingDate || '....';
+    result.push([`งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมสามัญผู้ถือหุ้นครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`, '', '', '', '', '', '', '', '']);
+    result.push(['ขอรับรองว่าเป็นรายการอันถูกต้องและเป็นความจริง', '', '', '', '', '', '', '', '']);
+    result.push(['', '', '', '', '', '', '', '', '']);
+    result.push(['', '', '', '', '', '', '', '', '']);
+    
+    const signatureRowIndex = result.length + 1;
+    result.push(['ลงชื่อ ……………………..................................... กรรมการตามอำนาจ', '', '', '', '', '', '', '', '']);
+    
+    const directorNameRowIndex = result.length + 1;
+    const directorName = companyInfo.directorName || '...........................';
+    result.push([`(${directorName})`, '', '', '', '', '', '', '', '']);
 
-    return result;
+    return {
+      data: result,
+      signatureRows: [signatureRowIndex, directorNameRowIndex]
+    };
   }
 }
