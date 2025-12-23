@@ -352,6 +352,21 @@ export class ExcelJSFormatter {
     // Set consistent font across worksheet
     this.setWorksheetDefaultFont(worksheet);
     
+    // Apply center-across-selection formatting for signature rows (SCE uses columns A-I)
+    if (signatureRows && signatureRows.length > 0) {
+      console.log('Applying center-across-selection formatting to SCE signature rows:', signatureRows);
+      signatureRows.forEach(rowIndex => {
+        const row = worksheet.getRow(rowIndex);
+        
+        // For SCE: merge cells A:I (9 columns) for center-across-selection
+        worksheet.mergeCells(rowIndex, 1, rowIndex, 9); // Merge A:I
+        
+        // Apply center alignment to the merged cell
+        const mergedCell = row.getCell(1);
+        mergedCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+    }
+    
     // Clear all empty cells to prevent text cutoff issues
     this.clearEmptyCells(worksheet);
     

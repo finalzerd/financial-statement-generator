@@ -768,6 +768,287 @@ app.delete('/api/companies/:companyId/account-mappings/:noteType', (req, res) =>
   });
 });
 
+// Ensure all standard note mappings exist (creates only missing ones)
+app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => {
+  const { companyId } = req.params;
+
+  // Same default mappings as reset
+  const DEFAULT_MAPPINGS = [
+    {
+      noteType: 'cash',
+      noteNumber: 7,
+      noteTitle: 'เงินสดและรายการเทียบเท่าเงินสด',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1000, to: 1099 }]
+      })
+    },
+    {
+      noteType: 'receivables',
+      noteNumber: 8,
+      noteTitle: 'ลูกหนี้การค้าและลูกหนี้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1140, to: 1215 }]
+      })
+    },
+    {
+      noteType: 'inventory',
+      noteNumber: 9,
+      noteTitle: 'สินค้าคงเหลือ',
+      accountRanges: JSON.stringify({
+        includes: [1510]
+      })
+    },
+    {
+      noteType: 'ppe_cost',
+      noteNumber: 11,
+      noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1610, to: 1659 }]
+      })
+    },
+    {
+      noteType: 'other_assets',
+      noteNumber: 12,
+      noteTitle: 'สินทรัพย์อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1660, to: 1700 }]
+      })
+    },
+    {
+      noteType: 'asset_short_term_loans',
+      noteNumber: 9,
+      noteTitle: 'เงินให้กู้ยืมระยะสั้น',
+      accountRanges: JSON.stringify({
+        includes: [1141]
+      })
+    },
+    {
+      noteType: 'asset_long_term_loans',
+      noteNumber: 13,
+      noteTitle: 'เงินให้กู้ยืมระยะยาว',
+      accountRanges: JSON.stringify({
+        includes: [1710]
+      })
+    },
+    {
+      noteType: 'other_income',
+      noteNumber: 14,
+      noteTitle: 'รายได้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 4110, to: 4999 }]
+      })
+    },
+    {
+      noteType: 'revenue',
+      noteNumber: 0,
+      noteTitle: 'รายได้จากการขายหรือการให้บริการ',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 4000, to: 4099 }]
+      })
+    },
+    {
+      noteType: 'selling_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายในการขาย',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5300, to: 5311 }]
+      })
+    },
+    {
+      noteType: 'admin_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายในการบริหาร',
+      accountRanges: JSON.stringify({
+        ranges: [
+          { from: 5312, to: 5350 },
+          { from: 5355, to: 5357 },
+          { from: 5362, to: 5363 }
+        ],
+        includes: [5365]
+      })
+    },
+    {
+      noteType: 'other_expenses',
+      noteNumber: 0,
+      noteTitle: 'ค่าใช้จ่ายอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [
+          { from: 5351, to: 5354 },
+          { from: 5358, to: 5361 },
+          { from: 5366, to: 5999 }
+        ],
+        includes: [5364]
+      })
+    },
+    {
+      noteType: 'detail_service_costs',
+      noteNumber: 1,
+      noteTitle: 'ต้นทุนการให้บริการ (รายละเอียดที่ 1)',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5000, to: 5099 }]
+      })
+    },
+    {
+      noteType: 'bank_overdrafts',
+      noteNumber: 13,
+      noteTitle: 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2001, to: 2009 }]
+      })
+    },
+    {
+      noteType: 'payables',
+      noteNumber: 14,
+      noteTitle: 'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2010, to: 2999 }],
+        excludes: [2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2120, 2121, 2122, 2123]
+      })
+    },
+    {
+      noteType: 'short_term_loans',
+      noteNumber: 15,
+      noteTitle: 'เงินกู้ยืมระยะสั้น',
+      accountRanges: JSON.stringify({
+        includes: [2030]
+      })
+    },
+    {
+      noteType: 'income_tax_payable',
+      noteNumber: 16,
+      noteTitle: 'ภาษีเงินได้นิติบุคคลค้างจ่าย',
+      accountRanges: JSON.stringify({
+        includes: [2045]
+      })
+    },
+    {
+      noteType: 'long_term_loans_other',
+      noteNumber: 17,
+      noteTitle: 'เงินกู้ยืมระยะยาว',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2050, to: 2052 }, { from: 2100, to: 2119 }]
+      })
+    },
+    {
+      noteType: 'long_term_loans_fi',
+      noteNumber: 18,
+      noteTitle: 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2120, to: 2123 }],
+        excludes: [2121]
+      })
+    },
+    {
+      noteType: 'financial_costs',
+      noteNumber: 0,
+      noteTitle: 'ต้นทุนทางการเงิน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5200, to: 5299 }]
+      })
+    },
+    {
+      noteType: 'income_tax_expense',
+      noteNumber: 0,
+      noteTitle: 'ภาษีเงินได้',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 5100, to: 5199 }]
+      })
+    },
+    {
+      noteType: 'other_current_assets',
+      noteNumber: 10,
+      noteTitle: 'สินทรัพย์หมุนเวียนอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1220, to: 1499 }],
+        excludes: [1400, 1401, 1402, 1403, 1404, 1405]
+      })
+    },
+    {
+      noteType: 'other_current_liabilities',
+      noteNumber: 19,
+      noteTitle: 'หนี้สินหมุนเวียนอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2046, to: 2099 }]
+      })
+    },
+    {
+      noteType: 'other_non_current_liabilities',
+      noteNumber: 20,
+      noteTitle: 'หนี้สินไม่หมุนเวียนอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2200, to: 2999 }]
+      })
+    }
+  ];
+
+  // First check if company exists
+  db.get('SELECT id FROM companies WHERE id = ?', [companyId], (err, company) => {
+    if (err) {
+      res.status(500).json({ success: false, error: 'Database error', details: err.message });
+      return;
+    }
+
+    if (!company) {
+      res.status(404).json({ success: false, error: 'Company not found' });
+      return;
+    }
+
+    // Get existing mappings
+    db.all('SELECT note_type FROM company_account_mappings WHERE company_id = ?', [companyId], (err, existing) => {
+      if (err) {
+        res.status(500).json({ success: false, error: 'Database error', details: err.message });
+        return;
+      }
+
+      const existingTypes = new Set((existing || []).map(row => row.note_type));
+      const missingMappings = DEFAULT_MAPPINGS.filter(m => !existingTypes.has(m.noteType));
+
+      if (missingMappings.length === 0) {
+        res.json({ success: true, message: 'All mappings already exist', created: 0 });
+        return;
+      }
+
+      // Insert missing mappings
+      const now = new Date().toISOString();
+      const insertStmt = db.prepare(`
+        INSERT INTO company_account_mappings (
+          company_id, note_type, note_number, note_title, account_ranges, is_active, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+      `);
+
+      let completed = 0;
+      let hasError = false;
+
+      missingMappings.forEach(mapping => {
+        insertStmt.run(
+          companyId,
+          mapping.noteType,
+          mapping.noteNumber,
+          mapping.noteTitle,
+          mapping.accountRanges,
+          now,
+          now,
+          (err) => {
+            if (err && !hasError) {
+              hasError = true;
+              insertStmt.finalize();
+              res.status(500).json({ success: false, error: 'Failed to create mappings', details: err.message });
+              return;
+            }
+
+            completed++;
+            if (completed === missingMappings.length && !hasError) {
+              insertStmt.finalize();
+              res.json({ success: true, message: `Created ${missingMappings.length} missing mappings`, created: missingMappings.length });
+            }
+          }
+        );
+      });
+    });
+  });
+});
+
 // Reset account mappings to default
 app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
   const { companyId } = req.params;

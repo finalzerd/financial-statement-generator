@@ -255,6 +255,21 @@ export class ApiService {
     }
   }
 
+  static async ensureAllAccountMappings(companyId: string) {
+    try {
+      const response = await fetch(`${this.BASE_URL}/companies/${companyId}/account-mappings/ensure-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.details || 'Failed to ensure account mappings');
+      return result;
+    } catch (error) {
+      console.error('Error ensuring account mappings:', error);
+      throw error;
+    }
+  }
+
   // ============== DETAIL SETTINGS OPERATIONS ==============
 
   static async getCompanyDetailSettings(companyId: string): Promise<DetailSettings> {

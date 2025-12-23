@@ -69,7 +69,6 @@ export function AccountMappingManager({
   const [editingMapping, setEditingMapping] = useState<string | null>(null);
   const [formData, setFormData] = useState<MappingFormData | null>(null);
   const [validation, setValidation] = useState<AccountMappingValidation | null>(null);
-  const [addNoteType, setAddNoteType] = useState<string>('');
   const [detailOneMode, setDetailOneMode] = useState<DetailOneMode>('auto');
   const [detailSettingsLoaded, setDetailSettingsLoaded] = useState(false);
   const [detailSettingsError, setDetailSettingsError] = useState<string | null>(null);
@@ -94,8 +93,22 @@ export function AccountMappingManager({
   const loadMappings = async () => {
     try {
       setLoading(true);
+      
+      // First ensure all standard note types exist
+      await ApiService.ensureAllAccountMappings(companyId);
+      
+      // Then load all mappings
       const data = await ApiService.getCompanyAccountMappings(companyId);
-      setMappings(data);
+      
+      // Sort by note number for better organization
+      const sortedMappings = (data || []).sort((a, b) => {
+        // Put notes with number 0 at the end (P&L categories)
+        if (a.noteNumber === 0 && b.noteNumber !== 0) return 1;
+        if (a.noteNumber !== 0 && b.noteNumber === 0) return -1;
+        return a.noteNumber - b.noteNumber;
+      });
+      
+      setMappings(sortedMappings);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load account mappings');
@@ -330,53 +343,6 @@ export function AccountMappingManager({
     });
   }, [mappings]);
 
-  // Create a missing mapping (e.g., asset_short_term_loans) with sensible defaults
-  const handleAddMapping = async () => {
-    if (!addNoteType) return;
-    try {
-      const def = (STANDARD_NOTE_TYPES as any)[addNoteType];
-      if (!def) {
-        setError('Unknown note type');
-        return;
-      }
-
-      // Default accountRanges for new asset-side notes; others start empty
-      let accountRanges: AccountMappingRules = { ranges: [] } as any;
-      if (addNoteType === 'asset_short_term_loans') {
-        accountRanges = { includes: [1141] } as any; // เงินให้กู้ยืมระยะสั้น (asset)
-      } else if (addNoteType === 'asset_long_term_loans') {
-        accountRanges = { includes: [1710] } as any; // เงินให้กู้ยืมระยะยาว (asset)
-      } else if (addNoteType === 'hire_purchase_creditors') {
-        accountRanges = { includes: [2015, 1644.2, 1644.1] } as any; // เจ้าหนี้ตามสัญญาเช่าซื้อ
-      } else if (addNoteType === 'other_income') {
-        accountRanges = { ranges: [{ from: 4110, to: 4999 }] } as any;
-      } else if (addNoteType === 'selling_expenses') {
-        accountRanges = { ranges: [{ from: 5300, to: 5311 }] } as any; // ค่าใช้จ่ายในการขาย
-      } else if (addNoteType === 'admin_expenses') {
-        accountRanges = { ranges: [
-          { from: 5312, to: 5350 },
-          { from: 5355, to: 5357 },
-          { from: 5362, to: 5363 }
-        ], includes: [5365] } as any; // ค่าใช้จ่ายในการบริหาร
-      }
-
-      await ApiService.createAccountMapping(companyId, {
-        noteType: addNoteType,
-        noteNumber: def.noteNumber,
-        noteTitle: def.noteTitle,
-        accountRanges,
-        isActive: true
-      });
-
-      setAddNoteType('');
-      await loadMappings();
-      onMappingsChanged?.();
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add mapping');
-    }
-  };
-
   const addRange = () => {
     if (formData) {
       setFormData({
@@ -468,38 +434,20 @@ export function AccountMappingManager({
   return (
     <div className="account-mapping-manager">
       <div className="header">
-        <h2>Account Code Mappings</h2>
+        <h2>จัดการรหัสบัญชี (Account Code Mappings)</h2>
         <div className="header-actions">
           <button onClick={resetToDefaults} className="btn-secondary">
-            Reset to Defaults
+            รีเซ็ตเป็นค่าเริ่มต้น
           </button>
           <button onClick={validateMappings} className="btn-primary">
-            Validate Mappings
+            ตรวจสอบความถูกต้อง
           </button>
-          {/* Add Missing Mapping control */}
-          {(() => {
-            const existing = new Set(mappings.map(m => m.noteType));
-            const allTypes = Object.keys(STANDARD_NOTE_TYPES);
-            const missing = allTypes.filter(t => !existing.has(t));
-            if (missing.length === 0) return null;
-            return (
-              <div className="add-mapping-inline">
-                <select value={addNoteType} onChange={e => setAddNoteType(e.target.value)}>
-                  <option value="">Add mapping…</option>
-                  {missing.map(t => (
-                    <option key={t} value={t}>
-                      {`Note ${STANDARD_NOTE_TYPES[t as keyof typeof STANDARD_NOTE_TYPES]?.noteNumber || ''}: ${STANDARD_NOTE_TYPES[t as keyof typeof STANDARD_NOTE_TYPES]?.noteTitle || t}`}
-                    </option>
-                  ))}
-                </select>
-                <button className="btn-primary" onClick={handleAddMapping} disabled={!addNoteType}>
-                  Add
-                </button>
-              </div>
-            );
-          })()}
         </div>
       </div>
+      
+      <p className="help-text">
+        📝 ระบบจัดเตรียมหมายเหตุทุกประเภทไว้ให้แล้ว คุณสามารถกดเพื่อแก้ไขช่วงรหัสบัญชีของแต่ละหมายเหตุได้ทันที
+      </p>
 
       <div className="detail-settings-card">
         <div className="detail-settings-header">
@@ -650,19 +598,50 @@ export function AccountMappingManager({
       )}
 
       <div className="mappings-grid">
-        {orderedMappings.map(mapping => (
+        {orderedMappings.map(mapping => {
+          // Count how many trial balance accounts match this mapping
+          const matchedAccounts = trialBalanceData.filter(entry => {
+            const accountCode = String(entry.accountCode || '');
+            const rules = mapping.accountRanges;
+            
+            // Check ranges
+            if (rules.ranges) {
+              const code = parseInt(accountCode);
+              for (const range of rules.ranges) {
+                if (code >= range.from && code <= range.to) return true;
+              }
+            }
+            
+            // Check includes
+            if (rules.includes && rules.includes.some(inc => String(inc) === accountCode)) {
+              return true;
+            }
+            
+            return false;
+          });
+          
+          const hasData = matchedAccounts.length > 0;
+          
+          return (
           <div key={mapping.noteType} className="mapping-card">
             <div className="mapping-header">
-              <h3>Note {mapping.noteNumber}: {mapping.noteTitle}</h3>
+              <div className="mapping-header-left">
+                <h3>Note {mapping.noteNumber}: {mapping.noteTitle}</h3>
+                {trialBalanceData.length > 0 && (
+                  <span className={`account-count-badge ${hasData ? 'has-data' : 'no-data'}`} title={hasData ? `${matchedAccounts.length} บัญชีที่ตรงกัน` : 'ไม่มีข้อมูลในไฟล์งบทดลอง'}>
+                    {hasData ? `✓ ${matchedAccounts.length}` : '○ 0'}
+                  </span>
+                )}
+              </div>
               <div className="mapping-actions">
                 {editingMapping === mapping.noteType ? (
                   <>
-                    <button onClick={saveMapping} className="btn-success">Save</button>
-                    <button onClick={cancelEditing} className="btn-secondary">Cancel</button>
+                    <button onClick={saveMapping} className="btn-success">บันทึก</button>
+                    <button onClick={cancelEditing} className="btn-secondary">ยกเลิก</button>
                   </>
                 ) : (
                   <button onClick={() => startEditing(mapping)} className="btn-primary">
-                    Edit
+                    แก้ไข
                   </button>
                 )}
               </div>
@@ -909,7 +888,8 @@ export function AccountMappingManager({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
