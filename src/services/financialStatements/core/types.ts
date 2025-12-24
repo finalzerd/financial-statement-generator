@@ -38,6 +38,26 @@ export interface NoteFormatter {
   tracker: NoteRowTracker;
 }
 
+/**
+ * Registry of actual note numbers assigned during generation
+ * Used to link Balance Sheet line items to their corresponding notes
+ */
+export interface NoteRegistry {
+  cash?: number;
+  receivables?: number;
+  assetShortTermLoans?: number;
+  otherCurrentAssets?: number;
+  ppe?: number;
+  bankOverdrafts?: number;
+  payables?: number;
+  otherCurrentLiabilities?: number;
+  otherAssets?: number;
+  assetLongTermLoans?: number;
+  hirePurchaseCreditors?: number;
+  otherLongTermLoans?: number;
+  otherNonCurrentLiabilities?: number;
+}
+
 // Note category classification for selection-first architecture
 export type NoteCategory =
   | 'cash'

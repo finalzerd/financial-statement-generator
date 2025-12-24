@@ -661,8 +661,8 @@ export class ExcelJSFormatter {
           continue;
         }
 
-        // Final grand total: Total Liabilities and Equity
-        if (primaryText === 'รวมหนี้สินและส่วนของผู้ถือหุ้น') {
+        // Final grand total: Total Liabilities and Equity (Company or Partnership)
+        if (primaryText === 'รวมหนี้สินและส่วนของผู้ถือหุ้น' || primaryText === 'รวมหนี้สินและส่วนของผู้เป็นหุ้นส่วน') {
           this.formatTotalLiabilitiesAndEquitySpecial(worksheet, row);
           continue;
         }
@@ -1230,7 +1230,7 @@ export class ExcelJSFormatter {
   const isTotalLiabilitiesRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สิน';
   const isTotalEquityShareholdersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้ถือหุ้น';
   const isTotalEquityPartnersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้เป็นหุ้นส่วน';
-  const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น';
+  const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && (bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น' || bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้เป็นหุ้นส่วน');
   // SCE protected rows for columns C/F/I borders
   const isEquityYearEndRow = (typeof bCellValue === 'string' && bCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'))
     || (typeof aCellValue === 'string' && aCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'));
@@ -1684,9 +1684,9 @@ export class ExcelJSFormatter {
       const noteTitleCell = worksheet.getCell(`B${row}`);
       const unitCell = worksheet.getCell(`I${row}`);
       
-      // Note number
+      // Note number - CENTER aligned
       noteNumberCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
-      noteNumberCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      noteNumberCell.alignment = { horizontal: 'center', vertical: 'middle' };
       
       // Note title - BOLD
       noteTitleCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
@@ -1932,6 +1932,15 @@ export class ExcelJSFormatter {
     this.formatAccountLinesAccountingNotes(worksheet);
     this.formatTotalLinesAccountingNotes(worksheet);
     
+    // CRITICAL: Enforce column A center alignment for all note numbers (must be after all other formatting)
+    for (let row = 6; row <= 100; row++) {
+      const cellA = worksheet.getCell(`A${row}`);
+      if (cellA.value) {
+        // Preserve existing font but force center alignment
+        cellA.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+    }
+    
     // Safety Net: Enforce number format on all numeric cells in G and I
     for (let row = 6; row <= 200; row++) {
       ['G', 'I'].forEach(col => {
@@ -1977,6 +1986,15 @@ export class ExcelJSFormatter {
   private static formatAccountLinesAccountingNotes(worksheet: ExcelJS.Worksheet): void {
     // Apply base formatting to all data rows (6-100) - Extended range to cover all notes
     for (let row = 6; row <= 100; row++) {
+      // Note numbers (Column A) - Center aligned
+      const noteNumberCell = worksheet.getCell(`A${row}`);
+      noteNumberCell.font = { 
+        name: this.THAI_FONT_NAME, 
+        size: 14,
+        color: { argb: 'FF000000' }
+      };
+      noteNumberCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      
       // Account names (Columns B through E)
       ['B', 'C', 'D', 'E'].forEach(col => {
         const nameCell = worksheet.getCell(`${col}${row}`);
@@ -2130,6 +2148,18 @@ export class ExcelJSFormatter {
    * Format total lines for accounting notes (รวม...)
    */
   private static formatTotalLineAccountingNotes(worksheet: ExcelJS.Worksheet, row: number): void {
+    // Format column A - center aligned (preserve note number alignment if present)
+    const noteNumberCell = worksheet.getCell(`A${row}`);
+    if (noteNumberCell.value) {
+      noteNumberCell.font = {
+        name: this.THAI_FONT_NAME,
+        size: 14,
+        bold: false,
+        color: { argb: 'FF000000' }
+      };
+      noteNumberCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    }
+    
     // Make only the text "รวม" bold (column B), not the amounts
     const textCell = worksheet.getCell(`B${row}`);
     textCell.font = {
@@ -2215,6 +2245,16 @@ export class ExcelJSFormatter {
    * Format note headers for accounting notes (เงินสด, ลูกหนี้การค้า, etc.)
    */
   private static formatNoteHeaderAccountingNotes(worksheet: ExcelJS.Worksheet, row: number): void {
+    // Format column A (note number) - center aligned
+    const noteNumberCell = worksheet.getCell(`A${row}`);
+    noteNumberCell.font = {
+      name: this.THAI_FONT_NAME,
+      size: 14,
+      bold: true,
+      color: { argb: 'FF000000' }
+    };
+    noteNumberCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    
     // Make only the note header text (column B) bold, not the amounts
     const headerCell = worksheet.getCell(`B${row}`);
     headerCell.font = {

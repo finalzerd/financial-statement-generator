@@ -1,6 +1,6 @@
 import { FinancialCalculations } from '../../financialCalculations';
 import type { TrialBalanceEntry, CompanyInfo, BalanceSheetResult } from '../../../types/financial';
-import type { DetailedFinancialData } from '../core/types';
+import type { DetailedFinancialData, NoteRegistry } from '../core/types';
 import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
 import { BalanceSheetLinkMap, NOTE_FIRST_MODE } from '../core/linking/balanceSheetLinkMap';
 
@@ -13,7 +13,8 @@ export class AssetsBuilder {
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
     globalData?: DetailedFinancialData,
-    selection?: SelectionFirstResult
+    selection?: SelectionFirstResult,
+    noteRegistry?: NoteRegistry
   ): BalanceSheetResult {
     // Calculate current year asset balances, preferring Selection-First totals when available
     const n = globalData?.noteCalculations;
@@ -113,23 +114,23 @@ export class AssetsBuilder {
 
     // Add current assets
     // Always show assets rows even when amounts are zero
-    worksheetData.push(['', '', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', '7', cashAndCashEquivalents, '', processingType === 'multi-year' ? prevCashAndCashEquivalents : '', '']);
+    worksheetData.push(['', '', 'เงินสดและรายการเทียบเท่าเงินสด', '', '', noteRegistry?.cash?.toString() || '', cashAndCashEquivalents, '', processingType === 'multi-year' ? prevCashAndCashEquivalents : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', '8', tradeReceivables, '', processingType === 'multi-year' ? prevTradeReceivables : '', '']);
+    worksheetData.push(['', '', 'ลูกหนี้การค้าและลูกหนี้หมุนเวียนอื่น', '', '', noteRegistry?.receivables?.toString() || '', tradeReceivables, '', processingType === 'multi-year' ? prevTradeReceivables : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', assetShortTermLoans, '', processingType === 'multi-year' ? prevAssetShortTermLoans : '', '']);
+    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', noteRegistry?.assetShortTermLoans?.toString() || '', assetShortTermLoans, '', processingType === 'multi-year' ? prevAssetShortTermLoans : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '9', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
+    worksheetData.push(['', '', 'สินค้าคงเหลือ', '', '', '', inventory, '', processingType === 'multi-year' ? prevInventory : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'สินทรัพย์หมุนเวียนอื่น', '', '', '11', otherCurrentAssets, '', processingType === 'multi-year' ? prevOtherCurrentAssets : '', '']);
+    worksheetData.push(['', '', 'สินทรัพย์หมุนเวียนอื่น', '', '', noteRegistry?.otherCurrentAssets?.toString() || '', otherCurrentAssets, '', processingType === 'multi-year' ? prevOtherCurrentAssets : '', '']);
     currentAssetRows.push(currentRow);
     currentRow++;
 
@@ -156,7 +157,7 @@ export class AssetsBuilder {
     worksheetData.push(['', 'สินทรัพย์ไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
     currentRow++;
 
-    worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', '11', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+    worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', noteRegistry?.ppe?.toString() || '', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 
@@ -170,11 +171,11 @@ export class AssetsBuilder {
       FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1710, 1710)
     );
 
-    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะยาว', '', '', '', assetLongTermLoans, '', processingType === 'multi-year' ? prevAssetLongTermLoans : '', '']);
+    worksheetData.push(['', '', 'เงินให้กู้ยืมระยะยาว', '', '', noteRegistry?.assetLongTermLoans?.toString() || '', assetLongTermLoans, '', processingType === 'multi-year' ? prevAssetLongTermLoans : '', '']);
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 
-    worksheetData.push(['', '', 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', '12', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
+    worksheetData.push(['', '', 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', noteRegistry?.otherAssets?.toString() || '', otherAssets, '', processingType === 'multi-year' ? prevOtherAssets : '', '']);
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 

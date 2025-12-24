@@ -20,7 +20,6 @@ export class FinancialApprovalNoteGenerator {
     companyInfo: CompanyInfo, 
     noteNumber: number = 16
   ): NoteRowTracker {
-  void companyInfo; // referenced to satisfy TS noUnusedParameters
     const tracker: NoteRowTracker = {
       currentRow: notes.length + 1,
       noteStartRow: notes.length + 1,
@@ -38,8 +37,13 @@ export class FinancialApprovalNoteGenerator {
     tracker.headerRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 2. Approval Statement Row
-    notes.push(['', '', 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้ว', '', '', '', '', '', '']);
+    // 2. Approval Statement Row - varies by company type
+    const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
+    const approvalText = isLimitedPartnership
+      ? 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยที่ประชุมของผู้เป็นหุ้นส่วน'
+      : 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้ว';
+    
+    notes.push(['', '', approvalText, '', '', '', '', '', '']);
     tracker.detailRows.push(tracker.currentRow);
     tracker.currentRow++;
 

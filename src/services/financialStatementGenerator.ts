@@ -96,15 +96,20 @@ export class FinancialStatementGenerator {
     console.log('Paid-up Capital (Global):', globalData.balanceSheetTotals.equity.paidUpCapital);
     console.log('Net Profit (Global):', globalData.income.netProfit);
     
-  // Compute selection-first classification once for BS linkage as well
-  const selectionForBS = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
-  this.selectionData = selectionForBS;
-  const balanceSheetAssetsResult = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-  const balanceSheetLiabilitiesResult = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS);
-  const profitLossResult = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
+    // Compute selection-first classification once for BS linkage as well
+    const selectionForBS = SelectionFirstClassifier.classify(trialBalanceData, companyInfo, this.mappingProvider);
+    this.selectionData = selectionForBS;
+    
+    // Generate accounting notes first to get note registry
+    const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
+    
+    // Now build Balance Sheets with note registry for dynamic note references
+    const balanceSheetAssetsResult = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS, accountingNotesResult.noteRegistry);
+    const balanceSheetLiabilitiesResult = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS, accountingNotesResult.noteRegistry);
+    
+    const profitLossResult = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
     const changesInEquityResult = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
-    const accountingNotesResult = this.generateAccountingNotes(trialBalanceData, companyInfo, processingType, trialBalancePrevious);
     const detailNotes = this.generateDetailNotes(trialBalanceData, companyInfo);
 
     return {
@@ -252,7 +257,7 @@ export class FinancialStatementGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[]
-  ): { notes: any[][], formatters: NoteFormatter[] } {
+  ): { notes: any[][], formatters: NoteFormatter[], noteRegistry: import('./financialStatements/core/types').NoteRegistry } {
     // Extract global financial data once for consistency across all notes
   const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
@@ -272,59 +277,71 @@ export class FinancialStatementGenerator {
     ];
 
     const formatters: NoteFormatter[] = [];
-    let noteNumber = 3;
+    const noteRegistry: import('./financialStatements/core/types').NoteRegistry = {};
+    let noteNumber = 5;  // Start at note 5 (notes 1-4 are in Notes_Policy)
     
     // Generate specific notes using global data with row tracking
-    const cashTracker = CashNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
+    // Only increment noteNumber if note actually has content
+    const cashTracker = CashNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber, selection);
     if (cashTracker.headerRows.length > 0) {
+      noteRegistry.cash = noteNumber++;
       formatters.push({ type: 'cash', tracker: cashTracker });
     }
     
-    const receivablesTracker = TradeReceivablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
+    const receivablesTracker = TradeReceivablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber, selection);
     if (receivablesTracker.headerRows.length > 0) {
+      noteRegistry.receivables = noteNumber++;
       formatters.push({ type: 'receivables', tracker: receivablesTracker });
     }
 
     // Move Short-term Loans (asset-side) to appear right after Trade Receivables
-    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const shortTermLoansTracker = ShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (shortTermLoansTracker.headerRows.length > 0) {
+      noteRegistry.assetShortTermLoans = noteNumber++;
       formatters.push({ type: 'assetShortTermLoans', tracker: shortTermLoansTracker });
     }
 
-    const otherCurrentAssetsTracker = OtherCurrentAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherCurrentAssetsTracker = OtherCurrentAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherCurrentAssetsTracker.headerRows.length > 0) {
+      noteRegistry.otherCurrentAssets = noteNumber++;
       formatters.push({ type: 'otherCurrentAssets', tracker: otherCurrentAssetsTracker });
     }
 
     // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting (should come before Payables)
-  const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (ppeTracker.headerRows.length > 0) {
+      noteRegistry.ppe = noteNumber++;
       formatters.push({ type: 'ppe', tracker: ppeTracker });
     }
     
     // Bank Overdrafts and Short-term Borrowings from Financial Institutions Note (before payables)
-    const bankOverdraftsTracker = BankOverdraftsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const bankOverdraftsTracker = BankOverdraftsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (bankOverdraftsTracker.headerRows.length > 0) {
+      noteRegistry.bankOverdrafts = noteNumber++;
       formatters.push({ type: 'bankOverdrafts', tracker: bankOverdraftsTracker });
     }
     
-    const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber++, selection);
+    const payablesTracker = TradePayablesNoteGenerator.generateWithRowTracking(notes, globalData, companyInfo, processingType, noteNumber, selection);
     if (payablesTracker.headerRows.length > 0) {
+      noteRegistry.payables = noteNumber++;
       formatters.push({ type: 'payables', tracker: payablesTracker });
     }
 
-    const otherCurrentLiabilitiesTracker = OtherCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherCurrentLiabilitiesTracker = OtherCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherCurrentLiabilitiesTracker.headerRows.length > 0) {
+      noteRegistry.otherCurrentLiabilities = noteNumber++;
       formatters.push({ type: 'otherCurrentLiabilities', tracker: otherCurrentLiabilitiesTracker });
     }
     
-    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherAssetsTracker.headerRows.length > 0) {
+      noteRegistry.otherAssets = noteNumber++;
       formatters.push({ type: 'general', tracker: otherAssetsTracker });
     }
     
-    const assetLongTermLoansTracker = AssetLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const assetLongTermLoansTracker = AssetLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (assetLongTermLoansTracker.headerRows.length > 0) {
+      noteRegistry.assetLongTermLoans = noteNumber++;
       formatters.push({ type: 'assetLongTermLoans', tracker: assetLongTermLoansTracker });
     }
     
@@ -334,48 +351,55 @@ export class FinancialStatementGenerator {
       companyInfo,
       processingType,
       trialBalancePrevious,
-      noteNumber++,
+      noteNumber,
       selection,
       this.mappingProvider?.getSubCategoryRules('hire_purchase_creditors') || null
     );
     if (hirePurchaseTracker.headerRows.length > 0) {
+      noteRegistry.hirePurchaseCreditors = noteNumber++;
       formatters.push({ type: 'hirePurchaseCreditors', tracker: hirePurchaseTracker });
     }
 
-    const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherLongTermLoansTracker.headerRows.length > 0) {
+      noteRegistry.otherLongTermLoans = noteNumber++;
       formatters.push({ type: 'general', tracker: otherLongTermLoansTracker });
     }
 
-    const otherNonCurrentLiabilitiesTracker = OtherNonCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherNonCurrentLiabilitiesTracker = OtherNonCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherNonCurrentLiabilitiesTracker.headerRows.length > 0) {
+      noteRegistry.otherNonCurrentLiabilities = noteNumber++;
       formatters.push({ type: 'otherNonCurrentLiabilities', tracker: otherNonCurrentLiabilitiesTracker });
     }
     
-  const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const relatedPartyLoansTracker = RelatedPartyLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (relatedPartyLoansTracker.headerRows.length > 0) {
+      noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
       formatters.push({ type: 'general', tracker: relatedPartyLoansTracker });
     }
     
-  const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber++, selection);
+    const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherIncomeTracker.headerRows.length > 0) {
+      noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
       formatters.push({ type: 'general', tracker: otherIncomeTracker });
     }
     
-    const expensesByNatureTracker = ExpensesByNatureNoteGenerator.generateWithRowTracking(notes, companyInfo, processingType, noteNumber++);
+    const expensesByNatureTracker = ExpensesByNatureNoteGenerator.generateWithRowTracking(notes, companyInfo, processingType, noteNumber);
     if (expensesByNatureTracker.headerRows.length > 0) {
+      noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
       formatters.push({ type: 'general', tracker: expensesByNatureTracker });
     }
     
-    if (companyInfo.type === 'บริษัทจำกัด') {
-      const financialApprovalTracker = FinancialApprovalNoteGenerator.generateWithRowTracking(notes, companyInfo, noteNumber++);
+    if (companyInfo.type === 'บริษัทจำกัด' || companyInfo.type === 'ห้างหุ้นส่วนจำกัด') {
+      const financialApprovalTracker = FinancialApprovalNoteGenerator.generateWithRowTracking(notes, companyInfo, noteNumber);
       if (financialApprovalTracker.headerRows.length > 0) {
+        noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
         formatters.push({ type: 'general', tracker: financialApprovalTracker });
       }
     }
 
     console.log(`Generated ${formatters.length} tracked notes with specific formatting`);
-    return { notes, formatters };
+    return { notes, formatters, noteRegistry };
   }
 
   private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {
