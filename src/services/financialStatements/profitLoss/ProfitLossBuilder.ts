@@ -51,7 +51,7 @@ export class ProfitLossBuilder {
     const plData = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['งบกำไรขาดทุน จำแนกค่าใช้จ่ายตามหน้าที่ - แบบขั้นเดียว', '', '', '', '', '', '', '', ''],
-      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ 1 มกราคม ${companyInfo.reportingYear} ถึงวันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${companyInfo.reportingYear} ถึงวันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท'],
       ['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : ''],

@@ -57,6 +57,10 @@ db.run('ALTER TABLE companies ADD COLUMN approval_meeting_date TEXT', (err) => {
   // Ignore error if column already exists
 });
 
+db.run('ALTER TABLE companies ADD COLUMN registration_date TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
 // Ensure company_account_mappings table exists
 db.run(`
   CREATE TABLE IF NOT EXISTS company_account_mappings (
@@ -97,12 +101,15 @@ const mapDbRowToCompany = (row) => ({
   name: row.name || row.thai_name || 'Unknown Company',
   type: row.company_type || 'บริษัทจำกัด',
   registrationNumber: row.registration_number,
+  registrationDate: row.registration_date,
   address: row.address,
   businessDescription: row.business_type,
   taxId: row.tax_id,
   numberOfShares: row.number_of_shares,
   shareValue: row.share_value,
   defaultReportingYear: row.default_reporting_year || new Date().getFullYear(),
+  periodStartDate: row.period_start_date || '1 มกราคม',
+  periodEndDate: row.period_end_date || '31 ธันวาคม',
   directorName: row.director_name,
   approvalMeetingNumber: row.approval_meeting_number,
   approvalMeetingDate: row.approval_meeting_date,
@@ -162,13 +169,16 @@ app.post('/api/companies', (req, res) => {
   const { 
     name, 
     type, 
-    registrationNumber, 
+    registrationNumber,
+    registrationDate, 
     address, 
     businessDescription, 
     taxId, 
     defaultReportingYear,
     numberOfShares,
     shareValue,
+    periodStartDate,
+    periodEndDate,
     directorName,
     approvalMeetingNumber,
     approvalMeetingDate
@@ -186,24 +196,28 @@ app.post('/api/companies', (req, res) => {
   const now = new Date().toISOString();
   const query = `
     INSERT INTO companies (
-      name, thai_name, company_type, registration_number, address, business_type, tax_id,
+      name, thai_name, company_type, registration_number, registration_date, address, business_type, tax_id,
       phone, email, number_of_shares, share_value, default_reporting_year,
+      period_start_date, period_end_date,
       director_name, approval_meeting_number, approval_meeting_date, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(query, [
     name, 
     name, 
     type, 
-    registrationNumber, 
+    registrationNumber,
+    registrationDate || null, 
     address, 
     businessDescription,
     taxId,
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
     defaultReportingYear || new Date().getFullYear(),
+    periodStartDate || '1 มกราคม',
+    periodEndDate || '31 ธันวาคม',
     directorName || null,
     approvalMeetingNumber || null,
     approvalMeetingDate || null,
@@ -248,13 +262,16 @@ app.put('/api/companies/:id', (req, res) => {
   const { 
     name, 
     type, 
-    registrationNumber, 
+    registrationNumber,
+    registrationDate, 
     address, 
     businessDescription, 
     taxId,
     numberOfShares,
     shareValue,
     defaultReportingYear,
+    periodStartDate,
+    periodEndDate,
     directorName,
     approvalMeetingNumber,
     approvalMeetingDate
@@ -272,9 +289,10 @@ app.put('/api/companies/:id', (req, res) => {
   const now = new Date().toISOString();
   const query = `
     UPDATE companies 
-    SET name = ?, thai_name = ?, company_type = ?, registration_number = ?, 
+    SET name = ?, thai_name = ?, company_type = ?, registration_number = ?, registration_date = ?,
         address = ?, business_type = ?, tax_id = ?, number_of_shares = ?, share_value = ?,
-        default_reporting_year = ?, director_name = ?, approval_meeting_number = ?, 
+        default_reporting_year = ?, period_start_date = ?, period_end_date = ?,
+        director_name = ?, approval_meeting_number = ?, 
         approval_meeting_date = ?, updated_at = ?
     WHERE id = ?
   `;
@@ -283,13 +301,16 @@ app.put('/api/companies/:id', (req, res) => {
     name, 
     name, 
     type, 
-    registrationNumber, 
+    registrationNumber,
+    registrationDate || null, 
     address, 
     businessDescription,
     taxId,
     type === 'บริษัทจำกัด' ? numberOfShares : null,
     type === 'บริษัทจำกัด' ? shareValue : null,
     defaultReportingYear || new Date().getFullYear(),
+    periodStartDate || '1 มกราคม',
+    periodEndDate || '31 ธันวาคม',
     directorName || null,
     approvalMeetingNumber || null,
     approvalMeetingDate || null,

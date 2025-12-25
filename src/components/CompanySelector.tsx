@@ -25,12 +25,15 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     name: '',
     type: 'บริษัทจำกัด' as const,
     registrationNumber: '',
+    registrationDate: '',
     address: '',
     businessDescription: '',
     taxId: '',
     numberOfShares: 1000000,
     shareValue: 1,
     defaultReportingYear: new Date().getFullYear(),
+    periodStartDate: '',
+    periodEndDate: '',
     directorName: '',
     approvalMeetingNumber: '',
     approvalMeetingDate: ''
@@ -40,12 +43,15 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     name: '',
     type: 'บริษัทจำกัด' as 'ห้างหุ้นส่วนจำกัด' | 'บริษัทจำกัด',
     registrationNumber: '',
+    registrationDate: '',
     address: '',
     businessDescription: '',
     taxId: '',
     numberOfShares: 1000000,
     shareValue: 1,
     defaultReportingYear: new Date().getFullYear(),
+    periodStartDate: '',
+    periodEndDate: '',
     directorName: '',
     approvalMeetingNumber: '',
     approvalMeetingDate: ''
@@ -86,12 +92,15 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
         name: '',
         type: 'บริษัทจำกัด',
         registrationNumber: '',
+        registrationDate: '',
         address: '',
         businessDescription: '',
         taxId: '',
         numberOfShares: 1000000,
         shareValue: 1,
         defaultReportingYear: new Date().getFullYear(),
+        periodStartDate: '',
+        periodEndDate: '',
         directorName: '',
         approvalMeetingNumber: '',
         approvalMeetingDate: ''
@@ -113,7 +122,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     setNewCompany({ 
       name: '', 
       type: 'บริษัทจำกัด', 
-      registrationNumber: '', 
+      registrationNumber: '',
+      registrationDate: '',
       address: '', 
       businessDescription: '',
       taxId: '',
@@ -162,12 +172,15 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       name: company.name,
       type: company.type,
       registrationNumber: company.registrationNumber || '',
+      registrationDate: company.registrationDate || '',
       address: company.address || '',
       businessDescription: company.businessDescription || '',
       taxId: company.taxId || '',
       numberOfShares: company.numberOfShares || 1000000,
       shareValue: company.shareValue || 1,
       defaultReportingYear: company.defaultReportingYear,
+      periodStartDate: company.periodStartDate || '',
+      periodEndDate: company.periodEndDate || '',
       directorName: company.directorName || '',
       approvalMeetingNumber: company.approvalMeetingNumber || '',
       approvalMeetingDate: company.approvalMeetingDate || ''
@@ -181,12 +194,15 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       name: '',
       type: 'บริษัทจำกัด' as 'ห้างหุ้นส่วนจำกัด' | 'บริษัทจำกัด',
       registrationNumber: '',
+      registrationDate: '',
       address: '',
       businessDescription: '',
       taxId: '',
       numberOfShares: 1000000,
       shareValue: 1,
       defaultReportingYear: new Date().getFullYear(),
+      periodStartDate: '',
+      periodEndDate: '',
       directorName: '',
       approvalMeetingNumber: '',
       approvalMeetingDate: ''
@@ -348,6 +364,18 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="edit-registration-date">วันที่จดทะเบียน / Registration Date</label>
+                <input
+                  type="text"
+                  id="edit-registration-date"
+                  value={editForm.registrationDate}
+                  onChange={e => setEditForm({...editForm, registrationDate: e.target.value})}
+                  disabled={isUpdating}
+                  placeholder="เช่น 17 ก.ค. 2563"
+                />
+                <small className="form-help">วันที่จดทะเบียนบริษัท (ข้อความอิสระ)</small>
+              </div>
+              <div className="form-group">
                 <label htmlFor="edit-default-year">ปีรายงานเริ่มต้น / Default Reporting Year *</label>
                 <input
                   type="number"
@@ -359,6 +387,30 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                   required
                 />
                 <small className="form-help">รองรับปีพุทธศักราช (พ.ศ.) ได้ เช่น 2568</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-period-start-date">วันที่เริ่มต้นงวดบัญชี / Period Start Date</label>
+                <input
+                  type="text"
+                  id="edit-period-start-date"
+                  value={editForm.periodStartDate}
+                  onChange={e => setEditForm({...editForm, periodStartDate: e.target.value})}
+                  disabled={isUpdating}
+                  placeholder="เช่น 1 มกราคม"
+                />
+                <small className="form-help">ค่าเริ่มต้น: 1 มกราคม</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="edit-period-end-date">วันที่สิ้นสุดงวดบัญชี / Period End Date</label>
+                <input
+                  type="text"
+                  id="edit-period-end-date"
+                  value={editForm.periodEndDate}
+                  onChange={e => setEditForm({...editForm, periodEndDate: e.target.value})}
+                  disabled={isUpdating}
+                  placeholder="เช่น 31 ธันวาคม"
+                />
+                <small className="form-help">ค่าเริ่มต้น: 31 ธันวาคม</small>
               </div>
             </div>
             
@@ -537,6 +589,18 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="registration-date">วันที่จดทะเบียน / Registration Date</label>
+                <input
+                  type="text"
+                  id="registration-date"
+                  value={newCompany.registrationDate}
+                  onChange={e => setNewCompany({...newCompany, registrationDate: e.target.value})}
+                  disabled={isCreating}
+                  placeholder="เช่น 17 ก.ค. 2563"
+                />
+                <small className="form-help">วันที่จดทะเบียนบริษัท (ข้อความอิสระ)</small>
+              </div>
+              <div className="form-group">
                 <label htmlFor="default-year">ปีรายงานเริ่มต้น / Default Reporting Year *</label>
                 <input
                   type="number"
@@ -548,6 +612,30 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                   required
                 />
                 <small className="form-help">รองรับปีพุทธศักราช (พ.ศ.) ได้ เช่น 2568</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="period-start-date">วันที่เริ่มต้นงวดบัญชี / Period Start Date</label>
+                <input
+                  type="text"
+                  id="period-start-date"
+                  value={newCompany.periodStartDate}
+                  onChange={e => setNewCompany({...newCompany, periodStartDate: e.target.value})}
+                  disabled={isCreating}
+                  placeholder="เช่น 1 มกราคม"
+                />
+                <small className="form-help">ค่าเริ่มต้น: 1 มกราคม</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="period-end-date">วันที่สิ้นสุดงวดบัญชี / Period End Date</label>
+                <input
+                  type="text"
+                  id="period-end-date"
+                  value={newCompany.periodEndDate}
+                  onChange={e => setNewCompany({...newCompany, periodEndDate: e.target.value})}
+                  disabled={isCreating}
+                  placeholder="เช่น 31 ธันวาคม"
+                />
+                <small className="form-help">ค่าเริ่มต้น: 31 ธันวาคม</small>
               </div>
             </div>
             

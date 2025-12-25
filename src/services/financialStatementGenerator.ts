@@ -4,7 +4,8 @@ import { ExcelJSFormatter } from './excelFormatter';
 import type { 
   TrialBalanceEntry, 
   CompanyInfo, 
-  FinancialStatements
+  FinancialStatements,
+  StatementResult
 } from '../types/financial';
 import type { DetailSettings } from '../types/detailSettings';
 import { 
@@ -141,11 +142,11 @@ export class FinancialStatementGenerator {
     const workbook = ExcelJSFormatter.createWorkbook();
 
     // Create Balance Sheet - Assets
-    const assetsWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Assets', statements.balanceSheet.assets);
+    const assetsWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS-A', statements.balanceSheet.assets);
     ExcelJSFormatter.formatBalanceSheetAssets(assetsWs, statements.balanceSheet.assetsSignatureRows);
 
     // Create Balance Sheet - Liabilities
-    const liabilitiesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS_Liabilities', statements.balanceSheet.liabilities);
+    const liabilitiesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS-L', statements.balanceSheet.liabilities);
     ExcelJSFormatter.formatBalanceSheetAssets(liabilitiesWs, statements.balanceSheet.liabilitiesSignatureRows); // Pass signature rows
 
     // Create Profit & Loss Statement
@@ -153,15 +154,15 @@ export class FinancialStatementGenerator {
     ExcelJSFormatter.formatBalanceSheetAssets(plWs, statements.profitLossSignatureRows); // Pass signature rows
 
     // Create Statement of Changes in Equity
-    const equityWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Changes_in_Equity', statements.changesInEquity);
+    const equityWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'SCE', statements.changesInEquity);
     ExcelJSFormatter.formatStatementOfChangesInEquity(equityWs, statements.changesInEquitySignatureRows); // Pass signature rows
 
     // Create Notes to Financial Statements (Policy Notes)
-    const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Policy', statements.notes);
+    const notesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'N-Policy', statements.notes);
     ExcelJSFormatter.formatNotesToFinancialStatements(notesWs);
 
     // Create Accounting Notes (Detailed Notes) with Specific Formatting
-    const accountingNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Accounting', statements.accountingNotes);
+    const accountingNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'N-Acct', statements.accountingNotes);
     
     // Use new specific formatting approach if formatters are available
     if (statements.accountingNotesFormatters && statements.accountingNotesFormatters.length > 0) {
@@ -174,7 +175,7 @@ export class FinancialStatementGenerator {
 
     // Create Detail Notes (if available)
     if (statements.detailNotes?.detail1) {
-      const detailNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'Notes_Detail', statements.detailNotes.detail1);
+      const detailNotesWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'N-Detail', statements.detailNotes.detail1);
       ExcelJSFormatter.formatDetailNotes(detailNotesWs); // Use detail notes specific formatting
     }
 
@@ -429,7 +430,7 @@ export class FinancialStatementGenerator {
     // Add header
     detailNotes.push([`${companyInfo.name}`, '', '', '', '', '', '', '', '']);
     detailNotes.push(['รายละเอียดประกอบหมายเหตุประกอบงบการเงิน', '', '', '', '', '', '', '', '']);
-    detailNotes.push([`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', '']);
+    detailNotes.push([`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${companyInfo.reportingYear} ถึงวันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', '']);
     detailNotes.push(['', '', '', '', '', '', '', '', '']);
     
     // Add DT1 - Cost of goods sold / Service costs

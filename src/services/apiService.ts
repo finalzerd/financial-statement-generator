@@ -36,12 +36,15 @@ export class ApiService {
     name: string;
     type: string;
     registrationNumber?: string;
+    registrationDate?: string;
     address?: string;
     businessDescription?: string;
     taxId?: string;
     defaultReportingYear?: number;
     numberOfShares?: number;
     shareValue?: number;
+    periodStartDate?: string;
+    periodEndDate?: string;
   }) {
     const response = await fetch(`${this.BASE_URL}/companies`, {
       method: 'POST',
@@ -62,12 +65,15 @@ export class ApiService {
     name: string;
     type: string;
     registrationNumber?: string;
+    registrationDate?: string;
     address?: string;
     businessDescription?: string;
     taxId?: string;
     defaultReportingYear?: number;
     numberOfShares?: number;
     shareValue?: number;
+    periodStartDate?: string;
+    periodEndDate?: string;
   }) {
     const response = await fetch(`${this.BASE_URL}/companies/${companyId}`, {
       method: 'PUT',

@@ -4,7 +4,10 @@ interface CompanyInfoFormData {
   companyName: string;
   companyType: 'บริษัทจำกัด' | 'ห้างหุ้นส่วนจำกัด';
   reportingPeriod: string;
+  periodStartDate?: string; // วันที่เริ่มต้นงวดบัญชี
+  periodEndDate?: string; // วันที่สิ้นสุดงวดบัญชี
   registrationNumber?: string;
+  registrationDate?: string;
   address?: string;
   businessDescription?: string;
   // Share information for บริษัทจำกัด
@@ -69,12 +72,42 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onSubmit, onCancel })
         </div>
         
         <div className="form-group">
+          <label>วันที่เริ่มต้นงวดบัญชี</label>
+          <input
+            type="text"
+            value={formData.periodStartDate || ''}
+            onChange={(e) => setFormData({...formData, periodStartDate: e.target.value})}
+            placeholder="เช่น 1 มกราคม"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>วันที่สิ้นสุดงวดบัญชี</label>
+          <input
+            type="text"
+            value={formData.periodEndDate || ''}
+            onChange={(e) => setFormData({...formData, periodEndDate: e.target.value})}
+            placeholder="เช่น 31 ธันวาคม"
+          />
+        </div>
+        
+        <div className="form-group">
           <label>เลขทะเบียนบริษัท</label>
           <input
             type="text"
             value={formData.registrationNumber || ''}
             onChange={(e) => setFormData({...formData, registrationNumber: e.target.value})}
             placeholder="เช่น 0105564000123"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>วันที่จดทะเบียน</label>
+          <input
+            type="text"
+            value={formData.registrationDate || ''}
+            onChange={(e) => setFormData({...formData, registrationDate: e.target.value})}
+            placeholder="เช่น 17 ก.ค. 2563"
           />
         </div>
         

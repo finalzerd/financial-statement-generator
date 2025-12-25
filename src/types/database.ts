@@ -6,10 +6,13 @@ export interface Company {
   name: string;
   type: 'ห้างหุ้นส่วนจำกัด' | 'บริษัทจำกัด';
   registrationNumber?: string;
+  registrationDate?: string; // Registration date for Notes_Policy
   address?: string;
   businessDescription?: string; // Business type/description
   taxId?: string;
   defaultReportingYear: number;
+  periodStartDate?: string; // Accounting period start date (e.g., "1 มกราคม")
+  periodEndDate?: string; // Accounting period end date (e.g., "31 ธันวาคม")
   // Share information for บริษัทจำกัด
   numberOfShares?: number; // จำนวนหุ้นสามัญ
   shareValue?: number; // มูลค่าหุ้นสามัญ (บาทต่อหุ้น)

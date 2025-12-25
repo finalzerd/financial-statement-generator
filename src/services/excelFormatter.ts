@@ -40,7 +40,24 @@ export class ExcelJSFormatter {
    * Add data to worksheet and return the worksheet
    */
   static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string})[][]): ExcelJS.Worksheet {
-    const worksheet = workbook.addWorksheet(worksheetName);
+    const worksheet = workbook.addWorksheet(worksheetName, {
+      views: [{ 
+        state: 'pageLayout',
+        showGridLines: true,
+        zoomScale: 100,
+        zoomScaleNormal: 100
+      }]
+    });
+    
+    // Set page setup - fit to 1 page width
+    worksheet.pageSetup = {
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0, // 0 means automatic height
+      orientation: 'portrait',
+      paperSize: 9, // A4
+      horizontalCentered: true // Center on page horizontally
+    };
     
     // Add data row by row
     data.forEach((row, rowIndex) => {
@@ -343,7 +360,8 @@ export class ExcelJSFormatter {
         const bVal = worksheet.getCell(`B${row}`).value;
         const aText = typeof aVal === 'string' ? aVal.trim() : '';
         const bText = typeof bVal === 'string' ? bVal.trim() : '';
-        if ((aText && aText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม')) || (bText && bText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'))) {
+        // Match "ยอดคงเหลือ ณ วันที่" followed by any date text (flexible for custom period dates)
+        if ((aText && aText.startsWith('ยอดคงเหลือ ณ วันที่')) || (bText && bText.startsWith('ยอดคงเหลือ ณ วันที่'))) {
           this.formatEquityYearEndDoubleBorder(worksheet, row);
         }
       }
@@ -669,7 +687,8 @@ export class ExcelJSFormatter {
 
         // Statement of Changes in Equity: Year-end rows must have top+double bottom borders on C/F/I
         // Detect by column B or (SCE layout) column A
-        if (primaryText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม') || aText.startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม')) {
+        // Match "ยอดคงเหลือ ณ วันที่" followed by any date text (flexible for custom period dates)
+        if (primaryText.startsWith('ยอดคงเหลือ ณ วันที่') || aText.startsWith('ยอดคงเหลือ ณ วันที่')) {
           this.formatEquityYearEndDoubleBorder(worksheet, row);
           continue;
         }
@@ -1232,8 +1251,9 @@ export class ExcelJSFormatter {
   const isTotalEquityPartnersRow = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมส่วนของผู้เป็นหุ้นส่วน';
   const isTotalLiabilitiesAndEquityRow = typeof bCellValue === 'string' && (bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้ถือหุ้น' || bCellValue.trim() === 'รวมหนี้สินและส่วนของผู้เป็นหุ้นส่วน');
   // SCE protected rows for columns C/F/I borders
-  const isEquityYearEndRow = (typeof bCellValue === 'string' && bCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'))
-    || (typeof aCellValue === 'string' && aCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่ 31 ธันวาคม'));
+  // Match "ยอดคงเหลือ ณ วันที่" followed by any date text (flexible for custom period dates)
+  const isEquityYearEndRow = (typeof bCellValue === 'string' && bCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่'))
+    || (typeof aCellValue === 'string' && aCellValue.trim().startsWith('ยอดคงเหลือ ณ วันที่'));
   // P&L protected rows for column I borders
   const isPLSumRevenue = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมรายได้';
   const isPLSumExpenses = typeof bCellValue === 'string' && bCellValue.trim() === 'รวมค่าใช้จ่าย';

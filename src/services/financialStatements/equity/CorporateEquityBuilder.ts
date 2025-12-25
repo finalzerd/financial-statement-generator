@@ -24,7 +24,7 @@ export class CorporateEquityBuilder {
     const result: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['งบการเปลี่ยนแปลงส่วนของผู้ถือหุ้น', '', '', '', '', '', '', '', ''],
-      [`สำหรับรอบระยะเวลาบัญชี สิ้นสุด วันที่ 31 ธันวาคม ${currentYear}`, '', '', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${currentYear} ถึงวันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${currentYear}`, '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
       ['', '', 'ทุนเรือนหุ้นที่ออกและชำระแล้ว', '', '', 'กำไร(ขาดทุน)สะสม', '', '', 'รวม'],
@@ -38,10 +38,10 @@ export class CorporateEquityBuilder {
       const prevYearProfit = '';
       const prevYearTotalEquity = paidUpCapitalPrevious > 0 ? paidUpCapitalPrevious + (openingRetainedEarnings || 0) : '';
 
-      result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${previousYear}`, '', paidUpCapitalPrevious || '', '', '', prevYearOpeningRetained, '', '', prevYearTotalEquity]);
+      result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${previousYear}`, '', paidUpCapitalPrevious || '', '', '', prevYearOpeningRetained, '', '', prevYearTotalEquity]);
       result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', prevYearProfit, '', '', '']);
   // Year-end (previous year) with formulas
-  result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${previousYear}`, '', { f: 'C8+C9' }, '', '', { f: 'F8+F9' }, '', '', { f: 'C10+F10' }]);
+  result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${previousYear}`, '', { f: 'C8+C9' }, '', '', { f: 'F8+F9' }, '', '', { f: 'C10+F10' }]);
       result.push(['', '', '', '', '', '', '', '', '']);
       result.push(['', '', '', '', '', '', '', '', '']);
       rowIndex = 12;
@@ -49,10 +49,10 @@ export class CorporateEquityBuilder {
 
     const openingTotalCurrent = paidUpCapitalCurrent + openingRetainedEarnings;
 
-  result.push([`ยอดคงเหลือ ณ วันที่ 1 มกราคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarnings, '', '', openingTotalCurrent]);
+  result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarnings, '', '', openingTotalCurrent]);
     result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
   // Year-end (current year) with formulas
-  result.push([`ยอดคงเหลือ ณ วันที่ 31 ธันวาคม ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 3}+F${rowIndex + 3}` }]);
+  result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 3}+F${rowIndex + 3}` }]);
 
     result.push(['', '', '', '', '', '', '', '', '']);
     result.push(['หมายเหตุประกอบงบการเงินเป็นส่วนหนึ่งของงบการเงินนี้', '', '', '', '', '', '', '', '']);

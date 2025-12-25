@@ -128,7 +128,7 @@ export class LiabilitiesBuilder {
     const worksheetData: (string | number | { f: string })[][] = [
       [companyInfo.name, '', '', '', '', '', '', '', '', ''],
       ['งบฐานะการเงิน (ต่อ)', '', '', '', '', '', '', '', '', ''],
-      [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear - 1}`, ''],
+      [`ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear - 1}`, ''],
       ['', '', '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', '', ''],
       ['', liabilityAndEquityTerm, '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : '', '']

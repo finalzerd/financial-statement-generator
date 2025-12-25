@@ -15,10 +15,13 @@ export interface CompanyInfo {
   name: string;
   type: 'ห้างหุ้นส่วนจำกัด' | 'บริษัทจำกัด'; // Limited Partnership or Limited Company
   registrationNumber?: string;
+  registrationDate?: string; // Registration date for Notes_Policy
   address?: string;
   businessDescription?: string; // Business type/description for Notes_Policy
   reportingPeriod: string;
   reportingYear: number;
+  reportingPeriodStartDate?: string; // Accounting period start date (e.g., "1 มกราคม")
+  reportingPeriodEndDate?: string; // Accounting period end date (e.g., "31 ธันวาคม")
   shares?: number; // Number of shares for Limited Company
   shareValue?: number; // Par value per share for Limited Company
   // Director signature fields
