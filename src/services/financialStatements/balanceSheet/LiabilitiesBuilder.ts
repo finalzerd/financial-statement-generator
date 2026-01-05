@@ -240,7 +240,7 @@ export class LiabilitiesBuilder {
     processingType: 'single-year' | 'multi-year',
     noteRegistry?: NoteRegistry
   ) {
-    worksheetData.push(['', 'หนี้สินหมุนเวียน', '', '', '', '', '', '', 'หน่วย:บาท', '']);
+    worksheetData.push(['', 'หนี้สินหมุนเวียน', '', '', '', '', '', '', '', '']);
     cellTracker.currentRow++;
 
     worksheetData.push(['', '', 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', noteRegistry?.bankOverdrafts?.toString() || '', bankOverdraftsAndShortTermLoans, '', processingType === 'multi-year' ? prevBankOverdrafts : '', '']);

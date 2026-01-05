@@ -36,10 +36,9 @@ export class CorporateEquityBuilder {
     if (isMultiYear) {
       const prevYearOpeningRetained = '';
       const prevYearProfit = '';
-      const prevYearTotalEquity = paidUpCapitalPrevious > 0 ? paidUpCapitalPrevious + (openingRetainedEarnings || 0) : '';
 
-      result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${previousYear}`, '', paidUpCapitalPrevious || '', '', '', prevYearOpeningRetained, '', '', prevYearTotalEquity]);
-      result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', prevYearProfit, '', '', '']);
+      result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${previousYear}`, '', paidUpCapitalPrevious || '', '', '', prevYearOpeningRetained, '', '', { f: 'C8+F8' }]);
+      result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${previousYear}`, '', '', '', '', prevYearProfit, '', '', { f: 'F9' }]);
   // Year-end (previous year) with formulas
   result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${previousYear}`, '', { f: 'C8+C9' }, '', '', { f: 'F8+F9' }, '', '', { f: 'C10+F10' }]);
       result.push(['', '', '', '', '', '', '', '', '']);
@@ -47,10 +46,8 @@ export class CorporateEquityBuilder {
       rowIndex = 12;
     }
 
-    const openingTotalCurrent = paidUpCapitalCurrent + openingRetainedEarnings;
-
-  result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarnings, '', '', openingTotalCurrent]);
-    result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', currentYearProfit]);
+  result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${currentYear}`, '', paidUpCapitalCurrent, '', '', openingRetainedEarnings, '', '', { f: `C${rowIndex + 1}+F${rowIndex + 1}` }]);
+    result.push([`กำไร (ขาดทุน) สุทธิ สำหรับปี ${currentYear}`, '', '', '', '', currentYearProfit, '', '', { f: `F${rowIndex + 2}` }]);
   // Year-end (current year) with formulas
   result.push([`ยอดคงเหลือ ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${currentYear}`, '', paidUpCapitalCurrent, '', '', retainedEarningsCurrent, '', '', { f: `C${rowIndex + 3}+F${rowIndex + 3}` }]);
 

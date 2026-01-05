@@ -141,6 +141,14 @@ export class FinancialStatementGenerator {
     
     const workbook = ExcelJSFormatter.createWorkbook();
 
+    // Create cover sheet as the first sheet
+    ExcelJSFormatter.createCoverSheet(
+      workbook, 
+      statements.companyInfo.name,
+      statements.companyInfo.reportingPeriodEndDate || '31 ธันวาคม',
+      statements.companyInfo.reportingYear
+    );
+
     // Create Balance Sheet - Assets
     const assetsWs = ExcelJSFormatter.addDataToWorksheet(workbook, 'BS-A', statements.balanceSheet.assets);
     ExcelJSFormatter.formatBalanceSheetAssets(assetsWs, statements.balanceSheet.assetsSignatureRows);

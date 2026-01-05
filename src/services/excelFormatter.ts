@@ -42,22 +42,13 @@ export class ExcelJSFormatter {
   static addDataToWorksheet(workbook: ExcelJS.Workbook, worksheetName: string, data: (string | number | {f: string})[][]): ExcelJS.Worksheet {
     const worksheet = workbook.addWorksheet(worksheetName, {
       views: [{ 
-        state: 'pageLayout',
+        state: 'normal',
+        style: 'pageLayout',
         showGridLines: true,
         zoomScale: 100,
         zoomScaleNormal: 100
       }]
     });
-    
-    // Set page setup - fit to 1 page width
-    worksheet.pageSetup = {
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0, // 0 means automatic height
-      orientation: 'portrait',
-      paperSize: 9, // A4
-      horizontalCentered: true // Center on page horizontally
-    };
     
     // Add data row by row
     data.forEach((row, rowIndex) => {
@@ -88,6 +79,60 @@ export class ExcelJSFormatter {
     });
     
     return worksheet;
+  }
+  
+  /**
+   * Create cover sheet for financial statements
+   * This sheet should be positioned as the first sheet
+   */
+  static createCoverSheet(workbook: ExcelJS.Workbook, companyName: string, reportingPeriodEndDate: string, reportingYear: number): ExcelJS.Worksheet {
+    const coverSheet = workbook.addWorksheet('Cover', {
+      views: [{ 
+        state: 'normal',
+        showGridLines: false, // Hide grid lines for cleaner look
+        zoomScale: 100,
+        zoomScaleNormal: 100
+      }]
+    });
+    
+    // Set column widths (C-J span)
+    for (let i = 1; i <= 10; i++) {
+      coverSheet.getColumn(i).width = 12;
+    }
+    
+    // First line: Company name (merged C3:J3)
+    coverSheet.mergeCells('C3:J3');
+    const companyCell = coverSheet.getCell('C3');
+    companyCell.value = companyName;
+    companyCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    companyCell.font = { name: this.THAI_FONT_NAME, size: 36, bold: true };
+    companyCell.border = {
+      top: { style: 'thin', color: { argb: this.COLORS.BORDER } },
+      bottom: { style: 'thin', color: { argb: this.COLORS.BORDER } }
+    };
+    
+    // Second line: Financial statement period (merged C4:J4)
+    coverSheet.mergeCells('C4:J4');
+    const periodCell = coverSheet.getCell('C4');
+    periodCell.value = `งบการเงินสำหรับปีสิ้นสุดวันที่ ${reportingPeriodEndDate || '31 ธันวาคม'} ${reportingYear}`;
+    periodCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    periodCell.font = { name: this.THAI_FONT_NAME, size: 28 };
+    
+    // Third line: Auditor's report (merged C5:J5)
+    coverSheet.mergeCells('C5:J5');
+    const auditorCell = coverSheet.getCell('C5');
+    auditorCell.value = 'และรายงานผู้สอบบัญชีรับอนุญาต';
+    auditorCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    auditorCell.font = { name: this.THAI_FONT_NAME, size: 28 };
+    
+    // Set row heights for better spacing
+    coverSheet.getRow(1).height = 45; // 3x standard row height for spacing
+    coverSheet.getRow(2).height = 45; // 3x standard row height for spacing
+    coverSheet.getRow(3).height = 50;
+    coverSheet.getRow(4).height = 40;
+    coverSheet.getRow(5).height = 40;
+    
+    return coverSheet;
   }
   
   /**
@@ -301,6 +346,16 @@ export class ExcelJSFormatter {
     // Clear all empty cells to prevent text cutoff issues
     this.clearEmptyCells(worksheet);
     
+    // Set page setup - fit to 1 page width (applied after all formatting)
+    worksheet.pageSetup = {
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0, // 0 means automatic height
+      orientation: 'portrait',
+      paperSize: 9, // A4
+      horizontalCentered: true // Center on page horizontally
+    };
+    
     console.log('Professional Thai formatting completed (BS/PL format with no green background)');
   }
 
@@ -361,8 +416,18 @@ export class ExcelJSFormatter {
         const aText = typeof aVal === 'string' ? aVal.trim() : '';
         const bText = typeof bVal === 'string' ? bVal.trim() : '';
         // Match "ยอดคงเหลือ ณ วันที่" followed by any date text (flexible for custom period dates)
+        // BUT exclude opening balance rows by checking if next row contains profit line
         if ((aText && aText.startsWith('ยอดคงเหลือ ณ วันที่')) || (bText && bText.startsWith('ยอดคงเหลือ ณ วันที่'))) {
-          this.formatEquityYearEndDoubleBorder(worksheet, row);
+          // Check next row - if it contains "กำไร (ขาดทุน) สุทธิ", this is an opening balance
+          const nextRowAVal = worksheet.getCell(`A${row + 1}`).value;
+          const nextRowBVal = worksheet.getCell(`B${row + 1}`).value;
+          const nextRowAText = typeof nextRowAVal === 'string' ? nextRowAVal.trim() : '';
+          const nextRowBText = typeof nextRowBVal === 'string' ? nextRowBVal.trim() : '';
+          const isOpeningBalance = nextRowAText.includes('กำไร (ขาดทุน) สุทธิ') || nextRowBText.includes('กำไร (ขาดทุน) สุทธิ');
+          
+          if (!isOpeningBalance) {
+            this.formatEquityYearEndDoubleBorder(worksheet, row);
+          }
         }
       }
     } catch {}
@@ -387,6 +452,16 @@ export class ExcelJSFormatter {
     
     // Clear all empty cells to prevent text cutoff issues
     this.clearEmptyCells(worksheet);
+    
+    // Set page setup - fit to 1 page width (applied after all formatting)
+    worksheet.pageSetup = {
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0, // 0 means automatic height
+      orientation: 'portrait',
+      paperSize: 9, // A4
+      horizontalCentered: true // Center on page horizontally
+    };
     
     console.log('Professional Thai formatting completed (SCE format with specific formatting)');
   }
@@ -417,6 +492,16 @@ export class ExcelJSFormatter {
     this.formatAccountLinesProfessional(worksheet);
     this.formatTotalLinesProfessional(worksheet);
     this.setRowHeightsProfessional(worksheet);
+    
+    // Set page setup - fit to 1 page width (applied after all formatting)
+    worksheet.pageSetup = {
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0, // 0 means automatic height
+      orientation: 'portrait',
+      paperSize: 9, // A4
+      horizontalCentered: true // Center on page horizontally
+    };
     
     console.log('Professional Thai formatting completed (with green background)');
   }
@@ -688,8 +773,19 @@ export class ExcelJSFormatter {
         // Statement of Changes in Equity: Year-end rows must have top+double bottom borders on C/F/I
         // Detect by column B or (SCE layout) column A
         // Match "ยอดคงเหลือ ณ วันที่" followed by any date text (flexible for custom period dates)
+        // BUT exclude opening balance rows by checking if next row contains profit line
         if (primaryText.startsWith('ยอดคงเหลือ ณ วันที่') || aText.startsWith('ยอดคงเหลือ ณ วันที่')) {
-          this.formatEquityYearEndDoubleBorder(worksheet, row);
+          // Check next row - if it contains "กำไร (ขาดทุน) สุทธิ", this is an opening balance
+          const nextRow = worksheet.getRow(row + 1);
+          const nextAVal = nextRow.getCell(1).value;
+          const nextBVal = nextRow.getCell(2).value;
+          const nextAText = typeof nextAVal === 'string' ? nextAVal.trim() : '';
+          const nextBText = typeof nextBVal === 'string' ? nextBVal.trim() : '';
+          const isOpeningBalance = nextAText.includes('กำไร (ขาดทุน) สุทธิ') || nextBText.includes('กำไร (ขาดทุน) สุทธิ');
+          
+          if (!isOpeningBalance) {
+            this.formatEquityYearEndDoubleBorder(worksheet, row);
+          }
           continue;
         }
 
