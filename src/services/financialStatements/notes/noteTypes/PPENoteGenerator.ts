@@ -125,10 +125,10 @@ export class PPENoteGenerator {
     
     // 2. Column Headers (Year Headers) - Same structure for both single and multi-year
     if (processingType === 'multi-year') {
-      notes.push(['', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear - 1}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+      notes.push(['', '', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear - 1}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`]);
     } else {
       // Single-year: Same structure but use same year for both columns
-      notes.push(['', '', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ 31 ธ.ค. ${companyInfo.reportingYear}`]);
+      notes.push(['', '', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`]);
     }
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;

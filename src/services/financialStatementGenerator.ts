@@ -273,7 +273,7 @@ export class FinancialStatementGenerator {
     const notes: any[][] = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['หมายเหตุประกอบงบการเงิน (ต่อ)', '', '', '', '', '', '', '', ''],
-      [`ณ วันที่ 31 ธันวาคม ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
+      [`สำหรับรอบระยะเวลาบัญชี ตั้งแต่วันที่ ${companyInfo.reportingPeriodStartDate || '1 มกราคม'} ${companyInfo.reportingYear} ถึงวันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', '', '', '', '', '', '', ''],
       ['', '', '', '', '', '', '', '', ''],
     ];
 
