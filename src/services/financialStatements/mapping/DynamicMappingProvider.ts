@@ -14,6 +14,7 @@ export class DynamicMappingProvider implements IAccountMappingProvider {
   private subCategoryRules: Map<string, SubCategoryRuleContainer> = new Map();
 
   constructor(mappings: CompanyMappingRecord[] = []) {
+    console.log(`[DynamicMappingProvider] Initializing with ${mappings.length} mappings`);
     for (const m of mappings) {
       if (!m || !m.noteType || !m.accountRanges) continue;
       this.rules.set(m.noteType, m.accountRanges);
@@ -21,6 +22,7 @@ export class DynamicMappingProvider implements IAccountMappingProvider {
       if (m.subCategoryRules && typeof m.subCategoryRules === 'object') {
         this.subCategoryRules.set(m.noteType, m.subCategoryRules);
       }
+      console.log(`[DynamicMappingProvider] Loaded mapping: ${m.noteType}`, m.accountRanges);
     }
   }
 

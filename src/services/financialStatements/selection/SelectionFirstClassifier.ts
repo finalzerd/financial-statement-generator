@@ -265,6 +265,10 @@ export class SelectionFirstClassifier {
     const includes = new Set<string>((rules?.includes ?? []).map(String));
     const excludes = new Set<string>((rules?.excludes ?? []).map(String));
     const ranges: Array<{ from: number; to: number }> = rules?.ranges ?? [];
+    
+    if (cat === 'other_assets' && rules) {
+      console.log(`[SelectionFirst] Building resolver for other_assets:`, { rules, includes, excludes, ranges });
+    }
 
     // Fallback numeric ranges per legacy logic
     const fallback = (codeNum: number, codeStr: string) => {
@@ -309,19 +313,35 @@ export class SelectionFirstClassifier {
   const codeNum = Number.parseFloat(codeStr || '0');
       const inRanges = (lst?: Array<{ from: number; to: number }>) => Array.isArray(lst) && lst.some(r => codeNum >= r.from && codeNum <= r.to);
 
+      // Check if provider has defined any rules for this category
+      const hasProviderRules = ranges.length > 0 || includes.size > 0 || excludes.size > 0;
+
       // Provider-based rules (top-level)
       const byInclude = includes.size > 0 && includes.has(codeStr);
       const byRange = ranges.length > 0 && Number.isFinite(codeNum) && inRanges(ranges);
       const excluded = excludes.has(codeStr);
+      
       if ((byInclude || byRange) && !excluded) {
+        if (cat === 'other_assets') {
+          console.log(`[SelectionFirst] other_assets MATCHED account ${codeStr} (byInclude=${byInclude}, byRange=${byRange})`);
+        }
         return { matched: true };
       }
 
-      // Fallback numeric mapping (unless disabled for this category)
+      // If provider rules exist but didn't match (or account was excluded), don't fall back
+      if (hasProviderRules) {
+        return { matched: false };
+      }
+
+      // Fallback numeric mapping (only when NO provider rules exist)
       if (disableFallback) {
         return { matched: false };
       }
-      return { matched: Number.isFinite(codeNum) && fallback(codeNum, codeStr) === true };
+      const fallbackResult = { matched: Number.isFinite(codeNum) && fallback(codeNum, codeStr) === true };
+      if (cat === 'other_assets' && fallbackResult.matched) {
+        console.log(`[SelectionFirst] other_assets MATCHED account ${codeStr} via FALLBACK`);
+      }
+      return fallbackResult;
     };
   }
 }

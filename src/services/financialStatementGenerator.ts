@@ -316,11 +316,25 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'otherCurrentAssets', tracker: otherCurrentAssetsTracker });
     }
 
-    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting (should come before Payables)
+    // Long-term Loans - Asset (เงินให้กู้ยืมระยะยาว)
+    const assetLongTermLoansTracker = AssetLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (assetLongTermLoansTracker.headerRows.length > 0) {
+      noteRegistry.assetLongTermLoans = noteNumber++;
+      formatters.push({ type: 'assetLongTermLoans', tracker: assetLongTermLoansTracker });
+    }
+
+    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting
     const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (ppeTracker.headerRows.length > 0) {
       noteRegistry.ppe = noteNumber++;
       formatters.push({ type: 'ppe', tracker: ppeTracker });
+    }
+    
+    // Other Non-Current Assets (สินทรัพย์ไม่หมุนเวียนอื่น)
+    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (otherAssetsTracker.headerRows.length > 0) {
+      noteRegistry.otherAssets = noteNumber++;
+      formatters.push({ type: 'general', tracker: otherAssetsTracker });
     }
     
     // Bank Overdrafts and Short-term Borrowings from Financial Institutions Note (before payables)
@@ -340,18 +354,6 @@ export class FinancialStatementGenerator {
     if (otherCurrentLiabilitiesTracker.headerRows.length > 0) {
       noteRegistry.otherCurrentLiabilities = noteNumber++;
       formatters.push({ type: 'otherCurrentLiabilities', tracker: otherCurrentLiabilitiesTracker });
-    }
-    
-    const otherAssetsTracker = OtherAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
-    if (otherAssetsTracker.headerRows.length > 0) {
-      noteRegistry.otherAssets = noteNumber++;
-      formatters.push({ type: 'general', tracker: otherAssetsTracker });
-    }
-    
-    const assetLongTermLoansTracker = AssetLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
-    if (assetLongTermLoansTracker.headerRows.length > 0) {
-      noteRegistry.assetLongTermLoans = noteNumber++;
-      formatters.push({ type: 'assetLongTermLoans', tracker: assetLongTermLoansTracker });
     }
     
     const hirePurchaseTracker = HirePurchaseCreditorsNoteGenerator.generateWithRowTracking(

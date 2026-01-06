@@ -91,7 +91,7 @@ export class OtherAssetsNoteGenerator {
       console.log(`[SelectionFirst] Other assets: using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalCurrent}, previous=${totalPrevious}`);
 
       // 1. Note Header Row
-      notes.push([noteNumber.toString(), 'สินทรัพย์อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      notes.push([noteNumber.toString(), 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
       tracker.headerRows.push(tracker.currentRow);
       tracker.unitRows.push(tracker.currentRow);
       tracker.currentRow++;
@@ -142,7 +142,7 @@ export class OtherAssetsNoteGenerator {
     console.log(`=== OTHER ASSETS NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
 
     // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'สินทรัพย์อื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
+    notes.push([noteNumber.toString(), 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
     tracker.headerRows.push(tracker.currentRow);
     tracker.unitRows.push(tracker.currentRow);
     tracker.currentRow++;
