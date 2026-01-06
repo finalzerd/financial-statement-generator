@@ -15,12 +15,14 @@ import {
   PPENoteGenerator,
   OtherIncomeNoteGenerator,
   ShortTermLoansNoteGenerator,
+  LiabilityShortTermLoansNoteGenerator,
   BankOverdraftsNoteGenerator,
   OtherAssetsNoteGenerator,
   OtherCurrentAssetsNoteGenerator,
   OtherCurrentLiabilitiesNoteGenerator,
   OtherNonCurrentLiabilitiesNoteGenerator,
   AssetLongTermLoansNoteGenerator,
+  LongTermLoansNoteGenerator,
   HirePurchaseCreditorsNoteGenerator,
   OtherLongTermLoansNoteGenerator,
   RelatedPartyLoansNoteGenerator,
@@ -127,6 +129,7 @@ export class FinancialStatementGenerator {
       notes: notesToFinancialStatements,
       accountingNotes: accountingNotesResult.notes,
       accountingNotesFormatters: accountingNotesResult.formatters,
+      accountingNotesSignatureRows: accountingNotesResult.signatureRows,
       detailNotes: {
         detail1: detailNotes,
         detail2: undefined
@@ -175,10 +178,10 @@ export class FinancialStatementGenerator {
     // Use new specific formatting approach if formatters are available
     if (statements.accountingNotesFormatters && statements.accountingNotesFormatters.length > 0) {
       console.log('Using specific row-tracked formatting for Notes_Accounting');
-      ExcelJSFormatter.formatNotesWithSpecificFormatting(accountingNotesWs, statements.accountingNotesFormatters);
+      ExcelJSFormatter.formatNotesWithSpecificFormatting(accountingNotesWs, statements.accountingNotesFormatters, statements.accountingNotesSignatureRows);
     } else {
       console.log('Using fallback pattern-based formatting for Notes_Accounting');
-      ExcelJSFormatter.formatNotesWithoutBackground(accountingNotesWs);
+      ExcelJSFormatter.formatNotesWithoutBackground(accountingNotesWs, statements.accountingNotesSignatureRows);
     }
 
     // Create Detail Notes (if available)
@@ -266,7 +269,7 @@ export class FinancialStatementGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[]
-  ): { notes: any[][], formatters: NoteFormatter[], noteRegistry: import('./financialStatements/core/types').NoteRegistry } {
+  ): { notes: any[][], formatters: NoteFormatter[], noteRegistry: import('./financialStatements/core/types').NoteRegistry, signatureRows?: number[] } {
     // Extract global financial data once for consistency across all notes
   const globalData = GlobalDataExtractor.extract(trialBalanceData, companyInfo, this.mappingProvider);
     this.extractedData = globalData;
@@ -350,6 +353,13 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'payables', tracker: payablesTracker });
     }
 
+    // Liability Short-term Loans (เงินกู้ยืมระยะสั้น - borrowed) - After trade payables
+    const liabilityShortTermLoansTracker = LiabilityShortTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (liabilityShortTermLoansTracker.headerRows.length > 0) {
+      noteRegistry.liabilityShortTermLoans = noteNumber++;
+      formatters.push({ type: 'liabilityShortTermLoans', tracker: liabilityShortTermLoansTracker });
+    }
+
     const otherCurrentLiabilitiesTracker = OtherCurrentLiabilitiesNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherCurrentLiabilitiesTracker.headerRows.length > 0) {
       noteRegistry.otherCurrentLiabilities = noteNumber++;
@@ -369,6 +379,13 @@ export class FinancialStatementGenerator {
     if (hirePurchaseTracker.headerRows.length > 0) {
       noteRegistry.hirePurchaseCreditors = noteNumber++;
       formatters.push({ type: 'hirePurchaseCreditors', tracker: hirePurchaseTracker });
+    }
+
+    // Long-term Loans from Financial Institutions (เงินกู้ยืมระยะยาวจากสถาบันการเงิน)
+    const longTermLoansFromFITracker = LongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (longTermLoansFromFITracker.headerRows.length > 0) {
+      noteRegistry.longTermLoansFromFI = noteNumber++;
+      formatters.push({ type: 'longTermLoansFromFI', tracker: longTermLoansFromFITracker });
     }
 
     const otherLongTermLoansTracker = OtherLongTermLoansNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
@@ -409,8 +426,22 @@ export class FinancialStatementGenerator {
       }
     }
 
+    // Add signatory block at the end of Notes_Accounting
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    notes.push(['ขอรับรองว่าเป็นรายการอันถูกต้องและเป็นความจริง', '', '', '', '', '', '', '', '']);
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    notes.push(['', '', '', '', '', '', '', '', '']);
+    
+    const signatureRowIndex = notes.length + 1; // 1-based for Excel
+    const signatureTitle = companyInfo.type === 'ห้างหุ้นส่วนจำกัด' ? 'หุ้นส่วนผู้จัดการ' : 'กรรมการตามอำนาจ';
+    notes.push([`ลงชื่อ ……………………..................................... ${signatureTitle}`, '', '', '', '', '', '', '', '']);
+    
+    const directorNameRowIndex = notes.length + 1; // 1-based for Excel
+    const directorName = companyInfo.directorName || '...........................';
+    notes.push([`(${directorName})`, '', '', '', '', '', '', '', '']);
+
     console.log(`Generated ${formatters.length} tracked notes with specific formatting`);
-    return { notes, formatters, noteRegistry };
+    return { notes, formatters, noteRegistry, signatureRows: [signatureRowIndex, directorNameRowIndex] };
   }
 
   private generateDetailNotes(trialBalanceData: TrialBalanceEntry[], companyInfo: CompanyInfo): any[][] {

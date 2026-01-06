@@ -130,69 +130,8 @@ export class LongTermLoansNoteGenerator {
       return tracker;
     }
 
-    // Fallback legacy path
-    // Special calculation: 2120-2123 minus 2121
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) - 
-                       Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2121, 2121));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2120, 2123)) : 0;
-    const legacyTotalsAreZero = processingType === 'multi-year'
-      ? totalAmount === 0 && prevTotalAmount === 0
-      : totalAmount === 0;
-
-    if (legacyTotalsAreZero) {
-      console.log('[Legacy] LT loans (FI): skipping note - totals zero in numeric range fallback.');
-      return tracker;
-    }
-    console.log('[SelectionFirst] LT loans (FI): no selection details; falling back to legacy totals');
-
-    console.log(`=== LONG TERM LOANS NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
-
-    // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
-    tracker.headerRows.push(tracker.currentRow);
-    tracker.unitRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 2. Year Header Row
-    if (processingType === 'multi-year') {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-    } else {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-    }
-    tracker.yearHeaderRows.push(tracker.currentRow);
-    tracker.currentRow++;
-    
-    // 3. Main Detail Row
-    notes.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', totalAmount, '', 
-      processingType === 'multi-year' ? prevTotalAmount : '']);
-    tracker.detailRows.push(tracker.currentRow);
-    const mainDataRowIndex = tracker.currentRow; // Store for formula reference
-    tracker.currentRow++;
-    
-    // 4. Total Row with Excel formulas
-    notes.push(['', '', 'รวม', '', '', '', 
-      { f: `G${mainDataRowIndex}` }, '', // Reference main detail row current amount
-      processingType === 'multi-year' ? { f: `I${mainDataRowIndex}` } : '']); // Reference main detail row previous amount
-    tracker.totalRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 5. Current Portion Detail - Calculate 10% as placeholder
-    const currentPortion = Math.round(totalAmount * 0.1);
-    notes.push(['', '', 'หัก ส่วนของหนี้สินระยะยาวที่ถึงกำหนดชำระภายในหนึ่งปี', '', '', '', currentPortion, '', '']);
-    tracker.detailRows.push(tracker.currentRow);
-    tracker.currentRow++;
-    
-    // 6. Net Long-term Loans Row
-    notes.push(['', '', 'เงินกู้ยืมระยะยาวสุทธิจากส่วนที่ถึงกำหนดชำระคืนภายในหนึ่งปี', '', '', '', totalAmount - currentPortion, '', '']);
-    tracker.detailRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 7. Spacer Row
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-
-    console.log(`Long Term Loans Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    // No selection data - skip note to preserve classifier integrity
+    console.log('[LongTermLoans] No selection data; skipping note (no fallback to preserve classifier integrity)');
     return tracker;
   }
 }

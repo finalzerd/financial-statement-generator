@@ -1687,7 +1687,7 @@ export class ExcelJSFormatter {
   /**
    * Format notes with specific note-by-note formatting using row trackers
    */
-  static formatNotesWithSpecificFormatting(worksheet: ExcelJS.Worksheet, formatters: any[]): void {
+  static formatNotesWithSpecificFormatting(worksheet: ExcelJS.Worksheet, formatters: any[], signatureRows?: number[]): void {
     console.log('Applying specific note-by-note formatting with row trackers');
     
     // STEP 1: Enhanced blank space clearing for Notes_Accounting
@@ -1767,6 +1767,20 @@ export class ExcelJSFormatter {
 
     // STEP 4: Final cleanup - clear any remaining empty cells but preserve PPE movement columns
     this.clearEmptyCells(worksheet);
+    
+    // STEP 5: Format signature rows (center alignment with merged cells)
+    if (signatureRows && signatureRows.length > 0) {
+      console.log('Applying center-across-selection formatting to Notes_Accounting signature rows:', signatureRows);
+      signatureRows.forEach(rowIndex => {
+        // Merge cells A:I for this row (center-across-selection)
+        worksheet.mergeCells(rowIndex, 1, rowIndex, 9); // Merge A:I
+        
+        // Apply center alignment to the merged cell
+        const row = worksheet.getRow(rowIndex);
+        const mergedCell = row.getCell(1);
+        mergedCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+    }
     
     console.log(`Specific note formatting completed for ${formatters.length} notes with enhanced blank cell cleanup`);
   }
@@ -2020,7 +2034,7 @@ export class ExcelJSFormatter {
   /**
    * Format notes with no green background - clean professional look (Notes_Accounting)
    */
-  static formatNotesWithoutBackground(worksheet: ExcelJS.Worksheet): void {
+  static formatNotesWithoutBackground(worksheet: ExcelJS.Worksheet, signatureRows?: number[]): void {
     console.log('Applying Notes_Accounting specific formatting (fallback method)');
     
     // Enhanced blank space clearing first
@@ -2047,6 +2061,20 @@ export class ExcelJSFormatter {
     this.formatColumnHeadersAccountingNotes(worksheet); // Use accounting notes headers (no หมายเหตุ in F5)
     this.formatAccountLinesAccountingNotes(worksheet);
     this.formatTotalLinesAccountingNotes(worksheet);
+    
+    // Format signature rows if provided (with merged cells)
+    if (signatureRows && signatureRows.length > 0) {
+      console.log('Applying center-across-selection formatting to Notes_Accounting signature rows:', signatureRows);
+      signatureRows.forEach(rowIndex => {
+        // Merge cells A:I for this row (center-across-selection)
+        worksheet.mergeCells(rowIndex, 1, rowIndex, 9); // Merge A:I
+        
+        // Apply center alignment to the merged cell
+        const row = worksheet.getRow(rowIndex);
+        const mergedCell = row.getCell(1);
+        mergedCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      });
+    }
     
     // CRITICAL: Enforce column A center alignment for all note numbers (must be after all other formatting)
     for (let row = 6; row <= 100; row++) {

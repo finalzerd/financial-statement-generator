@@ -252,7 +252,7 @@ export class LiabilitiesBuilder {
     cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
-    worksheetData.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', '', shortTermBorrowings, '', processingType === 'multi-year' ? prevShortTermBorrowings : '', '']);
+    worksheetData.push(['', '', 'เงินกู้ยืมระยะสั้น', '', '', noteRegistry?.liabilityShortTermLoans?.toString() || '', shortTermBorrowings, '', processingType === 'multi-year' ? prevShortTermBorrowings : '', '']);
     cellTracker.currentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 
@@ -289,7 +289,7 @@ export class LiabilitiesBuilder {
     worksheetData.push(['', 'หนี้สินไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
     cellTracker.currentRow++;
 
-    worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', '', longTermLoansFromFI, '', processingType === 'multi-year' ? prevLongTermLoansFromFI : '', '']);
+    worksheetData.push(['', '', 'เงินกู้ยืมระยะยาวจากสถาบันการเงิน', '', '', noteRegistry?.longTermLoansFromFI?.toString() || '', longTermLoansFromFI, '', processingType === 'multi-year' ? prevLongTermLoansFromFI : '', '']);
     cellTracker.nonCurrentLiabilitiesRows.push(cellTracker.currentRow);
     cellTracker.currentRow++;
 

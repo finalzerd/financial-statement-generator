@@ -1,5 +1,5 @@
 // ============================================================================
-// OTHER ASSETS NOTE GENERATOR
+// LIABILITY SHORT TERM LOANS NOTE GENERATOR
 // ============================================================================
 
 import type { NoteRowTracker } from '../../core/types';
@@ -7,40 +7,14 @@ import type { SelectionFirstResult } from '../../selection/SelectionFirstClassif
 import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial';
 
 /**
- * Generates other assets note with row tracking
- * Covers assets account range 1660-1700
+ * Generates liability-side short term loans note with row tracking
+ * Default numeric coverage: account 2030 (เงินกู้ยืมระยะสั้น - borrowed short-term loans)
  */
-export class OtherAssetsNoteGenerator {
+export class LiabilityShortTermLoansNoteGenerator {
   
   /**
-   * Calculate sum of accounts in numeric range (helper method)
-   * TODO: Extract to shared utility when refactoring is complete
-   */
-  private static sumAccountsByNumericRange(trialBalanceData: TrialBalanceEntry[], startCode: number, endCode: number): number {
-    return trialBalanceData
-      .filter(entry => {
-        const code = parseInt(entry.accountCode || '0');
-        return code >= startCode && code <= endCode;
-      })
-      .reduce((sum, entry) => sum + (entry.balance || entry.currentBalance || 0), 0);
-  }
-
-  /**
-   * Calculate sum of previous balances in numeric range (helper method)
-   * TODO: Extract to shared utility when refactoring is complete
-   */
-  private static sumPreviousBalanceByNumericRange(trialBalanceData: TrialBalanceEntry[], startCode: number, endCode: number): number {
-    return trialBalanceData
-      .filter(entry => {
-        const code = parseInt(entry.accountCode || '0');
-        return code >= startCode && code <= endCode;
-      })
-      .reduce((sum, entry) => sum + (entry.previousBalance || 0), 0);
-  }
-
-  /**
-   * Generate other assets note with row tracking
-   * Uses account range 1660-1700 for miscellaneous other assets
+   * Generate liability short term loans note with row tracking
+   * Uses category 'short_term_loans' for loans BORROWED (liability-side)
    */
   static generateWithRowTracking(
     notes: any[][], 
@@ -48,7 +22,7 @@ export class OtherAssetsNoteGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 7,
+    noteNumber: number = 15,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
     const isZeroLike = (v: any) => (
@@ -66,7 +40,9 @@ export class OtherAssetsNoteGenerator {
       unitRows: []
     };
 
-    const selRows = selection?.byCategory?.other_assets ?? [];
+    // Use selection-first data for liability-side short-term loans borrowed
+    // Category key must match SelectionFirstClassifier (short_term_loans)
+    const selRows = selection?.byCategory?.short_term_loans ?? [];
     if (selRows.length > 0) {
       let suppressed = 0;
       const detailRows = selRows.filter((a) => {
@@ -84,49 +60,52 @@ export class OtherAssetsNoteGenerator {
         : totalCurrent === 0;
 
       if (detailRows.length === 0 || totalsAreZero) {
-        console.log('[SelectionFirst] Other assets: skipping note - totals zero after filtering or no detail rows.');
+        console.log('[SelectionFirst] Liability short-term loans: skipping note - totals zero after filtering or no detail rows.');
         return tracker;
       }
 
-      console.log(`[SelectionFirst] Other assets: using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalCurrent}, previous=${totalPrevious}`);
-
-      // 1. Note Header Row
-      notes.push([noteNumber.toString(), 'สินทรัพย์ไม่หมุนเวียนอื่น', '', '', '', '', '', '', 'หน่วย:บาท']);
-      tracker.headerRows.push(tracker.currentRow);
-      tracker.unitRows.push(tracker.currentRow);
+      console.log(`[SelectionFirst] Liability short-term loans: using selection-first details (${detailRows.length} accounts after suppressing ${suppressed}). Total current=${totalCurrent}, previous=${totalPrevious}`);
+      
+      // 1. Header
+      notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
+      tracker.headerRows.push(tracker.currentRow); 
+      tracker.unitRows.push(tracker.currentRow); 
       tracker.currentRow++;
-
-      // 2. Year Header Row
+      
+      // 2. Year header
       if (processingType === 'multi-year') {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
       } else {
         notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
       }
-      tracker.yearHeaderRows.push(tracker.currentRow);
+      tracker.yearHeaderRows.push(tracker.currentRow); 
       tracker.currentRow++;
-
-      // 3. Detail Rows from selection
+      
+      // 3. Details
       detailRows.forEach(a => {
         notes.push(['', '', a.accountName, '', '', '', a.current, '', processingType === 'multi-year' ? a.previous : '']);
-        tracker.detailRows.push(tracker.currentRow);
+        tracker.detailRows.push(tracker.currentRow); 
         tracker.currentRow++;
       });
-
-      // 4. Total Row with SUM formulas
+      
+      // 4. Total via SUM formulas
       const first = tracker.detailRows[0];
       const last = tracker.detailRows[tracker.detailRows.length - 1];
-      notes.push(['', '', 'รวม', '', '', '', { f: `SUM(G${first}:G${last})` } as any, '', processingType === 'multi-year' ? ({ f: `SUM(I${first}:I${last})` } as any) : '']);
-      tracker.totalRows.push(tracker.currentRow);
+      notes.push(['', '', 'รวม', '', '', '', 
+        { f: `SUM(G${first}:G${last})` } as any, '', 
+        processingType === 'multi-year' ? ({ f: `SUM(I${first}:I${last})` } as any) : '']);
+      tracker.totalRows.push(tracker.currentRow); 
       tracker.currentRow++;
-
-      // 5. Spacer Row
+      
+      // 5. Spacer
       notes.push(['', '', '', '', '', '', '', '', '']);
       tracker.currentRow++;
+      
       return tracker;
     }
 
     // No selection data - skip note to preserve classifier integrity
-    console.log('[OtherAssets] No selection data; skipping note (no fallback to preserve classifier integrity)');
+    console.log('[LiabilityShortTermLoans] No selection data; skipping note (no fallback to preserve classifier integrity)');
     return tracker;
   }
 }

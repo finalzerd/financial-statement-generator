@@ -117,55 +117,8 @@ export class ShortTermLoansNoteGenerator {
       return tracker;
     }
 
-    // Fallback legacy path
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 1141, 1141));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 1141, 1141)) : 0;
-    const legacyTotalsAreZero = processingType === 'multi-year'
-      ? totalAmount === 0 && prevTotalAmount === 0
-      : totalAmount === 0;
-
-    if (legacyTotalsAreZero) {
-      console.log('[Legacy] Short-term loans: skipping note - totals zero in numeric range fallback.');
-      return tracker;
-    }
-
-    console.log(`=== SHORT TERM LOANS NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
-
-    // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'เงินให้กู้ยืมระยะสั้น', '', '', '', '', '', '', 'หน่วย:บาท']);
-    tracker.headerRows.push(tracker.currentRow);
-    tracker.unitRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 2. Year Header Row
-    if (processingType === 'multi-year') {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-    } else {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-    }
-    tracker.yearHeaderRows.push(tracker.currentRow);
-    tracker.currentRow++;
-    
-    // 3. Detail Row
-    notes.push(['', '', 'เงินให้กู้ยืมระยะสั้น', '', '', '', totalAmount, '', 
-      processingType === 'multi-year' ? prevTotalAmount : '']);
-    tracker.detailRows.push(tracker.currentRow);
-    const dataRowIndex = tracker.currentRow; // Store for formula reference
-    tracker.currentRow++;
-    
-    // 4. Total Row with Excel formulas
-    notes.push(['', '', 'รวม', '', '', '', 
-      { f: `G${dataRowIndex}` }, '', // Reference detail row current amount
-      processingType === 'multi-year' ? { f: `I${dataRowIndex}` } : '']); // Reference detail row previous amount
-    tracker.totalRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 5. Spacer Row
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-
-    console.log(`Short Term Loans Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    // No selection data - skip note to preserve classifier integrity
+    console.log('[ShortTermLoans] No selection data; skipping note (no fallback to preserve classifier integrity)');
     return tracker;
   }
 }

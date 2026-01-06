@@ -50,9 +50,11 @@ export interface NoteRegistry {
   ppe?: number;
   bankOverdrafts?: number;
   payables?: number;
+  liabilityShortTermLoans?: number;
   otherCurrentLiabilities?: number;
   otherAssets?: number;
   assetLongTermLoans?: number;
+  longTermLoansFromFI?: number;
   hirePurchaseCreditors?: number;
   otherLongTermLoans?: number;
   otherNonCurrentLiabilities?: number;

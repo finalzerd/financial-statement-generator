@@ -9,6 +9,7 @@ export { PPENoteGenerator } from './PPENoteGenerator';
 export { OtherIncomeNoteGenerator } from './OtherIncomeNoteGenerator';
 export { ShortTermBorrowingsNoteGenerator } from './ShortTermBorrowingsNoteGenerator';
 export { ShortTermLoansNoteGenerator } from './ShortTermLoansNoteGenerator';
+export { LiabilityShortTermLoansNoteGenerator } from './LiabilityShortTermLoansNoteGenerator';
 export { OtherAssetsNoteGenerator } from './OtherAssetsNoteGenerator';
 export { AssetLongTermLoansNoteGenerator } from './AssetLongTermLoansNoteGenerator';
 export { LongTermLoansNoteGenerator } from './LongTermLoansNoteGenerator';

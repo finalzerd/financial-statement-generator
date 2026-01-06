@@ -118,9 +118,19 @@ export class SelectionFirstClassifier {
 
   let matched: NoteCategory | null = null;
   const normalizedCode = codeStr.replace(/\s+/g, '');
+      
+      // Special logging for account 2050
+      const isDebugAccount = codeStr === '2050';
+      if (isDebugAccount) {
+        console.log(`[SelectionFirst] DEBUG: Processing account 2050, checking all categories...`);
+      }
+      
       for (const cat of CATEGORY_PRIORITY) {
   const resolver = getResolver(cat);
   const res = resolver(codeStr);
+        if (isDebugAccount) {
+          console.log(`[SelectionFirst] 2050 vs ${cat}: matched=${res.matched}`);
+        }
         if (res.matched) { matched = cat; break; }
       }
 

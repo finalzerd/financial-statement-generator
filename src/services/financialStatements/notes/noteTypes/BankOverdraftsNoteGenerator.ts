@@ -126,54 +126,8 @@ export class BankOverdraftsNoteGenerator {
       return tracker;
     }
 
-    // Fallback: traditional approach using trial balance filtering
-    console.log('[BankOverdrafts] Fallback mode: using traditional trial balance filtering');
-    
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2001, 2009));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2001, 2009)) : 0;
-
-    if (totalAmount === 0 && prevTotalAmount === 0) {
-      console.log('[BankOverdrafts] Skipping note - both current and previous amounts are zero');
-      return tracker;
-    }
-
-    console.log(`=== BANK OVERDRAFTS NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
-
-    // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้นจากสถาบันการเงิน', '', '', '', '', '', '', 'หน่วย:บาท']);
-    tracker.headerRows.push(tracker.currentRow);
-    tracker.unitRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 2. Year Header Row
-    if (processingType === 'multi-year') {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-    } else {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-    }
-    tracker.yearHeaderRows.push(tracker.currentRow);
-    tracker.currentRow++;
-    
-    // 3. Detail Row
-    notes.push(['', '', 'เงินเบิกเกินบัญชีและเงินกู้ยืมระยะสั้น', '', '', '', totalAmount, '', 
-      processingType === 'multi-year' ? prevTotalAmount : '']);
-    tracker.detailRows.push(tracker.currentRow);
-    const dataRowIndex = tracker.currentRow; // Store for formula reference
-    tracker.currentRow++;
-    
-    // 4. Total Row with Excel formulas
-    notes.push(['', '', 'รวม', '', '', '', 
-      { f: `G${dataRowIndex}` }, '', // Reference detail row current amount
-      processingType === 'multi-year' ? { f: `I${dataRowIndex}` } : '']); // Reference detail row previous amount
-    tracker.totalRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 5. Spacer Row
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-
-    console.log(`Bank Overdrafts Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    // No selection data - skip note to preserve classifier integrity
+    console.log('[BankOverdrafts] No selection data; skipping note (no fallback to preserve classifier integrity)');
     return tracker;
   }
 }

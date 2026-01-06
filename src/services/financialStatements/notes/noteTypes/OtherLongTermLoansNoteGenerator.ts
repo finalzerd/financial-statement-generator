@@ -115,56 +115,9 @@ export class OtherLongTermLoansNoteGenerator {
       return tracker;
     }
 
-    // Fallback legacy path
-    const totalAmount = Math.abs(this.sumAccountsByNumericRange(trialBalanceData, 2050, 2052));
-    const prevTotalAmount = processingType === 'multi-year' && trialBalancePrevious ? 
-      Math.abs(this.sumPreviousBalanceByNumericRange(trialBalancePrevious, 2050, 2052)) : 0;
-    const legacyTotalsAreZero = processingType === 'multi-year'
-      ? totalAmount === 0 && prevTotalAmount === 0
-      : totalAmount === 0;
-
-    if (legacyTotalsAreZero) {
-      console.log('[Legacy] LT loans (Other): skipping note - totals zero in numeric range fallback.');
-      return tracker;
-    }
-    console.log('[SelectionFirst] LT loans (Other): no selection details; falling back to legacy range totals');
-
-    console.log(`=== OTHER LONG TERM LOANS NOTE ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
-
-    // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'เงินกู้ยืมระยะยาว', '', '', '', '', '', '', 'หน่วย:บาท']);
-    tracker.headerRows.push(tracker.currentRow);
-    tracker.unitRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 2. Year Header Row
-    if (processingType === 'multi-year') {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', `${companyInfo.reportingYear - 1}`]);
-    } else {
-      notes.push(['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', '']);
-    }
-    tracker.yearHeaderRows.push(tracker.currentRow);
-    tracker.currentRow++;
-    
-    // 3. Detail Row
-    notes.push(['', '', 'เงินกู้ยืมระยะยาว', '', '', '', totalAmount, '', 
-      processingType === 'multi-year' ? prevTotalAmount : '']);
-    tracker.detailRows.push(tracker.currentRow);
-    const dataRowIndex = tracker.currentRow; // Store for formula reference
-    tracker.currentRow++;
-    
-    // 4. Total Row with Excel formulas
-    notes.push(['', '', 'รวม', '', '', '', 
-      { f: `G${dataRowIndex}` }, '', // Reference detail row current amount
-      processingType === 'multi-year' ? { f: `I${dataRowIndex}` } : '']); // Reference detail row previous amount
-    tracker.totalRows.push(tracker.currentRow);
-    tracker.currentRow++;
-
-    // 5. Spacer Row
-    notes.push(['', '', '', '', '', '', '', '', '']);
-    tracker.currentRow++;
-
-    console.log(`Other Long Term Loans Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    // No selection data and no fallback - skip note entirely
+    // DO NOT filter trial balance directly as it bypasses classifier rules
+    console.log('[SelectionFirst] LT loans (Other): no selection details; skipping note (no fallback to preserve classifier integrity).');
     return tracker;
   }
 }

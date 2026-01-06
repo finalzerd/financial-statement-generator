@@ -64,6 +64,7 @@ export interface FinancialStatements {
   notes: (string | number | {f: string})[][];
   accountingNotes: (string | number | {f: string})[][];
   accountingNotesFormatters?: any[]; // Row tracking formatters for specific note formatting
+  accountingNotesSignatureRows?: number[]; // Signature rows for Notes_Accounting
   changesInEquity?: any;
   changesInEquitySignatureRows?: number[];
   detailNotes?: {
