@@ -28,6 +28,7 @@ export interface CompanyInfo {
   directorName?: string;
   approvalMeetingNumber?: string;
   approvalMeetingDate?: string;
+  financialStatementApprovalDate?: string; // Date when financial statements were approved
 }
 
 export interface SheetValidation {

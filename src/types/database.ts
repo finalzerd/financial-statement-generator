@@ -20,6 +20,7 @@ export interface Company {
   directorName?: string;
   approvalMeetingNumber?: string;
   approvalMeetingDate?: string;
+  financialStatementApprovalDate?: string;
   createdAt: Date;
   updatedAt: Date;
 }

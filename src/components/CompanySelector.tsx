@@ -36,7 +36,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     periodEndDate: '',
     directorName: '',
     approvalMeetingNumber: '',
-    approvalMeetingDate: ''
+    approvalMeetingDate: '',
+    financialStatementApprovalDate: ''
   });
 
   const [editForm, setEditForm] = useState({
@@ -54,7 +55,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
     periodEndDate: '',
     directorName: '',
     approvalMeetingNumber: '',
-    approvalMeetingDate: ''
+    approvalMeetingDate: '',
+    financialStatementApprovalDate: ''
   });
 
   // Load companies on component mount
@@ -183,7 +185,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       periodEndDate: company.periodEndDate || '',
       directorName: company.directorName || '',
       approvalMeetingNumber: company.approvalMeetingNumber || '',
-      approvalMeetingDate: company.approvalMeetingDate || ''
+      approvalMeetingDate: company.approvalMeetingDate || '',
+      financialStatementApprovalDate: company.financialStatementApprovalDate || ''
     });
     setShowNewCompanyForm(false);
   };
@@ -205,7 +208,8 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       periodEndDate: '',
       directorName: '',
       approvalMeetingNumber: '',
-      approvalMeetingDate: ''
+      approvalMeetingDate: '',
+      financialStatementApprovalDate: ''
     });
   };
 
@@ -525,6 +529,19 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
               <small className="form-help">วันที่ประชุมอนุมัติงบการเงิน (ข้อความอิสระ)</small>
             </div>
             
+            <div className="form-group">
+              <label htmlFor="edit-financial-approval-date">วันที่อนุมัติงบการเงิน</label>
+              <input
+                type="text"
+                id="edit-financial-approval-date"
+                value={editForm.financialStatementApprovalDate}
+                onChange={e => setEditForm({...editForm, financialStatementApprovalDate: e.target.value})}
+                disabled={isUpdating}
+                placeholder="เช่น 15 มกราคม 2567"
+              />
+              <small className="form-help">วันที่อนุมัติงบการเงินโดยคณะกรรมการ/ที่ประชุมหุ้นส่วน</small>
+            </div>
+            
             <div className="form-actions">
               <button
                 type="submit"
@@ -748,6 +765,19 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
                 placeholder="เช่น 28 มีนาคม 2567"
               />
               <small className="form-help">วันที่ประชุมอนุมัติงบการเงิน (ข้อความอิสระ)</small>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="financial-approval-date">วันที่อนุมัติงบการเงิน</label>
+              <input
+                type="text"
+                id="financial-approval-date"
+                value={newCompany.financialStatementApprovalDate}
+                onChange={e => setNewCompany({...newCompany, financialStatementApprovalDate: e.target.value})}
+                disabled={isCreating}
+                placeholder="เช่น 15 มกราคม 2567"
+              />
+              <small className="form-help">วันที่อนุมัติงบการเงินโดยคณะกรรมการ/ที่ประชุมหุ้นส่วน</small>
             </div>
             
             <div className="form-actions">

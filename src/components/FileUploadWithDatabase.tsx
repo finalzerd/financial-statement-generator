@@ -126,7 +126,8 @@ const FileUploadWithDatabase: React.FC<FileUploadProps> = ({
         shareValue: selectedCompany.shareValue,
         directorName: selectedCompany.directorName,
         approvalMeetingNumber: selectedCompany.approvalMeetingNumber,
-        approvalMeetingDate: selectedCompany.approvalMeetingDate
+        approvalMeetingDate: selectedCompany.approvalMeetingDate,
+        financialStatementApprovalDate: selectedCompany.financialStatementApprovalDate
       };
 
       // Step 2: Process CSV data

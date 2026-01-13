@@ -10,6 +10,7 @@ interface CompanyInfoFormData {
   registrationDate?: string;
   address?: string;
   businessDescription?: string;
+  financialStatementApprovalDate?: string; // วันที่อนุมัติงบการเงิน
   // Share information for บริษัทจำกัด
   numberOfShares?: number; // จำนวนหุ้นสามัญ
   shareValue?: number; // มูลค่าหุ้นสามัญ (บาทต่อหุ้น)
@@ -128,6 +129,16 @@ const CompanyInfoForm: React.FC<CompanyInfoFormProps> = ({ onSubmit, onCancel })
             onChange={(e) => setFormData({...formData, businessDescription: e.target.value})}
             placeholder="เช่น ขายส่งขายปลีกสินค้าทางการเกษตร เคมีภัณฑ์ ปุ๋ย ยาปราบศัตรูพืช ยาบำรุงพืชและสัตว์ทุกชนิด"
             rows={3}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>วันที่อนุมัติงบการเงิน</label>
+          <input
+            type="text"
+            value={formData.financialStatementApprovalDate || ''}
+            onChange={(e) => setFormData({...formData, financialStatementApprovalDate: e.target.value})}
+            placeholder="เช่น 15 มกราคม 2567"
           />
         </div>
         

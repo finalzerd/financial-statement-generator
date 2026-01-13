@@ -39,9 +39,10 @@ export class FinancialApprovalNoteGenerator {
 
     // 2. Approval Statement Row - varies by company type
     const isLimitedPartnership = companyInfo.type === 'ห้างหุ้นส่วนจำกัด';
+    const approvalDate = companyInfo.financialStatementApprovalDate || '....';
     const approvalText = isLimitedPartnership
-      ? 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยที่ประชุมของผู้เป็นหุ้นส่วน'
-      : 'งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้ว';
+      ? `งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยที่ประชุมของผู้เป็นหุ้นส่วนในวันที่ ${approvalDate}`
+      : `งบการเงินนี้ได้การรับอนุมัติให้ออกงบการเงินโดยคณะกรรมการผู้มีอำนาจของบริษัทแล้วในวันที่ ${approvalDate}`;
     
     notes.push(['', '', approvalText, '', '', '', '', '', '']);
     tracker.detailRows.push(tracker.currentRow);

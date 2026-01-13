@@ -57,6 +57,10 @@ db.run('ALTER TABLE companies ADD COLUMN approval_meeting_date TEXT', (err) => {
   // Ignore error if column already exists
 });
 
+db.run('ALTER TABLE companies ADD COLUMN financial_statement_approval_date TEXT', (err) => {
+  // Ignore error if column already exists
+});
+
 db.run('ALTER TABLE companies ADD COLUMN registration_date TEXT', (err) => {
   // Ignore error if column already exists
 });
@@ -113,6 +117,7 @@ const mapDbRowToCompany = (row) => ({
   directorName: row.director_name,
   approvalMeetingNumber: row.approval_meeting_number,
   approvalMeetingDate: row.approval_meeting_date,
+  financialStatementApprovalDate: row.financial_statement_approval_date,
   createdAt: new Date(row.created_at),
   updatedAt: new Date(row.updated_at || row.created_at)
 });
@@ -181,7 +186,8 @@ app.post('/api/companies', (req, res) => {
     periodEndDate,
     directorName,
     approvalMeetingNumber,
-    approvalMeetingDate
+    approvalMeetingDate,
+    financialStatementApprovalDate
   } = req.body;
   
   if (!name || !type) {
@@ -199,9 +205,9 @@ app.post('/api/companies', (req, res) => {
       name, thai_name, company_type, registration_number, registration_date, address, business_type, tax_id,
       phone, email, number_of_shares, share_value, default_reporting_year,
       period_start_date, period_end_date,
-      director_name, approval_meeting_number, approval_meeting_date, created_at, updated_at
+      director_name, approval_meeting_number, approval_meeting_date, financial_statement_approval_date, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(query, [
@@ -221,6 +227,7 @@ app.post('/api/companies', (req, res) => {
     directorName || null,
     approvalMeetingNumber || null,
     approvalMeetingDate || null,
+    financialStatementApprovalDate || null,
     now,
     now
   ], function(err) {
@@ -274,7 +281,8 @@ app.put('/api/companies/:id', (req, res) => {
     periodEndDate,
     directorName,
     approvalMeetingNumber,
-    approvalMeetingDate
+    approvalMeetingDate,
+    financialStatementApprovalDate
   } = req.body;
   
   if (!name || !type) {
@@ -293,7 +301,7 @@ app.put('/api/companies/:id', (req, res) => {
         address = ?, business_type = ?, tax_id = ?, number_of_shares = ?, share_value = ?,
         default_reporting_year = ?, period_start_date = ?, period_end_date = ?,
         director_name = ?, approval_meeting_number = ?, 
-        approval_meeting_date = ?, updated_at = ?
+        approval_meeting_date = ?, financial_statement_approval_date = ?, updated_at = ?
     WHERE id = ?
   `;
 
@@ -314,6 +322,7 @@ app.put('/api/companies/:id', (req, res) => {
     directorName || null,
     approvalMeetingNumber || null,
     approvalMeetingDate || null,
+    financialStatementApprovalDate || null,
     now,
     companyId
   ], function(err) {
