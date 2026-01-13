@@ -3,6 +3,7 @@
 // ============================================================================
 import type { TrialBalanceEntry, CompanyInfo, StatementResult } from '../../../types/financial';
 import type { SelectionFirstResult } from '../selection/SelectionFirstClassifier';
+import type { NoteRegistry } from '../core/types';
 
 /**
  * Builds the Profit & Loss (Single-step) statement table.
@@ -14,7 +15,8 @@ export class ProfitLossBuilder {
     _trialBalanceData: TrialBalanceEntry[],
     companyInfo: CompanyInfo,
     processingType: 'single-year' | 'multi-year',
-    selection?: SelectionFirstResult
+    selection?: SelectionFirstResult,
+    noteRegistry?: NoteRegistry
   ): StatementResult {
     console.log('=== PROFITLOSS BUILDER START ===');
   const sel = selection?.totals as Record<string, { current: number; previous: number }> | undefined;
@@ -48,6 +50,10 @@ export class ProfitLossBuilder {
 
     console.log('[P&L Strict] Components (no numeric fallback):', { revenue, otherIncome, costOfServices, sellingExpenses, adminExpenses, otherExpenses, incomeTax, financialCosts });
 
+    // Get note references from registry
+    const otherIncomeNote = noteRegistry?.otherIncome?.toString() || '';
+    const expensesByNatureNote = noteRegistry?.expensesByNature?.toString() || '';
+
     const plData = [
       [`${companyInfo.name}`, '', '', '', '', '', '', '', ''],
       ['งบกำไรขาดทุน จำแนกค่าใช้จ่ายตามหน้าที่ - แบบขั้นเดียว', '', '', '', '', '', '', '', ''],
@@ -56,20 +62,20 @@ export class ProfitLossBuilder {
       ['', '', '', '', '', 'หมายเหตุ', '', '', 'หน่วย:บาท'],
       ['', '', '', '', '', '', `${companyInfo.reportingYear}`, '', processingType === 'multi-year' ? `${companyInfo.reportingYear - 1}` : ''],
       ['', 'รายได้', '', '', '', '', '', '', ''],
-      ['', '', 'รายได้จากการขายหรือการให้บริการ', '', '', '1', revenue, '', processingType === 'multi-year' ? previousRevenue : ''],
-      ['', '', 'รายได้อื่น', '', '', '2', otherIncome, '', processingType === 'multi-year' ? previousOtherIncome : ''],
+      ['', '', 'รายได้จากการขายหรือการให้บริการ', '', '', '', revenue, '', processingType === 'multi-year' ? previousRevenue : ''],
+      ['', '', 'รายได้อื่น', '', '', otherIncomeNote, otherIncome, '', processingType === 'multi-year' ? previousOtherIncome : ''],
       ['', 'รวมรายได้', '', '', '', '', { f: 'SUM(G8:G9)' }, '', processingType === 'multi-year' ? { f: 'SUM(I8:I9)' } : ''],
       ['', '', '', '', '', '', '', '', ''],
   ['', 'ค่าใช้จ่าย', '', '', '', '', '', '', ''],
-  ['', '', 'ต้นทุนขายหรือต้นทุนการให้บริการ', '', '', '3', costOfServices, '', processingType === 'multi-year' ? previousCostOfServices : ''],
+  ['', '', 'ต้นทุนขายหรือต้นทุนการให้บริการ', '', '', '', costOfServices, '', processingType === 'multi-year' ? previousCostOfServices : ''],
   ['', '', 'ค่าใช้จ่ายในการขาย', '', '', '', sellingExpenses, '', processingType === 'multi-year' ? previousSellingExpenses : ''],
-  ['', '', 'ค่าใช้จ่ายในการบริหาร', '', '', '4', adminExpenses, '', processingType === 'multi-year' ? previousAdminExpenses : ''],
-  ['', '', 'ค่าใช้จ่ายอื่น', '', '', '5', otherExpenses, '', processingType === 'multi-year' ? previousOtherExpenses : ''],
-  ['', 'รวมค่าใช้จ่าย', '', '', '', '', { f: 'SUM(G13:G16)' }, '', processingType === 'multi-year' ? { f: 'SUM(I13:I16)' } : ''],
+  ['', '', 'ค่าใช้จ่ายในการบริหาร', '', '', '', adminExpenses, '', processingType === 'multi-year' ? previousAdminExpenses : ''],
+  ['', '', 'ค่าใช้จ่ายอื่น', '', '', '', otherExpenses, '', processingType === 'multi-year' ? previousOtherExpenses : ''],
+  ['', 'รวมค่าใช้จ่าย', '', '', '', expensesByNatureNote, { f: 'SUM(G13:G16)' }, '', processingType === 'multi-year' ? { f: 'SUM(I13:I16)' } : ''],
   ['', 'กำไรก่อนต้นทุนทางการเงินและภาษีเงินได้', '', '', '', '', { f: 'G10-G17' }, '', processingType === 'multi-year' ? { f: 'I10-I17' } : ''],
-  ['', 'ต้นทุนทางการเงิน', '', '', '', '7', financialCosts, '', processingType === 'multi-year' ? previousFinancialCosts : ''],
+  ['', 'ต้นทุนทางการเงิน', '', '', '', '', financialCosts, '', processingType === 'multi-year' ? previousFinancialCosts : ''],
   ['', 'กำไรก่อนภาษีเงินได้', '', '', '', '', { f: 'G18-G19' }, '', processingType === 'multi-year' ? { f: 'I18-I19' } : ''],
-  ['', 'ภาษีเงินได้', '', '', '', '6', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
+  ['', 'ภาษีเงินได้', '', '', '', '', incomeTax, '', processingType === 'multi-year' ? previousIncomeTax : ''],
   ['', 'กำไร(ขาดทุน)สุทธิ', '', '', '', '', { f: 'G20-G21' }, '', processingType === 'multi-year' ? { f: 'I20-I21' } : ''],
       ['', 'กำไร (ขาดทุน) สะสมยังไม่แบ่งต้นงวด', '', '', '', '', processingType === 'multi-year' ? { f: 'I24' } : '', '', processingType === 'multi-year' ? '' : ''],
       ['', 'กำไร (ขาดทุน) สะสมยังไม่แบ่งปลายงวด', '', '', '', '', { f: 'G22+G23' }, '', processingType === 'multi-year' ? { f: 'I22+I23' } : ''],

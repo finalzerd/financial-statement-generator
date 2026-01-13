@@ -109,15 +109,18 @@ export class OtherIncomeNoteGenerator {
 
     const detailEndRow = tracker.currentRow - 1;
 
-    // 4. Total Row (if more than one item)
-    if (accounts.length > 1) {
-      notes.push(['', '', 'รวม', '', '', '', 
-        { f: `SUM(G${detailStartRow}:G${detailEndRow})` }, '', 
-        processingType === 'multi-year' ? { f: `SUM(I${detailStartRow}:I${detailEndRow})` } : ''
-      ]);
-      tracker.totalRows.push(tracker.currentRow);
-      tracker.currentRow++;
-    }
+    // 4. Total Row - Always include total row (consistent with other notes)
+    const hasDetails = tracker.detailRows.length > 0;
+    const currentTotalCell = hasDetails 
+      ? { f: `SUM(G${detailStartRow}:G${detailEndRow})` }
+      : 0;
+    const previousTotalCell = processingType === 'multi-year'
+      ? (hasDetails ? { f: `SUM(I${detailStartRow}:I${detailEndRow})` } : 0)
+      : '';
+
+    notes.push(['', '', 'รวม', '', '', '', currentTotalCell, '', previousTotalCell]);
+    tracker.totalRows.push(tracker.currentRow);
+    tracker.currentRow++;
 
     // 5. Spacer Row
     notes.push(['', '', '', '', '', '', '', '', '']);

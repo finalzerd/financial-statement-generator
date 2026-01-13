@@ -58,6 +58,8 @@ export interface NoteRegistry {
   hirePurchaseCreditors?: number;
   otherLongTermLoans?: number;
   otherNonCurrentLiabilities?: number;
+  otherIncome?: number;          // For P&L note reference
+  expensesByNature?: number;     // For P&L note reference
 }
 
 // Note category classification for selection-first architecture

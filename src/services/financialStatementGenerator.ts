@@ -110,7 +110,8 @@ export class FinancialStatementGenerator {
     const balanceSheetAssetsResult = AssetsBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS, accountingNotesResult.noteRegistry);
     const balanceSheetLiabilitiesResult = LiabilitiesBuilder.build(trialBalanceData, companyInfo, processingType, globalData, selectionForBS, accountingNotesResult.noteRegistry);
     
-    const profitLossResult = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType);
+    // Generate P&L with note registry for Other Income and Expenses by Nature references
+    const profitLossResult = this.generateProfitLossStatement(trialBalanceData, companyInfo, processingType, accountingNotesResult.noteRegistry);
     const changesInEquityResult = this.generateStatementOfChangesInEquity(trialBalanceData, companyInfo, processingType);
     const notesToFinancialStatements = this.generateNotesToFinancialStatements(companyInfo, trialBalanceData, processingType, trialBalancePrevious);
     const detailNotes = this.generateDetailNotes(trialBalanceData, companyInfo);
@@ -221,7 +222,8 @@ export class FinancialStatementGenerator {
   private generateProfitLossStatement(
     trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
-    processingType: 'single-year' | 'multi-year'
+    processingType: 'single-year' | 'multi-year',
+    noteRegistry?: import('./financialStatements/core/types').NoteRegistry
   ): StatementResult {
     // Use strict selection (no numeric fallback) for all P&L buckets so UI rules drive the result
     const selectionStrict = SelectionFirstClassifier.classify(
@@ -240,7 +242,7 @@ export class FinancialStatementGenerator {
       ] as any }
     );
     console.log('[P&L] Using strict selection (no fallback) for P&L categories');
-    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType, selectionStrict);
+    return ProfitLossBuilder.build(trialBalanceData, companyInfo, processingType, selectionStrict, noteRegistry);
   }
 
   private generateStatementOfChangesInEquity(
@@ -408,13 +410,13 @@ export class FinancialStatementGenerator {
     
     const otherIncomeTracker = OtherIncomeNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (otherIncomeTracker.headerRows.length > 0) {
-      noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
+      noteRegistry.otherIncome = noteNumber++;  // Store in registry for P&L reference
       formatters.push({ type: 'general', tracker: otherIncomeTracker });
     }
     
     const expensesByNatureTracker = ExpensesByNatureNoteGenerator.generateWithRowTracking(notes, companyInfo, processingType, noteNumber);
     if (expensesByNatureTracker.headerRows.length > 0) {
-      noteNumber++;  // Increment but don't store in registry (no Balance Sheet reference needed)
+      noteRegistry.expensesByNature = noteNumber++;  // Store in registry for P&L reference
       formatters.push({ type: 'general', tracker: expensesByNatureTracker });
     }
     
