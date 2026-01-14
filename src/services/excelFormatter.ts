@@ -1603,43 +1603,35 @@ export class ExcelJSFormatter {
       firstCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
     });
 
-    // 9. Merge C41:I41, C43:I43, C45:I45 with wrapped text
-    // Note: Removed rows 12,13,17,19,23 (no merge/wrap - autofit), removed rows 31,33,35,37,39 (conflict with B-to-I merging in step 8)
-    const mergeRows = [41, 43, 45];
-    mergeRows.forEach(rowNum => {
-      const range = `C${rowNum}:I${rowNum}`;
-      worksheet.mergeCells(range);
-      const firstCell = worksheet.getCell(`C${rowNum}`);
-      firstCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
-    });
+    // 9. Rows 41, 43, 45 removed - no content, no merge needed
     
     // 11. Set specific row heights for merged content rows based on text content
     // Rows 6,7,8,19,21 use autofit (no fixed height)
     // Rows 14,15,20,22,26 use autofit and no merging/wrapping
     const rowHeights = {
-      10: 60,  // Note 2 content (ฐานะการดำเนินงานของบริษัท) - 2 lines height (increased by 10%)
+      10: 45,  // Note 2 content (ฐานะการดำเนินงานของบริษัท) - 2 lines height (increased by 10%)
       12: 80,  // เกณฑ์การจัดทำงบการเงินของกิจการ section text (reduced by 10% from 98)
-      13: 55,  // Longer description text (reduced by 10% from 75)
+      13: 45,  // Longer description text (reduced by 10% from 75)
       // 14: removed - autofit, no merge, no wrap
       // 15: removed - autofit, no merge, no wrap
-      17: 65,  // Policy section content (increased by ~10% for 14pt font)
+      // 17: removed - autofit
       // 19: removed - autofit
       // 20: removed - autofit, no merge, no wrap
       // 21: removed - autofit
       // 22: removed - autofit, no merge, no wrap
       23: 65,  // Policy section content (increased by ~10% for 14pt font)
-      25: 65,  // Policy section content (increased by ~10% for 14pt font)
+      25: 45,  // Policy section content (increased by ~10% for 14pt font)
       // 26: removed - autofit, no merge, no wrap
-      27: 75,  // Policy section content (increased by ~10% for 14pt font)
-      29: 75,  // Policy section content (increased by ~10% for 14pt font)
-      31: 49,  // 2 lines of text (increased by ~10% for 14pt font)
-      33: 75,  // 3 lines of text (increased by ~10% for 14pt font)
-      35: 65,  // 3 lines of text (increased by ~10% for 14pt font)
-      37: 49,  // 2 lines of text (increased by ~10% for 14pt font)
-      39: 65,  // 3 lines of text (increased by ~10% for 14pt font)
-      41: 75,  // 3 lines of text (increased by ~10% for 14pt font)
-      43: 75,  // 3 lines of text (increased by ~10% for 14pt font)
-      45: 49   // 2 lines of text (increased by ~10% for 14pt font)
+      27: 65,  // Policy section content (increased by ~10% for 14pt font)
+      29: 65,  // Policy section content (increased by ~10% for 14pt font)
+      31: 45,  // 2 lines of text (increased by ~10% for 14pt font)
+      33: 65,  // 3 lines of text (increased by ~10% for 14pt font)
+      35: 45,  // 3 lines of text (increased by ~10% for 14pt font)
+      37: 45,  // 2 lines of text (increased by ~10% for 14pt font)
+      39: 45   // 3 lines of text (increased by ~10% for 14pt font)
+      // 41: removed - autofit
+      // 43: removed - autofit
+      // 45: removed - autofit
     };
     
     Object.entries(rowHeights).forEach(([rowNum, height]) => {
@@ -2535,7 +2527,7 @@ export class ExcelJSFormatter {
           cellB.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
         }
         
-        // Format amounts (G, H, I) - not bold, new number format, double bottom border
+        // Format amounts (G, H, I) - not bold, new number format, all borders then top + double bottom
         ['G', 'H', 'I'].forEach(col => {
           const cell = worksheet.getCell(`${col}${row}`);
           cell.font = { 
@@ -2547,9 +2539,11 @@ export class ExcelJSFormatter {
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
           cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
           
-          // Borders: thin top + double bottom
+          // Borders: all borders first, then top + double bottom
           cell.border = { 
-            top: { style: 'thin', color: { argb: 'FF000000' } }, 
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } },
             bottom: { style: 'double', color: { argb: 'FF000000' } } 
           };
         });

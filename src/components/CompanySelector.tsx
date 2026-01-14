@@ -21,6 +21,11 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // DBD search states
+  const [dbdSearchNumber, setDbdSearchNumber] = useState('');
+  const [isSearchingDbd, setIsSearchingDbd] = useState(false);
+  const [dbdSearchError, setDbdSearchError] = useState<string | null>(null);
+  
   const [newCompany, setNewCompany] = useState({
     name: '',
     type: 'บริษัทจำกัด' as const,
@@ -117,6 +122,41 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
       setError(error instanceof Error ? error.message : 'Failed to create company');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  // DBD search handler
+  const handleDbdSearch = async () => {
+    if (!dbdSearchNumber || dbdSearchNumber.trim().length !== 13) {
+      setDbdSearchError('กรุณาระบุเลขที่จดทะเบียน 13 หลัก');
+      return;
+    }
+
+    setIsSearchingDbd(true);
+    setDbdSearchError(null);
+
+    try {
+      const dbdData = await ApiService.searchDbdCompany(dbdSearchNumber.trim());
+      
+      // Auto-fill form with DBD data
+      setNewCompany({
+        ...newCompany,
+        name: dbdData.name || '',
+        type: dbdData.type || 'บริษัทจำกัด',
+        registrationNumber: dbdData.registrationNumber || '',
+        registrationDate: dbdData.registrationDate || '',
+        address: dbdData.address || '',
+        businessDescription: dbdData.businessDescription || ''
+      });
+
+      // Show success message
+      setError(null);
+      alert(`✅ พบข้อมูลบริษัท: ${dbdData.name}\n\nกรุณาตรวจสอบข้อมูลและกรอกรายละเอียดเพิ่มเติม (ทุนจดทะเบียน, งวดบัญชี, ฯลฯ)`);
+      
+    } catch (error) {
+      setDbdSearchError(error instanceof Error ? error.message : 'ไม่สามารถค้นหาข้อมูลได้');
+    } finally {
+      setIsSearchingDbd(false);
     }
   };
 
@@ -330,6 +370,93 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
           <h3>แก้ไขข้อมูลบริษัท / Edit Company Information</h3>
           
           <form onSubmit={handleUpdateCompany} className="edit-company-form">
+            {/* DBD Auto-Fill Section for Edit Form */}
+            <div style={{ 
+              backgroundColor: '#f0f9ff', 
+              padding: '1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              border: '1px solid #bfdbfe'
+            }}>
+              <h4 style={{ marginTop: 0, marginBottom: '0.75rem', color: '#1e40af' }}>
+                🔍 อัพเดทข้อมูลจากกรมพัฒนาธุรกิจการค้า
+              </h4>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="text"
+                    value={dbdSearchNumber}
+                    onChange={(e) => {
+                      setDbdSearchNumber(e.target.value);
+                      setDbdSearchError(null);
+                    }}
+                    placeholder="ระบุเลขที่จดทะเบียน 13 หลัก"
+                    disabled={isSearchingDbd || isUpdating}
+                    maxLength={13}
+                    pattern="[0-9]{13}"
+                    style={{ width: '100%', padding: '0.5rem' }}
+                  />
+                  {dbdSearchError && (
+                    <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>
+                      {dbdSearchError}
+                    </small>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!dbdSearchNumber || dbdSearchNumber.trim().length !== 13) {
+                      setDbdSearchError('กรุณาระบุเลขที่จดทะเบียน 13 หลัก');
+                      return;
+                    }
+
+                    setIsSearchingDbd(true);
+                    setDbdSearchError(null);
+
+                    try {
+                      const dbdData = await ApiService.searchDbdCompany(dbdSearchNumber.trim());
+                      
+                      // Auto-fill edit form with DBD data
+                      setEditForm({
+                        ...editForm,
+                        name: dbdData.name || editForm.name,
+                        type: dbdData.type || editForm.type,
+                        registrationNumber: dbdData.registrationNumber || editForm.registrationNumber,
+                        registrationDate: dbdData.registrationDate || editForm.registrationDate,
+                        address: dbdData.address || editForm.address,
+                        businessDescription: dbdData.businessDescription || editForm.businessDescription
+                      });
+
+                      setError(null);
+                      alert(`✅ อัพเดทข้อมูลจาก DBD: ${dbdData.name}`);
+                      
+                    } catch (error) {
+                      setDbdSearchError(error instanceof Error ? error.message : 'ไม่สามารถค้นหาข้อมูลได้');
+                    } finally {
+                      setIsSearchingDbd(false);
+                    }
+                  }}
+                  disabled={isSearchingDbd || isUpdating || !dbdSearchNumber || dbdSearchNumber.length !== 13}
+                  style={{ 
+                    padding: '0.5rem 1rem',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: isSearchingDbd || !dbdSearchNumber || dbdSearchNumber.length !== 13 ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isSearchingDbd || !dbdSearchNumber || dbdSearchNumber.length !== 13 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSearchingDbd ? '🔄 กำลังค้นหา...' : '🔍 อัพเดทจาก DBD'}
+                </button>
+              </div>
+              <small style={{ display: 'block', marginTop: '0.5rem', color: '#64748b' }}>
+                💡 ใช้เลขที่จดทะเบียนเพื่ออัพเดทข้อมูลล่าสุดจากระบบ DBD
+              </small>
+            </div>
+
+            <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+
             <div className="form-group">
               <label htmlFor="edit-company-name">ชื่อบริษัท / Company Name *</label>
               <input
@@ -569,6 +696,62 @@ const CompanySelector: React.FC<CompanySelectorProps> = ({
           <h3>สร้างบริษัทใหม่ / Create New Company</h3>
           
           <form onSubmit={handleCreateCompany} className="new-company-form">
+            {/* DBD Auto-Fill Section */}
+            <div style={{ 
+              backgroundColor: '#f0f9ff', 
+              padding: '1rem', 
+              borderRadius: '8px', 
+              marginBottom: '1.5rem',
+              border: '1px solid #bfdbfe'
+            }}>
+              <h4 style={{ marginTop: 0, marginBottom: '0.75rem', color: '#1e40af' }}>
+                🔍 ค้นหาข้อมูลจากกรมพัฒนาธุรกิจการค้า
+              </h4>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="text"
+                    value={dbdSearchNumber}
+                    onChange={(e) => {
+                      setDbdSearchNumber(e.target.value);
+                      setDbdSearchError(null);
+                    }}
+                    placeholder="ระบุเลขที่จดทะเบียน 13 หลัก (เช่น 0335567001107)"
+                    disabled={isSearchingDbd || isCreating}
+                    maxLength={13}
+                    pattern="[0-9]{13}"
+                    style={{ width: '100%', padding: '0.5rem' }}
+                  />
+                  {dbdSearchError && (
+                    <small style={{ color: '#dc2626', display: 'block', marginTop: '0.25rem' }}>
+                      {dbdSearchError}
+                    </small>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDbdSearch}
+                  disabled={isSearchingDbd || isCreating || !dbdSearchNumber || dbdSearchNumber.length !== 13}
+                  style={{ 
+                    padding: '0.5rem 1rem',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: isSearchingDbd || !dbdSearchNumber || dbdSearchNumber.length !== 13 ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isSearchingDbd || !dbdSearchNumber || dbdSearchNumber.length !== 13 ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSearchingDbd ? '🔄 กำลังค้นหา...' : '🔍 ค้นหา'}
+                </button>
+              </div>
+              <small style={{ display: 'block', marginTop: '0.5rem', color: '#64748b' }}>
+                💡 กรอกเลขที่จดทะเบียนเพื่อดึงข้อมูลอัตโนมัติจากระบบกรมพัฒนาธุรกิจการค้า (DBD)
+              </small>
+            </div>
+
+            <hr style={{ margin: '1.5rem 0', border: 'none', borderTop: '1px solid #e5e7eb' }} />
+            
             <div className="form-group">
               <label htmlFor="company-name">ชื่อบริษัท / Company Name *</label>
               <input

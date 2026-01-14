@@ -104,6 +104,28 @@ export class ApiService {
     return result;
   }
 
+  // ============== DBD API OPERATIONS ==============
+
+  static async searchDbdCompany(registrationNumber: string) {
+    // Validate format (13 digits)
+    if (!registrationNumber || !/^\d{13}$/.test(registrationNumber)) {
+      throw new Error('เลขที่จดทะเบียนต้องเป็นตัวเลข 13 หลักเท่านั้น');
+    }
+
+    const response = await fetch(`${this.BASE_URL}/dbd/search/${registrationNumber}`);
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.details || result.error || 'ไม่สามารถดึงข้อมูลจากกรมพัฒนาธุรกิจการค้าได้');
+    }
+    
+    if (!result.success) {
+      throw new Error(result.details || result.error || 'ไม่พบข้อมูลบริษัท');
+    }
+    
+    return result.data;
+  }
+
   // ============== FILE UPLOAD OPERATIONS ==============
 
   static async uploadFile(

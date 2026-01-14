@@ -445,6 +445,166 @@ app.delete('/api/companies/:id', (req, res) => {
   });
 });
 
+// ============== DBD API PROXY ENDPOINT ==============
+
+app.get('/api/dbd/search/:registrationNumber', async (req, res) => {
+  const { registrationNumber } = req.params;
+  
+  // Validate registration number format (13 digits)
+  if (!registrationNumber || !/^\d{13}$/.test(registrationNumber)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid registration number',
+      details: 'เลขที่จดทะเบียนต้องเป็นตัวเลข 13 หลักเท่านั้น'
+    });
+  }
+
+  try {
+    const DBD_API_URL = 'https://openapi.dbd.go.th/api/v1/juristic_person';
+    const DBD_API_TOKEN = process.env.DBD_API_TOKEN || '7anDtBwbBBXUXXViCKrTo3568tTpNtG9';
+    
+    const response = await fetch(`${DBD_API_URL}/${registrationNumber}?apikey=${DBD_API_TOKEN}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return res.status(404).json({
+          success: false,
+          error: 'Company not found',
+          details: 'ไม่พบข้อมูลบริษัทในระบบกรมพัฒนาธุรกิจการค้า'
+        });
+      }
+      
+      throw new Error(`DBD API returned status ${response.status}`);
+    }
+
+    const dbdData = await response.json();
+    
+    // Check if successful response
+    if (dbdData.status && dbdData.status.code !== '1000') {
+      return res.status(404).json({
+        success: false,
+        error: 'Company not found',
+        details: dbdData.status.description || 'ไม่พบข้อมูลบริษัท'
+      });
+    }
+
+    // Extract organization data
+    const orgData = dbdData.data && dbdData.data[0] 
+      ? dbdData.data[0]['cd:OrganizationJuristicPerson'] 
+      : null;
+
+    if (!orgData) {
+      return res.status(404).json({
+        success: false,
+        error: 'No data found',
+        details: 'ไม่พบข้อมูลองค์กรในผลลัพธ์'
+      });
+    }
+    
+    // Transform DBD response to our format
+    const transformedData = {
+      success: true,
+      data: {
+        name: orgData['cd:OrganizationJuristicNameTH'] || '',
+        nameEn: orgData['cd:OrganizationJuristicNameEN'] || '',
+        type: mapDbdTypeToOurType(orgData['cd:OrganizationJuristicType']),
+        registrationNumber: orgData['cd:OrganizationJuristicID'] || '',
+        registrationDate: formatDbdDate(orgData['cd:OrganizationJuristicRegisterDate']),
+        address: buildAddress(orgData['cd:OrganizationJuristicAddress']),
+        businessDescription: extractBusinessObjective(orgData['cd:OrganizationJuristicObjective']),
+        status: orgData['cd:OrganizationJuristicStatus'] || '',
+        registeredCapital: orgData['cd:OrganizationJuristicRegisterCapital'] || ''
+      }
+    };
+
+    res.json(transformedData);
+
+  } catch (error) {
+    console.error('DBD API error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch company data',
+      details: 'ไม่สามารถดึงข้อมูลจากกรมพัฒนาธุรกิจการค้าได้ กรุณาลองใหม่อีกครั้ง'
+    });
+  }
+});
+
+// Helper: Map DBD company type to our system's type
+function mapDbdTypeToOurType(dbdType) {
+  if (!dbdType) return 'บริษัทจำกัด';
+  
+  const type = dbdType.trim();
+  if (type.includes('บริษัทจำกัด') || type === 'บจ.' || type === 'บริษัท') {
+    return 'บริษัทจำกัด';
+  } else if (type.includes('ห้างหุ้นส่วนจำกัด') || type === 'หจก.' || type === 'ห้างหุ้นส่วน') {
+    return 'ห้างหุ้นส่วนจำกัด';
+  }
+  
+  return 'บริษัทจำกัด'; // Default
+}
+
+// Helper: Format DBD date (YYYYMMDD) to Thai Buddhist calendar
+function formatDbdDate(dbdDate) {
+  if (!dbdDate || dbdDate.length !== 8) return '';
+  
+  const year = parseInt(dbdDate.substring(0, 4));
+  const month = parseInt(dbdDate.substring(4, 6));
+  const day = parseInt(dbdDate.substring(6, 8));
+  
+  if (!year || !month || !day) return '';
+  
+  const thaiMonths = [
+    'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+  ];
+  
+  // Convert to Buddhist calendar (BE = CE + 543)
+  const buddhistYear = year + 543;
+  
+  return `${day} ${thaiMonths[month - 1]} ${buddhistYear}`;
+}
+
+// Helper: Build address string from DBD address object
+function buildAddress(addressData) {
+  if (!addressData || !addressData['cr:AddressType']) return '';
+  
+  const addr = addressData['cr:AddressType'];
+  const parts = [];
+  
+  // Use the pre-formatted address if available
+  if (addr['cd:Address']) {
+    parts.push(addr['cd:Address']);
+  }
+  
+  // Add district, city, province
+  if (addr['cd:CitySubDivision']?.['cr:CitySubDivisionTextTH']) {
+    parts.push(addr['cd:CitySubDivision']['cr:CitySubDivisionTextTH']);
+  }
+  if (addr['cd:City']?.['cr:CityTextTH']) {
+    parts.push(addr['cd:City']['cr:CityTextTH']);
+  }
+  if (addr['cd:CountrySubDivision']?.['cr:CountrySubDivisionTextTH']) {
+    parts.push(addr['cd:CountrySubDivision']['cr:CountrySubDivisionTextTH']);
+  }
+  
+  return parts.filter(Boolean).join(' ');
+}
+
+// Helper: Extract business objective description
+function extractBusinessObjective(objectiveData) {
+  if (!objectiveData) return '';
+  
+  const objective = objectiveData['td:JuristicObjective'];
+  if (!objective) return '';
+  
+  return objective['td:JuristicObjectiveTextTH'] || '';
+}
+
 // ============== DETAIL SETTINGS ENDPOINTS ==============
 
 app.get('/api/companies/:companyId/detail-settings', (req, res) => {
