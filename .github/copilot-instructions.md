@@ -815,3 +815,444 @@ Use this concise checklist when introducing a brand-new note type. It covers all
 - Missing `CATEGORY_PRIORITY` entry: Accounts never get classified — add the category to the priority list.
 - Mapping not visible in UI: Add the note to `STANDARD_NOTE_TYPES` and the “Add mapping…” options.
 - BS row missing or wrong order: Adjust `AssetsBuilder`/`LiabilitiesBuilder` and/or the orchestrator note order.
+---
+
+## Complete Note Creation Process (Real-World Example: Investment Property)
+
+This section documents the actual process used to create the Investment Property note (อสังหาริมทรัพย์เพื่อการลงทุน) on January 22, 2026. It serves as a comprehensive reference for adding similar notes in the future.
+
+### **Overview: Investment Property Note (Note 10)**
+
+**Requirements:**
+- Create a new note "อสังหาริมทรัพย์เพื่อการลงทุน" (Investment Property)
+- Use PPE-style movement table structure (Cost/Depreciation sections with additions/disposals)
+- Position before PPE (Note 10) in both Notes and Balance Sheet
+- Use account range 1700-1759 (1700-1729 cost, 1730-1759 depreciation)
+- Include in Balance Sheet Non-Current Assets section
+- Full database and frontend UI support
+- Note numbering: Investment Property = 10, PPE = 11 (all subsequent notes increment)
+
+### **Step-by-Step Implementation**
+
+#### **1. Core Types Extension** 
+File: `src/services/financialStatements/core/types.ts`
+
+Added three type extensions:
+
+```typescript
+// Add to NoteCategory (before ppe categories)
+export type NoteCategory =
+  | 'cash'
+  // ... other categories
+  | 'investment_property_cost'
+  | 'investment_property_accum_depr'
+  | 'ppe_cost'
+  | 'ppe_accum_depr'
+  // ... more categories
+
+// Add to NoteFormatter type
+export interface NoteFormatter {
+  type:
+    | 'cash'
+    | 'investmentProperty'
+    | 'ppe'
+    // ... other types
+}
+
+// Add to NoteRegistry
+export interface NoteRegistry {
+  cash?: number;
+  investmentProperty?: number;
+  ppe?: number;
+  // ... other notes
+}
+
+// Add to DetailedFinancialData.noteCalculations (before ppe)
+noteCalculations: {
+  // ... other calculations
+  
+  // Note 10: Investment Property
+  investmentProperty: {
+    cost: { current: number; previous: number };
+    accumulatedDepreciation: { current: number; previous: number };
+    netBookValue: { current: number; previous: number };
+  };
+  
+  // Note 11: Property, plant and equipment
+  ppe: {
+    cost: { current: number; previous: number };
+    accumulatedDepreciation: { current: number; previous: number };
+    netBookValue: { current: number; previous: number };
+  };
+}
+```
+
+**Key Insights:**
+- Insert new categories BEFORE related categories (investment property before PPE) to maintain logical grouping
+- Match the structure exactly to similar notes (Investment Property mirrors PPE structure)
+- Update all three interfaces: `NoteCategory`, `NoteFormatter`, `NoteRegistry`
+
+#### **2. Classification System**
+File: `src/services/financialStatements/selection/SelectionFirstClassifier.ts`
+
+Three changes required:
+
+```typescript
+// A) Add to CATEGORY_PRIORITY (line ~55-60, before ppe)
+const CATEGORY_PRIORITY: NoteCategory[] = [
+  'cash',
+  // ... other categories
+  'investment_property_cost',
+  'investment_property_accum_depr',
+  'ppe_cost',
+  'ppe_accum_depr',
+  // ... more categories
+];
+
+// B) Add fallback ranges in buildResolver switch (line ~305)
+case 'investment_property_cost': return codeNum >= 1700 && codeNum <= 1729;
+case 'investment_property_accum_depr': return codeNum >= 1730 && codeNum <= 1759;
+
+// C) Add decimal account shifting logic (line ~139)
+if (finalCat === 'investment_property_cost' && normalizedCode.includes('.')) {
+  finalCat = 'investment_property_accum_depr';
+}
+```
+
+**Key Insights:**
+- `CATEGORY_PRIORITY` order prevents double-counting when ranges overlap
+- Decimal accounts (e.g., 1700.1) automatically route to depreciation category
+- Fallback ranges ensure system works even without database rules
+
+#### **3. Note Generator Creation**
+File: `src/services/financialStatements/notes/noteTypes/InvestmentPropertyNoteGenerator.ts` (NEW FILE)
+
+Cloned from `PPENoteGenerator.ts` with these changes:
+
+```typescript
+// Change 1: Class name and comments
+export class InvestmentPropertyNoteGenerator {
+  /**
+   * Generates Investment Property note (Note 10) with complex structure
+   * Handles cost/depreciation breakdown with movement tracking
+   * Mirrors PPE structure but for investment property assets
+   */
+
+// Change 2: Selection category references (4 places)
+const selectionCostSource = normalizeSelection(selection?.byCategory?.investment_property_cost);
+const selectionDeprSource = normalizeSelection(selection?.byCategory?.investment_property_accum_depr);
+
+// Change 3: Fallback ranges (2 places)
+const assetFallback = normalizeTrialBalance(trialBalanceData, entry => {
+  const code = Number.parseInt(codeStr, 10);
+  return Number.isFinite(code) && code >= 1700 && code <= 1759;
+});
+
+// Change 4: Thai header text
+notes.push([noteNumber.toString(), 'อสังหาริมทรัพย์เพื่อการลงทุน', '', '', '', '', '', '', 'หน่วย:บาท']);
+
+// Change 5: Logging messages
+console.log(`[Investment Property Note] Using ${usingSelection ? 'selection-first' : 'fallback'} data -> assets: ${assetAccounts.length}, depreciation: ${depreciationAccounts.length}`);
+```
+
+**Export from index:**
+```typescript
+// File: src/services/financialStatements/notes/noteTypes/index.ts
+export { InvestmentPropertyNoteGenerator } from './InvestmentPropertyNoteGenerator';
+```
+
+**Key Insights:**
+- Movement table pattern: Opening balance + Additions + Disposals = Ending balance
+- Uses Excel formulas: `SUM(D${start}:D${end})` for dynamic totals
+- Row tracking provides exact formatting control
+- Handles both single-year and multi-year processing with same structure
+
+#### **4. Global Data Extraction**
+File: `src/services/financialStatements/core/GlobalDataExtractor.ts`
+
+Added three components:
+
+```typescript
+// A) Create build function (after buildPPENote, line ~170)
+private static buildInvestmentPropertyNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+  const costCurrent = provider?.getRules('investment_property_cost')
+    ? sumByRules(trialBalanceData, provider.getRules('investment_property_cost')!, 'current')
+    : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1729));
+  const costPrevious = provider?.getRules('investment_property_cost')
+    ? sumByRules(trialBalanceData, provider.getRules('investment_property_cost')!, 'previous')
+    : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1729));
+
+  const accCurrent = provider?.getRules('investment_property_accum_depr')
+    ? sumByRules(trialBalanceData, provider.getRules('investment_property_accum_depr')!, 'current')
+    : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1730, 1759));
+  const accPrevious = provider?.getRules('investment_property_accum_depr')
+    ? sumByRules(trialBalanceData, provider.getRules('investment_property_accum_depr')!, 'previous')
+    : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1730, 1759));
+
+  return {
+    cost: { current: costCurrent, previous: costPrevious },
+    accumulatedDepreciation: { current: accCurrent, previous: accPrevious },
+    netBookValue: { current: costCurrent - accCurrent, previous: costPrevious - accPrevious }
+  };
+}
+
+// B) Call in extractAllFinancialData (line ~34)
+const investmentPropertyNote = this.buildInvestmentPropertyNote(trialBalanceData, provider);
+const ppeNote = this.buildPPENote(trialBalanceData, provider);
+
+// C) Add to return object (line ~62)
+noteCalculations: {
+  cash: cashNote,
+  receivables: receivablesNote,
+  inventory: inventoryNote,
+  investmentProperty: investmentPropertyNote,
+  ppe: ppeNote,
+  // ... other notes
+}
+```
+
+**Key Insights:**
+- Provider-based rules take precedence over fallback ranges
+- Net book value calculation: cost - accumulated depreciation
+- Foundation-first architecture ensures Balance Sheet consistency
+
+#### **5. Balance Sheet Integration**
+File: `src/services/financialStatements/balanceSheet/AssetsBuilder.ts`
+
+Added calculations and worksheet row:
+
+```typescript
+// A) Current year calculations (line ~45-55 area)
+// Investment Property (net) = cost - accum depreciation
+const investmentPropertyCostCurrent = sel?.investment_property_cost?.current ?? 0;
+const investmentPropertyAccumCurrent = sel?.investment_property_accum_depr?.current ?? 0;
+const investmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+  ? (investmentPropertyCostCurrent - investmentPropertyAccumCurrent)
+  : (globalData
+      ? globalData.noteCalculations.investmentProperty.netBookValue.current
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1759)));
+
+// B) Previous year calculations (line ~80-90 area)
+const investmentPropertyCostPrev = sel?.investment_property_cost?.previous ?? 0;
+const investmentPropertyAccumPrev = sel?.investment_property_accum_depr?.previous ?? 0;
+const prevInvestmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+  ? (investmentPropertyCostPrev - investmentPropertyAccumPrev)
+  : (globalData
+      ? globalData.noteCalculations.investmentProperty.netBookValue.previous
+      : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1759));
+
+// C) Insert row BEFORE PPE (line ~158)
+worksheetData.push(['', 'สินทรัพย์ไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
+currentRow++;
+
+worksheetData.push(['', '', 'อสังหาริมทรัพย์เพื่อการลงทุน (สุทธิ)', '', '', noteRegistry?.investmentProperty?.toString() || '', investmentProperty, '', processingType === 'multi-year' ? prevInvestmentProperty : '', '']);
+nonCurrentAssetRows.push(currentRow);
+currentRow++;
+
+worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', noteRegistry?.ppe?.toString() || '', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+nonCurrentAssetRows.push(currentRow);
+currentRow++;
+```
+
+**Key Insights:**
+- Three-tier fallback: Selection-first → GlobalData → Direct calculation
+- Net value shown in Balance Sheet: cost - depreciation
+- Row order critical: Investment Property appears before PPE
+- Include in `nonCurrentAssetRows` array for total formula
+
+#### **6. Orchestration**
+File: `src/services/financialStatementGenerator.ts`
+
+Three changes:
+
+```typescript
+// A) Import generator (line ~15)
+import { 
+  CashNoteGenerator, 
+  TradeReceivablesNoteGenerator, 
+  TradePayablesNoteGenerator,
+  InvestmentPropertyNoteGenerator,  // NEW
+  PPENoteGenerator,
+  // ... other generators
+} from './financialStatements/notes/noteTypes';
+
+// B) Instantiate BEFORE PPE (line ~330)
+// Investment Property Note (อสังหาริมทรัพย์เพื่อการลงทุน) - Note 10
+const investmentPropertyTracker = InvestmentPropertyNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+if (investmentPropertyTracker.headerRows.length > 0) {
+  noteRegistry.investmentProperty = noteNumber++;
+  formatters.push({ type: 'investmentProperty', tracker: investmentPropertyTracker });
+}
+
+// Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting - Note 11
+const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+if (ppeTracker.headerRows.length > 0) {
+  noteRegistry.ppe = noteNumber++;
+  formatters.push({ type: 'ppe', tracker: ppeTracker });
+}
+```
+
+**Key Insights:**
+- Order determines note numbering: Investment Property instantiated before PPE
+- `noteNumber++` auto-increments for each generated note
+- Pass `selection` parameter for selection-first data access
+- Only register note if it has content (`headerRows.length > 0`)
+
+#### **7. Excel Formatting**
+File: `src/services/excelFormatter.ts`
+
+Single change reuses existing formatter:
+
+```typescript
+// In formatNotesWithSpecificFormatting switch (line ~1723)
+case 'investmentProperty':
+  this.formatPPENote(worksheet, formatter.tracker);
+  break;
+case 'ppe':
+  this.formatPPENote(worksheet, formatter.tracker);
+  break;
+```
+
+**Key Insights:**
+- Reuse formatters when structure identical (Investment Property = PPE structure)
+- `formatPPENote` handles: bold headers, year headers with underline, detail row numbers, total rows
+- Row tracking makes formatting type-agnostic
+
+#### **8. Frontend Configuration**
+File: `src/types/accountMapping.ts`
+
+Added to `STANDARD_NOTE_TYPES`:
+
+```typescript
+export const STANDARD_NOTE_TYPES = {
+  // ... existing types
+  
+  investment_property_cost: {
+    noteNumber: 10,
+    noteTitle: 'อสังหาริมทรัพย์เพื่อการลงทุน',
+    balanceSheetSection: 'non_current_assets'
+  },
+  ppe_cost: {
+    noteNumber: 11,  // Changed from 11 to 11
+    noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
+    balanceSheetSection: 'non_current_assets'
+  },
+  // ... more types
+};
+```
+
+**Key Insights:**
+- UI automatically detects note types from `STANDARD_NOTE_TYPES`
+- No code changes needed in `AccountMappingManager.tsx`
+- Default `accountRanges` inferred from `CATEGORY_PRIORITY` fallback logic
+
+#### **9. Database Seeding**
+File: `server.js`
+
+Added to TWO reset sections (lines ~1010 and ~1310):
+
+```javascript
+// First reset section (line ~1010)
+{
+  noteType: 'investment_property_cost',
+  noteNumber: 10,
+  noteTitle: 'อสังหาริมทรัพย์เพื่อการลงทุน',
+  accountRanges: JSON.stringify({
+    ranges: [{ from: 1700, to: 1759 }]
+  })
+},
+{
+  noteType: 'ppe_cost',
+  noteNumber: 11,  // Changed from 11
+  noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
+  accountRanges: JSON.stringify({
+    ranges: [{ from: 1610, to: 1659 }]
+  })
+},
+
+// Second reset section (line ~1310) - identical structure
+```
+
+**Key Insights:**
+- Two reset sections exist: ensure both are updated
+- Use wider range (1700-1759) covering both cost and depreciation
+- JSON.stringify required for `accountRanges` field
+- Update subsequent note numbers after insertion
+
+#### **10. Verification & Testing**
+
+**Build Check:**
+```bash
+# No TypeScript errors expected
+npm run build
+```
+
+**Runtime Verification:**
+- ✅ Classification logs show accounts in `investment_property_cost` / `investment_property_accum_depr` buckets
+- ✅ Notes_Accounting worksheet shows Investment Property before PPE
+- ✅ Balance Sheet Non-Current Assets shows Investment Property row before PPE row
+- ✅ Note numbering correct: Investment Property = 10, PPE = 11
+- ✅ Excel formulas calculate correctly (SUM totals, net book value)
+- ✅ Multi-year processing shows previous year columns properly
+- ✅ Frontend mapping UI shows Investment Property in available note types
+- ✅ Zeros preserved in movement columns F and G (additions/disposals)
+
+**Commit:**
+```bash
+git add -A
+git commit -m "feat(investment-property): add Note 10 - Investment Property with PPE-style movement table
+
+- Add investment_property_cost and investment_property_accum_depr to NoteCategory types
+- Add InvestmentPropertyNoteGenerator with depreciation-based movement table
+- Integrate into Balance Sheet before PPE in Non-Current Assets section
+- Add to classification system with account range 1700-1759
+- Wire into orchestration with proper note numbering (Note 10, PPE becomes Note 11)
+
+Account ranges: 1700-1729 (cost), 1730-1759 (accum depreciation)"
+```
+
+### **Future Note Creation Checklist**
+
+Use this checklist when adding a new note:
+
+1. ☐ **Types** (`types.ts`): Add to `NoteCategory`, `NoteFormatter`, `NoteRegistry`, `DetailedFinancialData`
+2. ☐ **Classification** (`SelectionFirstClassifier.ts`): Add to `CATEGORY_PRIORITY`, add fallback ranges, add decimal shifting if needed
+3. ☐ **Note Generator**: Clone similar generator, update category references, change labels, export from index
+4. ☐ **Global Data Extractor**: Add `build<Note>` function, call it, add to `noteCalculations`
+5. ☐ **Balance Sheet Builder**: Add calculation variables, insert worksheet row, include in total arrays
+6. ☐ **Orchestration** (`financialStatementGenerator.ts`): Import generator, instantiate at correct position, push formatter
+7. ☐ **Excel Formatting**: Add formatter case (reuse existing if structure matches)
+8. ☐ **Frontend Config**: Add to `STANDARD_NOTE_TYPES` with proper note number
+9. ☐ **Database Seeding**: Add to BOTH reset sections in `server.js`
+10. ☐ **Verification**: Build passes, UI shows mapping, classification works, Excel output correct
+
+### **Common Patterns**
+
+**Simple List Note (e.g., Receivables, Payables):**
+- Single category in `NoteCategory`
+- List individual accounts with totals
+- Use `SUM` formula for grand total
+
+**Dual-Section Note (e.g., PPE, Investment Property):**
+- TWO categories: `_cost` and `_accum_depr`
+- Movement table: Opening + Additions - Disposals = Ending
+- Cost section + Depreciation section + Net book value
+- Decimal account shifting logic required
+
+**Calculated Note (e.g., Other Income, Expenses by Nature):**
+- May not need Balance Sheet integration
+- Focus on P&L categorization
+- Use selection-first for account grouping
+
+### **Critical Success Factors**
+
+1. **Order Matters**: `CATEGORY_PRIORITY` sequence prevents double counting
+2. **Consistent Numbering**: Insert at correct orchestration position for proper note numbers
+3. **Three-Tier Fallback**: Selection → GlobalData → Direct calculation ensures robustness
+4. **Row Tracking**: Always use `NoteRowTracker` for precise formatting control
+5. **Export Everything**: Generator must be exported from index, type must be in union
+6. **Database Consistency**: Seed BOTH reset sections with identical data
+7. **Test Multi-Year**: Ensure previous year columns work correctly
+8. **Preserve Zeros**: Movement columns (F/G) must show zeros, not be cleared
+
+---
