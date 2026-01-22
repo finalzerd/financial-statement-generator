@@ -101,11 +101,13 @@ export function AccountMappingManager({
       const data = await ApiService.getCompanyAccountMappings(companyId);
       
       // Sort by note number for better organization
-      const sortedMappings = (data || []).sort((a, b) => {
+      const sortedMappings = (data || []).sort((a: CompanyAccountMapping, b: CompanyAccountMapping) => {
         // Put notes with number 0 at the end (P&L categories)
-        if (a.noteNumber === 0 && b.noteNumber !== 0) return 1;
-        if (a.noteNumber !== 0 && b.noteNumber === 0) return -1;
-        return a.noteNumber - b.noteNumber;
+        const aNum = a.noteNumber ?? 0;
+        const bNum = b.noteNumber ?? 0;
+        if (aNum === 0 && bNum !== 0) return 1;
+        if (aNum !== 0 && bNum === 0) return -1;
+        return aNum - bNum;
       });
       
       setMappings(sortedMappings);
@@ -159,18 +161,35 @@ export function AccountMappingManager({
       isActive: mapping.isActive,
       subCategoryRules: (() => {
         const sc: any = {};
-        if (mapping.subCategoryRules?.cash) {
-          sc.cash = {
-            ranges: mapping.subCategoryRules.cash.cash?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
-            includes: mapping.subCategoryRules.cash.cash?.includes?.join(', ') || '',
-            excludes: mapping.subCategoryRules.cash.cash?.excludes?.join(', ') || ''
-          };
-          sc.bankDeposits = {
-            ranges: mapping.subCategoryRules.cash.bankDeposits?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
-            includes: mapping.subCategoryRules.cash.bankDeposits?.includes?.join(', ') || '',
-            excludes: mapping.subCategoryRules.cash.bankDeposits?.excludes?.join(', ') || ''
-          };
+        
+        // For cash note, always populate sub-category defaults if not already set
+        if (mapping.noteType === 'cash') {
+          if (mapping.subCategoryRules?.cash) {
+            sc.cash = {
+              ranges: mapping.subCategoryRules.cash.cash?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '1010', to: '1019' }],
+              includes: mapping.subCategoryRules.cash.cash?.includes?.join(', ') || '',
+              excludes: mapping.subCategoryRules.cash.cash?.excludes?.join(', ') || ''
+            };
+            sc.bankDeposits = {
+              ranges: mapping.subCategoryRules.cash.bankDeposits?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '1020', to: '1099' }],
+              includes: mapping.subCategoryRules.cash.bankDeposits?.includes?.join(', ') || '',
+              excludes: mapping.subCategoryRules.cash.bankDeposits?.excludes?.join(', ') || ''
+            };
+          } else {
+            // Populate defaults for cash even if not in database yet
+            sc.cash = {
+              ranges: [{ from: '1010', to: '1019' }],
+              includes: '',
+              excludes: ''
+            };
+            sc.bankDeposits = {
+              ranges: [{ from: '1020', to: '1099' }],
+              includes: '',
+              excludes: ''
+            };
+          }
         }
+        
         if (mapping.subCategoryRules?.hirePurchase) {
           sc.principal = {
             ranges: mapping.subCategoryRules.hirePurchase.principal?.ranges?.map((r: any) => ({ from: r.from.toString(), to: r.to.toString() })) || [{ from: '', to: '' }],
@@ -330,7 +349,7 @@ export function AccountMappingManager({
       return minVal;
     };
 
-    return [...mappings].sort((a, b) => {
+    return [...mappings].sort((a: CompanyAccountMapping, b: CompanyAccountMapping) => {
       const ka = getSortKey(a);
       const kb = getSortKey(b);
       if (ka !== kb) return ka - kb;

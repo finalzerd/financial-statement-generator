@@ -690,7 +690,7 @@ export class ExcelJSFormatter {
           color: { argb: 'FF000000' }
         };
         amountCell.alignment = { horizontal: 'right', vertical: 'middle' };
-        amountCell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        amountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       });
       
       // Column H (spacer)
@@ -839,7 +839,7 @@ export class ExcelJSFormatter {
         const cell = worksheet.getCell(`${col}${row}`);
         if (cell.value !== undefined && cell.value !== null && cell.value !== '') {
           cell.alignment = { horizontal: 'right', vertical: 'middle' } as any;
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         }
       });
     }
@@ -853,7 +853,7 @@ export class ExcelJSFormatter {
     ['C','F','I'].forEach(col => {
       const cell = worksheet.getCell(`${col}${row}`);
       cell.alignment = { horizontal: 'right', vertical: 'middle' } as any;
-      cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+      cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       cell.border = { top: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'double', color: { argb: 'FF000000' } } } as any;
     });
   }
@@ -871,7 +871,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         // Amounts should NOT be bold
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -894,7 +894,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -927,7 +927,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         // Amount cells for this total row should not be bold
         cell.font = { ...cell.font, bold: false };
       } else {
@@ -975,7 +975,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -1016,7 +1016,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
@@ -1050,7 +1050,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1072,7 +1072,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1094,7 +1094,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1116,7 +1116,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1138,7 +1138,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1160,7 +1160,7 @@ export class ExcelJSFormatter {
       else if (col === 'F') cell.alignment = { horizontal: 'center', vertical: 'middle' };
       else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         cell.font = { ...cell.font, bold: false };
       } else cell.alignment = { horizontal: 'left', vertical: 'middle' };
       if (col !== 'G' && col !== 'I') cell.border = {};
@@ -1237,7 +1237,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
@@ -1263,7 +1263,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
@@ -1509,6 +1509,12 @@ export class ExcelJSFormatter {
       { width: 2.33 }   // I = 1.6
     ];
     
+    // Configure print settings: repeat first 3 rows at top of each page
+    worksheet.pageSetup = {
+      ...worksheet.pageSetup,
+      printTitlesRow: '1:3'
+    };
+    
     // Apply general formatting sections (without column headers that add หมายเหตุ)
     this.formatCompanyHeaderNoBackground(worksheet);
     // Skip formatColumnHeadersProfessional to avoid adding หมายเหตุ to F5
@@ -1606,7 +1612,7 @@ export class ExcelJSFormatter {
     // 9. Rows 41, 43, 45 removed - no content, no merge needed
     
     // 11. Set specific row heights for merged content rows based on text content
-    // Rows 6,7,8,19,21 use autofit (no fixed height)
+    // Rows 6,7,8,21 use autofit (no fixed height)
     // Rows 14,15,20,22,26 use autofit and no merging/wrapping
     const rowHeights = {
       10: 45,  // Note 2 content (ฐานะการดำเนินงานของบริษัท) - 2 lines height (increased by 10%)
@@ -1615,7 +1621,7 @@ export class ExcelJSFormatter {
       // 14: removed - autofit, no merge, no wrap
       // 15: removed - autofit, no merge, no wrap
       // 17: removed - autofit
-      // 19: removed - autofit
+      19: 45,  // Policy section content
       // 20: removed - autofit, no merge, no wrap
       // 21: removed - autofit
       // 22: removed - autofit, no merge, no wrap
@@ -1691,8 +1697,19 @@ export class ExcelJSFormatter {
     this.formatCompanyHeaderNoBackground(worksheet);
     
     // STEP 3: Apply specific formatting for each note
+    // Track rows that have custom number formats to exclude from safety net
+    const customFormatRows = new Set<number>();
+    
     formatters.forEach(formatter => {
       console.log(`Formatting ${formatter.type} note:`, formatter.tracker);
+      
+      // Track rows for notes with custom formats
+      if (formatter.type === 'expensesByNature') {
+        // Add all detail and total rows to custom format set
+        formatter.tracker.detailRows?.forEach((r: number) => customFormatRows.add(r));
+        formatter.tracker.totalRows?.forEach((r: number) => customFormatRows.add(r));
+      }
+      
       switch (formatter.type) {
         case 'cash':
           this.formatCashNote(worksheet, formatter.tracker);
@@ -1721,6 +1738,9 @@ export class ExcelJSFormatter {
         case 'bankOverdrafts':
           this.formatBankOverdraftsNote(worksheet, formatter.tracker);
           break;
+        case 'expensesByNature':
+          this.formatExpensesByNatureNote(worksheet, formatter.tracker);
+          break;
         case 'otherCurrentAssets':
         case 'otherCurrentLiabilities':
         case 'otherNonCurrentLiabilities':
@@ -1731,9 +1751,14 @@ export class ExcelJSFormatter {
       }
     });
     
-    // STEP 3.5: Safety Net - Enforce number format on all numeric cells in G and I
+    // STEP 3.5: Safety Net - Enforce number format on all numeric cells in G and I (EXCEPT custom format rows)
     // This ensures that even if a row wasn't tracked correctly, it gets the correct format
     for (let row = 6; row <= 200; row++) {
+      // Skip rows with custom formats (e.g., ExpensesByNature)
+      if (customFormatRows.has(row)) {
+        continue;
+      }
+      
       ['G', 'I'].forEach(col => {
         const cell = worksheet.getCell(`${col}${row}`);
         
@@ -1750,7 +1775,7 @@ export class ExcelJSFormatter {
           // We'll keep existing font settings but ensure alignment/format
         } else if (typeof cellValue === 'number' || (cellValue && typeof cellValue === 'object' && 'formula' in cellValue)) {
           // Apply the accounting format to non-year numbers
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
           // Ensure right alignment
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
         }
@@ -1848,7 +1873,7 @@ export class ExcelJSFormatter {
         if (cell.value) {
           cell.font = { name: this.THAI_FONT_NAME, size: 14 };
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         }
       });
     });
@@ -1868,7 +1893,7 @@ export class ExcelJSFormatter {
         if (cell.value) {
           cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
         }
       });
 
@@ -1958,7 +1983,7 @@ export class ExcelJSFormatter {
       for (let col = 4; col <= 9; col++) { // Columns D through I
         const cell = worksheet.getCell(row, col);
         if (typeof cell.value === 'number') { // Remove the && cell.value condition to include zeros
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
           cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
         }
@@ -1977,7 +2002,7 @@ export class ExcelJSFormatter {
       for (let col = 4; col <= 9; col++) { // Columns D through I
         const cell = worksheet.getCell(row, col);
         if (typeof cell.value === 'number' || (typeof cell.value === 'object' && cell.value && 'formula' in cell.value)) {
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
           cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
         }
@@ -2014,6 +2039,84 @@ export class ExcelJSFormatter {
   }
 
   /**
+   * Format Expenses By Nature Note specifically
+   */
+  private static formatExpensesByNatureNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
+    console.log('Formatting Expenses By Nature Note, rows:', tracker.noteStartRow, 'to', tracker.currentRow - 1);
+    
+    // 1. Header Row (Note header with unit)
+    tracker.headerRows.forEach((row: number) => {
+      const headerCell = worksheet.getCell(`B${row}`);
+      const unitCell = worksheet.getCell(`I${row}`);
+      
+      headerCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      headerCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      unitCell.font = { name: this.THAI_FONT_NAME, size: 14 };
+      unitCell.alignment = { horizontal: 'right', vertical: 'middle' };
+    });
+
+    // 2. Year Header Row
+    tracker.yearHeaderRows.forEach((row: number) => {
+      const currentYearCell = worksheet.getCell(`G${row}`);
+      const previousYearCell = worksheet.getCell(`I${row}`);
+      
+      [currentYearCell, previousYearCell].forEach(cell => {
+        if (cell.value) {
+          cell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false, underline: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+      });
+    });
+
+    // 3. Detail Rows (expense categories)
+    tracker.detailRows.forEach((row: number) => {
+      const detailNameCell = worksheet.getCell(`C${row}`);
+      const currentAmountCell = worksheet.getCell(`G${row}`);
+      const previousAmountCell = worksheet.getCell(`I${row}`);
+      
+      // Expense category name - left aligned
+      detailNameCell.font = { name: this.THAI_FONT_NAME, size: 14 };
+      detailNameCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Amounts - right aligned with custom number format: negative numbers in parentheses
+      // Apply format regardless of whether cell has value (template formatting)
+      currentAmountCell.font = { name: this.THAI_FONT_NAME, size: 14 };
+      currentAmountCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      currentAmountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
+      
+      previousAmountCell.font = { name: this.THAI_FONT_NAME, size: 14 };
+      previousAmountCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      previousAmountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
+    });
+
+    // 4. Format Total Row ("รวม" bold in column C, amounts not bold with top + double bottom borders)
+    tracker.totalRows.forEach((row: number) => {
+      const totalTextCell = worksheet.getCell(`C${row}`);
+      const currentTotalCell = worksheet.getCell(`G${row}`);
+      const previousTotalCell = worksheet.getCell(`I${row}`);
+      
+      // "รวม" text - BOLD
+      totalTextCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: true };
+      totalTextCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      
+      // Total amounts - NOT bold with custom number format: negative numbers in parentheses
+      // Apply format regardless of whether cell has value (template formatting)
+      currentTotalCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+      currentTotalCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      currentTotalCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
+      
+      previousTotalCell.font = { name: this.THAI_FONT_NAME, size: 14, bold: false };
+      previousTotalCell.alignment = { horizontal: 'right', vertical: 'middle' };
+      previousTotalCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
+
+      // Apply borders on amount columns: thin top + double bottom
+      currentTotalCell.border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+      previousTotalCell.border = { top: { style:'thin', color:{argb:'FF000000'} }, bottom: { style:'double', color:{argb:'FF000000'} } } as any;
+    });
+  }
+
+  /**
    * Format General Note specifically
    */
   private static formatGeneralNote(worksheet: ExcelJS.Worksheet, tracker: any): void {
@@ -2047,6 +2150,12 @@ export class ExcelJSFormatter {
       { width: 2 },   // H
       { width: 12 }   // I
     ];
+    
+    // Configure print settings: repeat first 3 rows at top of each page
+    worksheet.pageSetup = {
+      ...worksheet.pageSetup,
+      printTitlesRow: '1:3'
+    };
     
     // Apply formatting sections without green background
     this.formatCompanyHeaderNoBackground(worksheet);
@@ -2093,7 +2202,7 @@ export class ExcelJSFormatter {
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
         } else if (typeof cellValue === 'number' || (cellValue && typeof cellValue === 'object' && 'formula' in cellValue)) {
           // Apply the accounting format to non-year numbers
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
           // Ensure right alignment
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
         }
@@ -2159,7 +2268,7 @@ export class ExcelJSFormatter {
         color: { argb: 'FF000000' }
       };
       currentAmountCell.alignment = { horizontal: 'right', vertical: 'middle' };
-      currentAmountCell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+      currentAmountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       
       // Previous period amounts (Column I - moved from F)
       const previousAmountCell = worksheet.getCell(`I${row}`);
@@ -2169,7 +2278,7 @@ export class ExcelJSFormatter {
         color: { argb: 'FF000000' }
       };
       previousAmountCell.alignment = { horizontal: 'right', vertical: 'middle' };
-      previousAmountCell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+      previousAmountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       
       // Column H (spacer)
       const spacerCell = worksheet.getCell(`H${row}`);
@@ -2320,7 +2429,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
@@ -2415,7 +2524,7 @@ export class ExcelJSFormatter {
         cell.alignment = { horizontal: 'center', vertical: 'middle' };
       } else if (col === 'G' || col === 'I') {
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
-        cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       } else {
         cell.alignment = { horizontal: 'left', vertical: 'middle' };
       }
@@ -2463,6 +2572,12 @@ export class ExcelJSFormatter {
       { width: 18 }    // I - Other expenses / DT1 amounts
     ];
     
+    // Configure print settings: repeat first 3 rows at top of each page
+    worksheet.pageSetup = {
+      ...worksheet.pageSetup,
+      printTitlesRow: '1:3'
+    };
+    
     // Apply formatting sections without green background
     this.formatCompanyHeaderNoBackground(worksheet);
     this.formatColumnHeadersAccountingNotes(worksheet); // Use accounting notes headers (no หมายเหตุ in F5)
@@ -2500,7 +2615,7 @@ export class ExcelJSFormatter {
           color: { argb: 'FF000000' }
         };
         amountCell.alignment = { horizontal: 'right', vertical: 'middle' };
-        amountCell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+        amountCell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
       });
     }
   }
@@ -2537,7 +2652,7 @@ export class ExcelJSFormatter {
             color: { argb: 'FF000000' }
           };
           cell.alignment = { horizontal: 'right', vertical: 'middle' };
-          cell.numFmt = '_-* #,##0.00_-;-* #,##0.00_-;_-* "-"??_-;_-@_-';
+          cell.numFmt = '_-* #,##0.00_-;(#,##0.00);_-* "-"??_-;_-@_-';
           
           // Borders: all borders first, then top + double bottom
           cell.border = { 

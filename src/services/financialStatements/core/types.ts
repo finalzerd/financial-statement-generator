@@ -34,7 +34,10 @@ export interface NoteFormatter {
     | 'bankOverdrafts'
     | 'otherCurrentAssets'
     | 'otherCurrentLiabilities'
-    | 'otherNonCurrentLiabilities';
+    | 'otherNonCurrentLiabilities'
+    | 'liabilityShortTermLoans'
+    | 'longTermLoansFromFI'
+    | 'expensesByNature';
   tracker: NoteRowTracker;
 }
 

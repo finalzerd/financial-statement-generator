@@ -59,13 +59,21 @@ export class ExpensesByNatureNoteGenerator {
     ];
 
     expenseCategories.forEach(category => {
-      notes.push(['', '', category, '', '', '', '', '', '']);
+      if (processingType === 'multi-year') {
+        notes.push(['', '', category, '', '', '', 0, '', 0]); // Add placeholder 0 values for formatting
+      } else {
+        notes.push(['', '', category, '', '', '', 0, '', '']); // Add placeholder 0 value for current year
+      }
       tracker.detailRows.push(tracker.currentRow);
       tracker.currentRow++;
     });
     
     // 4. Total Row
-    notes.push(['', '', 'รวม', '', '', '', '', '', '']);
+    if (processingType === 'multi-year') {
+      notes.push(['', '', 'รวม', '', '', '', 0, '', 0]); // Add placeholder 0 values for formatting
+    } else {
+      notes.push(['', '', 'รวม', '', '', '', 0, '', '']); // Add placeholder 0 value for current year
+    }
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
 

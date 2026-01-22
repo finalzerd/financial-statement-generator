@@ -92,7 +92,8 @@ export class ProfitLossBuilder {
     plData.push(['', '', '', '', '', '', '', '', '']);
     
     const signatureRowIndex = plData.length + 1;
-    plData.push(['ลงชื่อ ……………………..................................... กรรมการตามอำนาจ', '', '', '', '', '', '', '', '']);
+    const signatureTitle = companyInfo.type === 'ห้างหุ้นส่วนจำกัด' ? 'หุ้นส่วนผู้จัดการ' : 'กรรมการตามอำนาจ';
+    plData.push([`ลงชื่อ ……………………..................................... ${signatureTitle}`, '', '', '', '', '', '', '', '']);
     
     const directorNameRowIndex = plData.length + 1;
     const directorName = companyInfo.directorName || '...........................';

@@ -217,7 +217,8 @@ export class AssetsBuilder {
     
     // Signature line (row to be center-aligned)
     const signatureRowIndex = worksheetData.length + 1; // 1-based
-    worksheetData.push(['ลงชื่อ ……………………..................................... กรรมการตามอำนาจ', '', '', '', '', '', '', '', '', '']);
+    const signatureTitle = companyInfo.type === 'ห้างหุ้นส่วนจำกัด' ? 'หุ้นส่วนผู้จัดการ' : 'กรรมการตามอำนาจ';
+    worksheetData.push([`ลงชื่อ ……………………..................................... ${signatureTitle}`, '', '', '', '', '', '', '', '', '']);
     
     // Director name line (row to be center-aligned)
     const directorNameRowIndex = worksheetData.length + 1; // 1-based

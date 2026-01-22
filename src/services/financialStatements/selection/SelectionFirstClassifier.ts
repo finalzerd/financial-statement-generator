@@ -280,6 +280,12 @@ export class SelectionFirstClassifier {
       console.log(`[SelectionFirst] Building resolver for other_assets:`, { rules, includes, excludes, ranges });
     }
 
+    // CRITICAL: Distinguish between:
+    // 1. rules === null/undefined (no mapping exists) → use fallback
+    // 2. rules exists but empty (user explicitly cleared) → DON'T use fallback
+    const mappingExists = rules !== null && rules !== undefined;
+    const hasAnyRules = ranges.length > 0 || includes.size > 0 || excludes.size > 0;
+
     // Fallback numeric ranges per legacy logic
     const fallback = (codeNum: number, codeStr: string) => {
       const normalized = codeStr.replace(/\s+/g, '');
@@ -323,9 +329,6 @@ export class SelectionFirstClassifier {
   const codeNum = Number.parseFloat(codeStr || '0');
       const inRanges = (lst?: Array<{ from: number; to: number }>) => Array.isArray(lst) && lst.some(r => codeNum >= r.from && codeNum <= r.to);
 
-      // Check if provider has defined any rules for this category
-      const hasProviderRules = ranges.length > 0 || includes.size > 0 || excludes.size > 0;
-
       // Provider-based rules (top-level)
       const byInclude = includes.size > 0 && includes.has(codeStr);
       const byRange = ranges.length > 0 && Number.isFinite(codeNum) && inRanges(ranges);
@@ -338,12 +341,20 @@ export class SelectionFirstClassifier {
         return { matched: true };
       }
 
-      // If provider rules exist but didn't match (or account was excluded), don't fall back
-      if (hasProviderRules) {
+      // If mapping exists (even if empty), respect user's intent - don't fall back
+      if (mappingExists && hasAnyRules) {
+        // Has rules but didn't match
         return { matched: false };
       }
 
-      // Fallback numeric mapping (only when NO provider rules exist)
+      if (mappingExists && !hasAnyRules) {
+        // Mapping exists but is completely empty (user explicitly cleared all rules)
+        // DON'T use fallback - user wants this category to match nothing
+        return { matched: false };
+      }
+
+      // No mapping exists at all (rules === null/undefined)
+      // Use fallback only if not disabled
       if (disableFallback) {
         return { matched: false };
       }

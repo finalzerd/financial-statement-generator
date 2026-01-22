@@ -479,6 +479,15 @@ app.get('/api/dbd/search/:registrationNumber', async (req, res) => {
         });
       }
       
+      if (response.status === 502 || response.status === 503) {
+        return res.status(503).json({
+          success: false,
+          error: 'DBD API temporarily unavailable',
+          details: 'ระบบกรมพัฒนาธุรกิจการค้าไม่สามารถให้บริการได้ชั่วคราว กรุณาลองใหม่อีกครั้งในภายหลัง',
+          statusCode: response.status
+        });
+      }
+      
       throw new Error(`DBD API returned status ${response.status}`);
     }
 
@@ -970,6 +979,16 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteTitle: 'เงินสดและรายการเทียบเท่าเงินสด',
       accountRanges: JSON.stringify({
         ranges: [{ from: 1000, to: 1099 }]
+      }),
+      subCategoryRules: JSON.stringify({
+        cash: {
+          cash: {
+            ranges: [{ from: 1010, to: 1019 }]
+          },
+          bankDeposits: {
+            ranges: [{ from: 1020, to: 1099 }]
+          }
+        }
       })
     },
     {
@@ -1025,7 +1044,8 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteNumber: 14,
       noteTitle: 'รายได้อื่น',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 4110, to: 4999 }]
+        ranges: [{ from: 4110, to: 4999 }],
+        includes: [4020]
       })
     },
     {
@@ -1033,7 +1053,8 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteNumber: 0,
       noteTitle: 'รายได้จากการขายหรือการให้บริการ',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 4000, to: 4099 }]
+        ranges: [{ from: 4000, to: 4099 }],
+        excludes: [4020]
       })
     },
     {
@@ -1067,7 +1088,8 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
           { from: 5358, to: 5361 },
           { from: 5366, to: 5999 }
         ],
-        includes: [5364]
+        includes: [5364],
+        excludes: [5910]
       })
     },
     {
@@ -1166,7 +1188,8 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteNumber: 20,
       noteTitle: 'หนี้สินไม่หมุนเวียนอื่น',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 2200, to: 2999 }]
+        ranges: [{ from: 2200, to: 2999 }],
+        excludes: [2210, 2220, 2900, 2910]
       })
     }
   ];
@@ -1251,6 +1274,16 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteTitle: 'เงินสดและรายการเทียบเท่าเงินสด',
       accountRanges: JSON.stringify({
         ranges: [{ from: 1000, to: 1099 }]
+      }),
+      subCategoryRules: JSON.stringify({
+        cash: {
+          cash: {
+            ranges: [{ from: 1010, to: 1019 }]
+          },
+          bankDeposits: {
+            ranges: [{ from: 1020, to: 1099 }]
+          }
+        }
       })
     },
     {
@@ -1314,7 +1347,8 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteNumber: 14,
       noteTitle: 'รายได้อื่น',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 4110, to: 4999 }]
+        ranges: [{ from: 4110, to: 4999 }],
+        includes: [4020]
       })
     },
     {
@@ -1322,7 +1356,8 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteNumber: 0,
       noteTitle: 'รายได้จากการขายหรือการให้บริการ',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 4000, to: 4099 }]
+        ranges: [{ from: 4000, to: 4099 }],
+        excludes: [4020]
       })
     },
     {
@@ -1356,7 +1391,8 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
           { from: 5358, to: 5361 },
           { from: 5366, to: 5999 }
         ],
-        includes: [5364]
+        includes: [5364],
+        excludes: [5910]
       })
     },
     {
@@ -1423,6 +1459,15 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteTitle: 'เงินกู้ยืมระยะยาวอื่น',
       accountRanges: JSON.stringify({
         includes: [2050, 2051, 2052, 2100, 2101, 2102, 2103]
+      })
+    },
+    {
+      noteType: 'other_non_current_liabilities',
+      noteNumber: 22,
+      noteTitle: 'หนี้สินไม่หมุนเวียนอื่น',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 2200, to: 2999 }],
+        excludes: [2210, 2220, 2900, 2910]
       })
     }
   ];

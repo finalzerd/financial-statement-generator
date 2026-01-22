@@ -13,6 +13,33 @@ import type { SelectionFirstResult, ClassifiedAccount } from '../../selection/Se
 export class PPENoteGenerator {
   
   /**
+   * Abbreviate Thai month names for compact date display
+   * Example: "31 ธันวาคม" → "31 ธ.ค."
+   */
+  private static abbreviateThaiMonth(dateString: string): string {
+    const monthAbbreviations: { [key: string]: string } = {
+      'มกราคม': 'ม.ค.',
+      'กุมภาพันธ์': 'ก.พ.',
+      'มีนาคม': 'มี.ค.',
+      'เมษายน': 'เม.ย.',
+      'พฤษภาคม': 'พ.ค.',
+      'มิถุนายน': 'มิ.ย.',
+      'กรกฎาคม': 'ก.ค.',
+      'สิงหาคม': 'ส.ค.',
+      'กันยายน': 'ก.ย.',
+      'ตุลาคม': 'ต.ค.',
+      'พฤศจิกายน': 'พ.ย.',
+      'ธันวาคม': 'ธ.ค.'
+    };
+    
+    let result = dateString;
+    for (const [fullMonth, abbrev] of Object.entries(monthAbbreviations)) {
+      result = result.replace(fullMonth, abbrev);
+    }
+    return result;
+  }
+  
+  /**
    * Generate PPE note with enhanced row tracking and Excel formulas
    * Supports both single-year and multi-year processing
    */
@@ -125,10 +152,13 @@ export class PPENoteGenerator {
     
     // 2. Column Headers (Year Headers) - Same structure for both single and multi-year
     if (processingType === 'multi-year') {
-      notes.push(['', '', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear - 1}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`]);
+      const prevDateFull = `ณ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear - 1}`;
+      const currDateFull = `ณ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`;
+      notes.push(['', '', '', this.abbreviateThaiMonth(prevDateFull), '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', this.abbreviateThaiMonth(currDateFull)]);
     } else {
       // Single-year: Same structure but use same year for both columns
-      notes.push(['', '', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`, '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', `ณ วันที่ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`]);
+      const currDateFull = `ณ ${companyInfo.reportingPeriodEndDate || '31 ธันวาคม'} ${companyInfo.reportingYear}`;
+      notes.push(['', '', '', this.abbreviateThaiMonth(currDateFull), '', 'ซื้อเพิ่ม', 'จำหน่ายออก', '', this.abbreviateThaiMonth(currDateFull)]);
     }
     tracker.yearHeaderRows.push(tracker.currentRow);
     tracker.currentRow++;

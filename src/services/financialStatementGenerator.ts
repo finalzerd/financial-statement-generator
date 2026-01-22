@@ -417,7 +417,7 @@ export class FinancialStatementGenerator {
     const expensesByNatureTracker = ExpensesByNatureNoteGenerator.generateWithRowTracking(notes, companyInfo, processingType, noteNumber);
     if (expensesByNatureTracker.headerRows.length > 0) {
       noteRegistry.expensesByNature = noteNumber++;  // Store in registry for P&L reference
-      formatters.push({ type: 'general', tracker: expensesByNatureTracker });
+      formatters.push({ type: 'expensesByNature', tracker: expensesByNatureTracker });
     }
     
     if (companyInfo.type === 'บริษัทจำกัด' || companyInfo.type === 'ห้างหุ้นส่วนจำกัด') {
