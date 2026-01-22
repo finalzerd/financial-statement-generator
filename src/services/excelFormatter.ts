@@ -1720,6 +1720,9 @@ export class ExcelJSFormatter {
         case 'payables':
           this.formatPayablesNote(worksheet, formatter.tracker);
           break;
+        case 'investmentProperty':
+          this.formatPPENote(worksheet, formatter.tracker);
+          break;
         case 'ppe':
           this.formatPPENote(worksheet, formatter.tracker);
           break;

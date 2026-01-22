@@ -5,6 +5,7 @@
 export { CashNoteGenerator } from './CashNoteGenerator';
 export { TradeReceivablesNoteGenerator } from './TradeReceivablesNoteGenerator';
 export { TradePayablesNoteGenerator } from './TradePayablesNoteGenerator';
+export { InvestmentPropertyNoteGenerator } from './InvestmentPropertyNoteGenerator';
 export { PPENoteGenerator } from './PPENoteGenerator';
 export { OtherIncomeNoteGenerator } from './OtherIncomeNoteGenerator';
 export { ShortTermBorrowingsNoteGenerator } from './ShortTermBorrowingsNoteGenerator';

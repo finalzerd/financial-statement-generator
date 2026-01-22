@@ -24,6 +24,7 @@ export interface NoteFormatter {
     | 'cash'
     | 'receivables'
     | 'payables'
+    | 'investmentProperty'
     | 'ppe'
     | 'inventory'
     | 'general'
@@ -50,6 +51,7 @@ export interface NoteRegistry {
   receivables?: number;
   assetShortTermLoans?: number;
   otherCurrentAssets?: number;
+  investmentProperty?: number;
   ppe?: number;
   bankOverdrafts?: number;
   payables?: number;
@@ -78,6 +80,8 @@ export type NoteCategory =
   | 'inventory_purchase_discounts'
   | 'prepaid'
   | 'other_current_assets'
+  | 'investment_property_cost'
+  | 'investment_property_accum_depr'
   | 'ppe_cost'
   | 'ppe_accum_depr'
   | 'other_assets'
@@ -136,7 +140,14 @@ export interface DetailedFinancialData {
       total: { current: number; previous: number };         // Total for Balance Sheet
     };
     
-    // Note 10: Property, plant and equipment
+    // Note 10: Investment Property
+    investmentProperty: {
+      cost: { current: number; previous: number };              // ราคาทุน
+      accumulatedDepreciation: { current: number; previous: number }; // ค่าเสื่อมราคาสะสม
+      netBookValue: { current: number; previous: number };      // มูลค่าตามบัญชี (for Balance Sheet)
+    };
+    
+    // Note 11: Property, plant and equipment
     ppe: {
       cost: { current: number; previous: number };              // ราคาทุน
       accumulatedDepreciation: { current: number; previous: number }; // ค่าเสื่อมราคาสะสม

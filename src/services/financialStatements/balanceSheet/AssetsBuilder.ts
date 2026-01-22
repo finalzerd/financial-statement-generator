@@ -42,6 +42,15 @@ export class AssetsBuilder {
     const prevOtherCurrentAssets = sel?.other_current_assets?.previous ?? 0;
 
     // Prepaid expenses removed from presentation
+    // Investment Property (net) = cost - accum depreciation
+    const investmentPropertyCostCurrent = sel?.investment_property_cost?.current ?? 0;
+    const investmentPropertyAccumCurrent = sel?.investment_property_accum_depr?.current ?? 0;
+    const investmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+      ? (investmentPropertyCostCurrent - investmentPropertyAccumCurrent)
+      : (globalData
+          ? globalData.noteCalculations.investmentProperty.netBookValue.current
+          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1759)));
+    
     // PPE (net) = cost - accum depreciation; if selection not present, fallback existing
     const ppeCostCurrent = sel?.ppe_cost?.current ?? 0;
     const ppeAccumCurrent = sel?.ppe_accum_depr?.current ?? 0;
@@ -79,6 +88,14 @@ export class AssetsBuilder {
           ? globalData.balanceSheetTotals.assets.inventory.previous
           : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1500, 1519)));
     // Previous prepaid expenses removed from presentation
+    const investmentPropertyCostPrev = sel?.investment_property_cost?.previous ?? 0;
+    const investmentPropertyAccumPrev = sel?.investment_property_accum_depr?.previous ?? 0;
+    const prevInvestmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+      ? (investmentPropertyCostPrev - investmentPropertyAccumPrev)
+      : (globalData
+          ? globalData.noteCalculations.investmentProperty.netBookValue.previous
+          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1759));
+    
     const ppeCostPrev = sel?.ppe_cost?.previous ?? 0;
     const ppeAccumPrev = sel?.ppe_accum_depr?.previous ?? 0;
     const prevLandBuildingsEquipment = (sel && (sel.ppe_cost && sel.ppe_accum_depr))
@@ -155,6 +172,10 @@ export class AssetsBuilder {
     const nonCurrentAssetRows: number[] = [];
 
     worksheetData.push(['', 'สินทรัพย์ไม่หมุนเวียน', '', '', '', '', '', '', '', '']);
+    currentRow++;
+
+    worksheetData.push(['', '', 'อสังหาริมทรัพย์เพื่อการลงทุน (สุทธิ)', '', '', noteRegistry?.investmentProperty?.toString() || '', investmentProperty, '', processingType === 'multi-year' ? prevInvestmentProperty : '', '']);
+    nonCurrentAssetRows.push(currentRow);
     currentRow++;
 
     worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', noteRegistry?.ppe?.toString() || '', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);

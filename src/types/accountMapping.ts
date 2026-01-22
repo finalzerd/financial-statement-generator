@@ -134,6 +134,11 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'สินทรัพย์หมุนเวียนอื่น',
     balanceSheetSection: 'current_assets'
   },
+  investment_property_cost: {
+    noteNumber: 10,
+    noteTitle: 'อสังหาริมทรัพย์เพื่อการลงทุน',
+    balanceSheetSection: 'non_current_assets'
+  },
   ppe_cost: {
     noteNumber: 11,
     noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',

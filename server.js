@@ -1008,6 +1008,14 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       })
     },
     {
+      noteType: 'investment_property_cost',
+      noteNumber: 10,
+      noteTitle: 'อสังหาริมทรัพย์เพื่อการลงทุน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1700, to: 1759 }]
+      })
+    },
+    {
       noteType: 'ppe_cost',
       noteNumber: 11,
       noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
@@ -1308,6 +1316,14 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteTitle: 'ค่าใช้จ่ายจ่ายล่วงหน้า',
       accountRanges: JSON.stringify({
         ranges: [{ from: 1400, to: 1439 }]
+      })
+    },
+    {
+      noteType: 'investment_property_cost',
+      noteNumber: 10,
+      noteTitle: 'อสังหาริมทรัพย์เพื่อการลงทุน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1700, to: 1759 }]
       })
     },
     {

@@ -12,6 +12,7 @@ import {
   CashNoteGenerator, 
   TradeReceivablesNoteGenerator, 
   TradePayablesNoteGenerator,
+  InvestmentPropertyNoteGenerator,
   PPENoteGenerator,
   OtherIncomeNoteGenerator,
   ShortTermLoansNoteGenerator,
@@ -328,7 +329,14 @@ export class FinancialStatementGenerator {
       formatters.push({ type: 'assetLongTermLoans', tracker: assetLongTermLoansTracker });
     }
 
-    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting
+    // Investment Property Note (อสังหาริมทรัพย์เพื่อการลงทุน) - Note 10
+    const investmentPropertyTracker = InvestmentPropertyNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (investmentPropertyTracker.headerRows.length > 0) {
+      noteRegistry.investmentProperty = noteNumber++;
+      formatters.push({ type: 'investmentProperty', tracker: investmentPropertyTracker });
+    }
+
+    // Property, Plant & Equipment Note (PPE) with Row Tracking - Enhanced formatting - Note 11
     const ppeTracker = PPENoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
     if (ppeTracker.headerRows.length > 0) {
       noteRegistry.ppe = noteNumber++;

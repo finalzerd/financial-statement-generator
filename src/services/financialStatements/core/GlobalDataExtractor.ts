@@ -23,6 +23,7 @@ export class GlobalDataExtractor {
     const cashNote = this.buildCashNote(trialBalanceData, provider);
     const receivablesNote = this.buildReceivablesNote(trialBalanceData, provider);
     const inventoryNote = this.buildInventoryNote(trialBalanceData, provider);
+    const investmentPropertyNote = this.buildInvestmentPropertyNote(trialBalanceData, provider);
     const ppeNote = this.buildPPENote(trialBalanceData, provider);
     const prepaidNote = this.buildPrepaidNote(trialBalanceData, provider);
     const otherAssetsNote = this.buildOtherAssetsNote(trialBalanceData, provider);
@@ -57,6 +58,7 @@ export class GlobalDataExtractor {
         cash: cashNote,
         receivables: receivablesNote,
         inventory: inventoryNote,
+        investmentProperty: investmentPropertyNote,
         ppe: ppeNote,
         payables: payablesNote,
         assetShortTermLoans,
@@ -160,6 +162,28 @@ export class GlobalDataExtractor {
     const accPrevious = provider?.getRules('ppe_accum_depr')
       ? sumByRules(trialBalanceData, provider.getRules('ppe_accum_depr')!, 'previous')
       : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1630, 1659));
+
+    return {
+      cost: { current: costCurrent, previous: costPrevious },
+      accumulatedDepreciation: { current: accCurrent, previous: accPrevious },
+      netBookValue: { current: costCurrent - accCurrent, previous: costPrevious - accPrevious }
+    };
+  }
+
+  private static buildInvestmentPropertyNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+    const costCurrent = provider?.getRules('investment_property_cost')
+      ? sumByRules(trialBalanceData, provider.getRules('investment_property_cost')!, 'current')
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1729));
+    const costPrevious = provider?.getRules('investment_property_cost')
+      ? sumByRules(trialBalanceData, provider.getRules('investment_property_cost')!, 'previous')
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1729));
+
+    const accCurrent = provider?.getRules('investment_property_accum_depr')
+      ? sumByRules(trialBalanceData, provider.getRules('investment_property_accum_depr')!, 'current')
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1730, 1759));
+    const accPrevious = provider?.getRules('investment_property_accum_depr')
+      ? sumByRules(trialBalanceData, provider.getRules('investment_property_accum_depr')!, 'previous')
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1730, 1759));
 
     return {
       cost: { current: costCurrent, previous: costPrevious },

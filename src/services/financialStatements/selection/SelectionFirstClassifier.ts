@@ -56,6 +56,8 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'inventory_purchase_returns',
   'inventory_purchase_discounts',
   'prepaid',
+  'investment_property_cost',
+  'investment_property_accum_depr',
   'ppe_cost',
   'ppe_accum_depr',
   'other_assets',
@@ -136,6 +138,9 @@ export class SelectionFirstClassifier {
 
       let finalCat: NoteCategory | 'unmatched' = matched ?? 'unmatched';
 
+      if (finalCat === 'investment_property_cost' && normalizedCode.includes('.')) {
+        finalCat = 'investment_property_accum_depr';
+      }
       if (finalCat === 'ppe_cost' && normalizedCode.includes('.')) {
         finalCat = 'ppe_accum_depr';
       }
@@ -301,8 +306,8 @@ export class SelectionFirstClassifier {
   case 'inventory_purchases': return codeNum === 5010;
   case 'inventory_purchase_returns': return normalized === '5010.1' || codeNum === 5010.1;
   case 'inventory_purchase_discounts': return normalized === '5010.2' || codeNum === 5010.2;
-        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;
-        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
+        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;        case 'investment_property_cost': return codeNum >= 1700 && codeNum <= 1729;
+        case 'investment_property_accum_depr': return codeNum >= 1730 && codeNum <= 1759;        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
         case 'ppe_accum_depr': return codeNum >= 1630 && codeNum <= 1659;
         case 'other_assets': return codeNum >= 1660 && codeNum <= 1700;
         case 'bank_overdrafts': return codeNum >= 2001 && codeNum <= 2009;
