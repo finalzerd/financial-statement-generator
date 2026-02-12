@@ -58,6 +58,8 @@ const CATEGORY_PRIORITY: NoteCategory[] = [
   'prepaid',
   'investment_property_cost',
   'investment_property_accum_depr',
+  'intangible_assets_cost',
+  'intangible_assets_accum_amort',
   'ppe_cost',
   'ppe_accum_depr',
   'other_assets',
@@ -306,8 +308,7 @@ export class SelectionFirstClassifier {
   case 'inventory_purchases': return codeNum === 5010;
   case 'inventory_purchase_returns': return normalized === '5010.1' || codeNum === 5010.1;
   case 'inventory_purchase_discounts': return normalized === '5010.2' || codeNum === 5010.2;
-        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;        case 'investment_property_cost': return codeNum >= 1700 && codeNum <= 1729;
-        case 'investment_property_accum_depr': return codeNum >= 1730 && codeNum <= 1759;        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
+        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
         case 'ppe_accum_depr': return codeNum >= 1630 && codeNum <= 1659;
         case 'other_assets': return codeNum >= 1660 && codeNum <= 1700;
         case 'bank_overdrafts': return codeNum >= 2001 && codeNum <= 2009;

@@ -144,18 +144,23 @@ export const STANDARD_NOTE_TYPES = {
     noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
     balanceSheetSection: 'non_current_assets'
   },
-  other_assets: {
+  intangible_assets_cost: {
     noteNumber: 12,
+    noteTitle: 'สินทรัพย์ไม่มีตัวตน',
+    balanceSheetSection: 'non_current_assets'
+  },
+  other_assets: {
+    noteNumber: 13,
     noteTitle: 'สินทรัพย์อื่น',
     balanceSheetSection: 'non_current_assets'
   },
   asset_long_term_loans: {
-    noteNumber: 13,
+    noteNumber: 14,
     noteTitle: 'เงินให้กู้ยืมระยะยาว',
     balanceSheetSection: 'non_current_assets'
   },
   other_income: {
-    noteNumber: 14,
+    noteNumber: 15,
     noteTitle: 'รายได้อื่น',
     balanceSheetSection: 'income_statement'
   },

@@ -1,5 +1,5 @@
 // ============================================================================
-// INVESTMENT PROPERTY NOTE GENERATOR
+// INTANGIBLE ASSETS NOTE GENERATOR
 // ============================================================================
 
 import type { NoteRowTracker } from '../../core/types';
@@ -7,11 +7,11 @@ import type { TrialBalanceEntry, CompanyInfo } from '../../../../types/financial
 import type { SelectionFirstResult, ClassifiedAccount } from '../../selection/SelectionFirstClassifier';
 
 /**
- * Generates Investment Property note (Note 10) with complex structure
- * Handles cost/depreciation breakdown with movement tracking
- * Mirrors PPE structure but for investment property assets
+ * Generates Intangible Assets note with complex structure
+ * Handles cost/amortization breakdown with movement tracking
+ * Mirrors PPE structure but for intangible assets (computer software, licenses, etc.)
  */
-export class InvestmentPropertyNoteGenerator {
+export class IntangibleAssetsNoteGenerator {
   
   /**
    * Abbreviate Thai month names for compact date display
@@ -41,7 +41,7 @@ export class InvestmentPropertyNoteGenerator {
   }
   
   /**
-   * Generate Investment Property note with enhanced row tracking and Excel formulas
+   * Generate Intangible Assets note with enhanced row tracking and Excel formulas
    * Supports both single-year and multi-year processing
    */
   static generateWithRowTracking(
@@ -50,7 +50,7 @@ export class InvestmentPropertyNoteGenerator {
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     _trialBalancePrevious?: TrialBalanceEntry[], 
-    noteNumber: number = 10,
+    noteNumber: number = 12,
     selection?: SelectionFirstResult
   ): NoteRowTracker {
     const tracker: NoteRowTracker = {
@@ -58,19 +58,19 @@ export class InvestmentPropertyNoteGenerator {
       noteStartRow: notes.length + 1,
       headerRows: [],        // Note headers and section headers
       yearHeaderRows: [],    // Year/column headers
-      detailRows: [],        // Individual asset/depreciation accounts
+      detailRows: [],        // Individual asset/amortization accounts
       totalRows: [],         // Total/รวม rows and net book value
       unitRows: []           // หน่วย:บาท rows
     };
 
-    type InvestmentPropertyAccount = {
+    type IntangibleAssetAccount = {
       accountCode?: string;
       accountName: string;
       current: number;
       previous: number;
     };
 
-    const normalizeSelection = (accounts?: ClassifiedAccount[]): InvestmentPropertyAccount[] => {
+    const normalizeSelection = (accounts?: ClassifiedAccount[]): IntangibleAssetAccount[] => {
       if (!accounts) return [];
       return accounts.map((acc) => ({
         accountCode: acc.accountCode,
@@ -81,14 +81,14 @@ export class InvestmentPropertyNoteGenerator {
     };
 
     const isDecimalAccount = (code?: string) => Boolean(code && code.includes('.'));
-    const selectionCostSource = normalizeSelection(selection?.byCategory?.investment_property_cost);
-    const selectionDeprSource = normalizeSelection(selection?.byCategory?.investment_property_accum_depr);
+    const selectionCostSource = normalizeSelection(selection?.byCategory?.intangible_assets_cost);
+    const selectionAmortSource = normalizeSelection(selection?.byCategory?.intangible_assets_accum_amort);
 
     const selectionCostAccounts = selectionCostSource.filter(acc => !isDecimalAccount(acc.accountCode));
     const spilloverDecimalAccounts = selectionCostSource.filter(acc => isDecimalAccount(acc.accountCode));
 
     const seenCodes = new Set<string>();
-    const addUnique = (list: InvestmentPropertyAccount[], target: InvestmentPropertyAccount[]) => {
+    const addUnique = (list: IntangibleAssetAccount[], target: IntangibleAssetAccount[]) => {
       for (const acc of list) {
         const key = acc.accountCode ?? acc.accountName;
         if (seenCodes.has(key)) continue;
@@ -97,26 +97,56 @@ export class InvestmentPropertyNoteGenerator {
       }
     };
 
-    const selectionDeprAccounts: InvestmentPropertyAccount[] = [];
-    addUnique(selectionDeprSource, selectionDeprAccounts);
-    addUnique(spilloverDecimalAccounts, selectionDeprAccounts);
+    const selectionAmortAccounts: IntangibleAssetAccount[] = [];
+    addUnique(selectionAmortSource, selectionAmortAccounts);
+    addUnique(spilloverDecimalAccounts, selectionAmortAccounts);
 
-    // Only use selection data - no fallback to trial balance search
-    const assetAccounts = selectionCostAccounts
+    const normalizeTrialBalance = (entries: TrialBalanceEntry[], predicate: (entry: TrialBalanceEntry) => boolean): IntangibleAssetAccount[] => {
+      return entries
+        .filter(predicate)
+        .map(entry => {
+          const balance = (entry.balance ?? entry.currentBalance ?? 0) as number;
+          const previous = (entry.previousBalance ?? 0) as number;
+          return {
+            accountCode: entry.accountCode,
+            accountName: entry.accountName ?? entry.accountCode ?? 'ไม่ระบุ',
+            current: Math.abs(balance),
+            previous: Math.abs(previous)
+          };
+        });
+    };
+
+    const assetFallback = normalizeTrialBalance(trialBalanceData, entry => {
+      const codeStr = entry.accountCode ?? '';
+      if (codeStr.includes('.')) return false;
+      const code = Number.parseInt(codeStr, 10);
+      return Number.isFinite(code) && code >= 1800 && code <= 1859;
+    });
+
+    const amortizationFallback = normalizeTrialBalance(trialBalanceData, entry => {
+      const codeStr = entry.accountCode ?? '';
+      if (!codeStr.includes('.')) return false;
+      const base = Math.floor(Number.parseFloat(codeStr));
+      return Number.isFinite(base) && base >= 1800 && base <= 1859;
+    });
+
+  const usingSelection = selectionCostAccounts.length > 0 || selectionAmortAccounts.length > 0;
+
+    const assetAccounts = (selectionCostAccounts.length > 0 ? selectionCostAccounts : assetFallback)
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
-    const depreciationAccounts = selectionDeprAccounts
+    const amortizationAccounts = (selectionAmortAccounts.length > 0 ? selectionAmortAccounts : amortizationFallback)
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
 
-    console.log(`[Investment Property Note] Using selection-first data -> assets: ${assetAccounts.length}, depreciation: ${depreciationAccounts.length}`);
+    console.log(`[Intangible Assets Note] Using ${usingSelection ? 'selection-first' : 'fallback'} data -> assets: ${assetAccounts.length}, amortization: ${amortizationAccounts.length}`);
 
-    if (assetAccounts.length === 0 && depreciationAccounts.length === 0) {
+    if (assetAccounts.length === 0 && amortizationAccounts.length === 0) {
       return tracker;
     }
 
-    console.log(`=== INVESTMENT PROPERTY NOTE ENHANCED ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
+    console.log(`=== INTANGIBLE ASSETS NOTE ENHANCED ROW TRACKING: Starting at row ${tracker.currentRow} ===`);
 
     // 1. Note Header Row
-    notes.push([noteNumber.toString(), 'อสังหาริมทรัพย์เพื่อการลงทุน', '', '', '', '', '', '', 'หน่วย:บาท']);
+    notes.push([noteNumber.toString(), 'สินทรัพย์ไม่มีตัวตน', '', '', '', '', '', '', 'หน่วย:บาท']);
     tracker.headerRows.push(tracker.currentRow);
     tracker.unitRows.push(tracker.currentRow);
     tracker.currentRow++;
@@ -183,23 +213,23 @@ export class InvestmentPropertyNoteGenerator {
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
     
-    // 7. Accumulated Depreciation Section Header
-    notes.push(['', '', 'ค่าเสื่อมราคาสะสม', '', '', '', '', '', '']);
+    // 7. Accumulated Amortization Section Header
+    notes.push(['', '', 'ค่าตัดจำหน่ายสะสม', '', '', '', '', '', '']);
     tracker.headerRows.push(tracker.currentRow); // Section header
     tracker.currentRow++;
     
-    let depreciationTotalCurrent = 0;
-    let depreciationTotalPrevious = 0;
-    let depreciationExpense = 0;
-    let depreciationDisposal = 0;
-    const depreciationStartRow = tracker.currentRow; // Track start of depreciation details
+    let amortizationTotalCurrent = 0;
+    let amortizationTotalPrevious = 0;
+    let amortizationExpense = 0;
+    let amortizationDisposal = 0;
+    const amortizationStartRow = tracker.currentRow; // Track start of amortization details
 
-    // 8. Individual Depreciation Accounts (Detail Rows)
-    depreciationAccounts.forEach(account => {
+    // 8. Individual Amortization Accounts (Detail Rows)
+    amortizationAccounts.forEach(account => {
       const currentAmount = account.current;
       const previousAmount = account.previous;
-      const expenseAmount = Math.max(0, currentAmount - previousAmount); // Depreciation expense for the year
-      const disposalAmount = Math.max(0, previousAmount - currentAmount); // Depreciation disposal for the year
+      const expenseAmount = Math.max(0, currentAmount - previousAmount); // Amortization expense for the year
+      const disposalAmount = Math.max(0, previousAmount - currentAmount); // Amortization disposal for the year
       
       if (currentAmount !== 0 || previousAmount !== 0) {
         // Use same structure for both single and multi-year processing
@@ -207,47 +237,47 @@ export class InvestmentPropertyNoteGenerator {
         const disposalAmountValue = disposalAmount > 0 ? disposalAmount : 0;
         
         notes.push(['', '', account.accountName, 
-          processingType === 'multi-year' ? previousAmount : '', '', // Column D: Previous depreciation (blank for single-year)
-          expenseValue, // Column F: Depreciation expense (show 0 if no expense)
-          disposalAmountValue, // Column G: Depreciation disposal (show 0 if no disposal)
-          '', currentAmount]); // Column I: Current depreciation
+          processingType === 'multi-year' ? previousAmount : '', '', // Column D: Previous amortization (blank for single-year)
+          expenseValue, // Column F: Amortization expense (show 0 if no expense)
+          disposalAmountValue, // Column G: Amortization disposal (show 0 if no disposal)
+          '', currentAmount]); // Column I: Current amortization
         
         tracker.detailRows.push(tracker.currentRow);
         tracker.currentRow++;
         
-        depreciationTotalCurrent += currentAmount;
-        depreciationTotalPrevious += previousAmount;
-        depreciationExpense += expenseAmount;
-        depreciationDisposal += disposalAmount;
+        amortizationTotalCurrent += currentAmount;
+        amortizationTotalPrevious += previousAmount;
+        amortizationExpense += expenseAmount;
+        amortizationDisposal += disposalAmount;
       }
     });
 
-    // 9. Depreciation Totals with Excel formulas (Total Row) - Same structure for both processing types
-    const depreciationEndRow = tracker.currentRow - 1; // Last row of depreciation details
+    // 9. Amortization Totals with Excel formulas (Total Row) - Same structure for both processing types
+    const amortizationEndRow = tracker.currentRow - 1; // Last row of amortization details
     
     notes.push(['', '', 'รวม', 
-      processingType === 'multi-year' ? { f: `SUM(D${depreciationStartRow}:D${depreciationEndRow})` } : '', '', // Column D: Previous depreciation total formula (blank for single-year)
-      { f: `SUM(F${depreciationStartRow}:F${depreciationEndRow})` }, // Column F: Total depreciation expense formula
-      { f: `SUM(G${depreciationStartRow}:G${depreciationEndRow})` }, // Column G: Total depreciation disposal formula
-      '', { f: `SUM(I${depreciationStartRow}:I${depreciationEndRow})` }]); // Column I: Current depreciation total formula
+      processingType === 'multi-year' ? { f: `SUM(D${amortizationStartRow}:D${amortizationEndRow})` } : '', '', // Column D: Previous amortization total formula (blank for single-year)
+      { f: `SUM(F${amortizationStartRow}:F${amortizationEndRow})` }, // Column F: Total amortization expense formula
+      { f: `SUM(G${amortizationStartRow}:G${amortizationEndRow})` }, // Column G: Total amortization disposal formula
+      '', { f: `SUM(I${amortizationStartRow}:I${amortizationEndRow})` }]); // Column I: Current amortization total formula
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
 
     // 10. Net book value with formulas referencing the totals above (Total Row)
     const assetTotalRowIndex = assetEndRow + 1; // Row number of asset totals
-    const depreciationTotalRowIndex = tracker.currentRow - 1; // Row number of depreciation totals (just added above)
+    const amortizationTotalRowIndex = tracker.currentRow - 1; // Row number of amortization totals (just added above)
     
     // Net book value - Same structure for both processing types
     notes.push(['', '', 'มูลค่าสุทธิ', 
-      processingType === 'multi-year' ? { f: `D${assetTotalRowIndex}-D${depreciationTotalRowIndex}` } : '', '', '', '', // Column D: Previous net value formula (blank for single-year)
-      '', { f: `I${assetTotalRowIndex}-I${depreciationTotalRowIndex}` }]); // Column I: Current net value formula
+      processingType === 'multi-year' ? { f: `D${assetTotalRowIndex}-D${amortizationTotalRowIndex}` } : '', '', '', '', // Column D: Previous net value formula (blank for single-year)
+      '', { f: `I${assetTotalRowIndex}-I${amortizationTotalRowIndex}` }]); // Column I: Current net value formula
     tracker.totalRows.push(tracker.currentRow);
     tracker.currentRow++;
 
-    // 11. Depreciation expense summary - reference the depreciation expense total
-    if (depreciationExpense > 0) {
-      notes.push(['', '', 'ค่าเสื่อมราคา', '', '', '', '', '', 
-        { f: `F${depreciationTotalRowIndex}` }]); // Column I (index 8): Reference depreciation expense total
+    // 11. Amortization expense summary - reference the amortization expense total
+    if (amortizationExpense > 0) {
+      notes.push(['', '', 'ค่าตัดจำหน่าย', '', '', '', '', '', 
+        { f: `F${amortizationTotalRowIndex}` }]); // Column I (index 8): Reference amortization expense total
       tracker.totalRows.push(tracker.currentRow);
       tracker.currentRow++;
     }
@@ -256,7 +286,7 @@ export class InvestmentPropertyNoteGenerator {
     notes.push(['', '', '', '', '', '', '', '', '']);
     tracker.currentRow++;
 
-    console.log(`Investment Property Enhanced Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
+    console.log(`Intangible Assets Enhanced Note: Header rows: ${tracker.headerRows}, Year rows: ${tracker.yearHeaderRows}, Detail rows: ${tracker.detailRows}, Total rows: ${tracker.totalRows}`);
     return tracker;
   }
 }

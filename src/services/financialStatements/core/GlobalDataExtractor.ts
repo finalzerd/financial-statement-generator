@@ -24,6 +24,7 @@ export class GlobalDataExtractor {
     const receivablesNote = this.buildReceivablesNote(trialBalanceData, provider);
     const inventoryNote = this.buildInventoryNote(trialBalanceData, provider);
     const investmentPropertyNote = this.buildInvestmentPropertyNote(trialBalanceData, provider);
+    const intangibleAssetsNote = this.buildIntangibleAssetsNote(trialBalanceData, provider);
     const ppeNote = this.buildPPENote(trialBalanceData, provider);
     const prepaidNote = this.buildPrepaidNote(trialBalanceData, provider);
     const otherAssetsNote = this.buildOtherAssetsNote(trialBalanceData, provider);
@@ -59,6 +60,7 @@ export class GlobalDataExtractor {
         receivables: receivablesNote,
         inventory: inventoryNote,
         investmentProperty: investmentPropertyNote,
+        intangibleAssets: intangibleAssetsNote,
         ppe: ppeNote,
         payables: payablesNote,
         assetShortTermLoans,
@@ -188,6 +190,28 @@ export class GlobalDataExtractor {
     return {
       cost: { current: costCurrent, previous: costPrevious },
       accumulatedDepreciation: { current: accCurrent, previous: accPrevious },
+      netBookValue: { current: costCurrent - accCurrent, previous: costPrevious - accPrevious }
+    };
+  }
+
+  private static buildIntangibleAssetsNote(trialBalanceData: TrialBalanceEntry[], provider?: IAccountMappingProvider) {
+    const costCurrent = provider?.getRules('intangible_assets_cost')
+      ? sumByRules(trialBalanceData, provider.getRules('intangible_assets_cost')!, 'current')
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1800, 1829));
+    const costPrevious = provider?.getRules('intangible_assets_cost')
+      ? sumByRules(trialBalanceData, provider.getRules('intangible_assets_cost')!, 'previous')
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1800, 1829));
+
+    const accCurrent = provider?.getRules('intangible_assets_accum_amort')
+      ? sumByRules(trialBalanceData, provider.getRules('intangible_assets_accum_amort')!, 'current')
+      : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1830, 1859));
+    const accPrevious = provider?.getRules('intangible_assets_accum_amort')
+      ? sumByRules(trialBalanceData, provider.getRules('intangible_assets_accum_amort')!, 'previous')
+      : Math.abs(FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1830, 1859));
+
+    return {
+      cost: { current: costCurrent, previous: costPrevious },
+      accumulatedAmortization: { current: accCurrent, previous: accPrevious },
       netBookValue: { current: costCurrent - accCurrent, previous: costPrevious - accPrevious }
     };
   }

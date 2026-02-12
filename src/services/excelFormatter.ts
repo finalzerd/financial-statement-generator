@@ -1723,6 +1723,9 @@ export class ExcelJSFormatter {
         case 'investmentProperty':
           this.formatPPENote(worksheet, formatter.tracker);
           break;
+        case 'intangibleAssets':
+          this.formatPPENote(worksheet, formatter.tracker);
+          break;
         case 'ppe':
           this.formatPPENote(worksheet, formatter.tracker);
           break;

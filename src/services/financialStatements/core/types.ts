@@ -25,6 +25,7 @@ export interface NoteFormatter {
     | 'receivables'
     | 'payables'
     | 'investmentProperty'
+    | 'intangibleAssets'
     | 'ppe'
     | 'inventory'
     | 'general'
@@ -52,6 +53,7 @@ export interface NoteRegistry {
   assetShortTermLoans?: number;
   otherCurrentAssets?: number;
   investmentProperty?: number;
+  intangibleAssets?: number;
   ppe?: number;
   bankOverdrafts?: number;
   payables?: number;
@@ -82,6 +84,8 @@ export type NoteCategory =
   | 'other_current_assets'
   | 'investment_property_cost'
   | 'investment_property_accum_depr'
+  | 'intangible_assets_cost'
+  | 'intangible_assets_accum_amort'
   | 'ppe_cost'
   | 'ppe_accum_depr'
   | 'other_assets'
@@ -147,7 +151,14 @@ export interface DetailedFinancialData {
       netBookValue: { current: number; previous: number };      // มูลค่าตามบัญชี (for Balance Sheet)
     };
     
-    // Note 11: Property, plant and equipment
+    // Note 11: Intangible Assets
+    intangibleAssets: {
+      cost: { current: number; previous: number };              // ราคาทุน
+      accumulatedAmortization: { current: number; previous: number }; // ค่าตัดจำหน่ายสะสม
+      netBookValue: { current: number; previous: number };      // มูลค่าตามบัญชี (for Balance Sheet)
+    };
+    
+    // Note 12: Property, plant and equipment
     ppe: {
       cost: { current: number; previous: number };              // ราคาทุน
       accumulatedDepreciation: { current: number; previous: number }; // ค่าเสื่อมราคาสะสม

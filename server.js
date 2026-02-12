@@ -1024,8 +1024,16 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       })
     },
     {
-      noteType: 'other_assets',
+      noteType: 'intangible_assets_cost',
       noteNumber: 12,
+      noteTitle: 'สินทรัพย์ไม่มีตัวตน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1800, to: 1859 }]
+      })
+    },
+    {
+      noteType: 'other_assets',
+      noteNumber: 13,
       noteTitle: 'สินทรัพย์อื่น',
       accountRanges: JSON.stringify({
         ranges: [{ from: 1660, to: 1700 }]
@@ -1041,7 +1049,7 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
     },
     {
       noteType: 'asset_long_term_loans',
-      noteNumber: 13,
+      noteNumber: 14,
       noteTitle: 'เงินให้กู้ยืมระยะยาว',
       accountRanges: JSON.stringify({
         includes: [1710]
@@ -1335,8 +1343,16 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       })
     },
     {
-      noteType: 'other_assets',
+      noteType: 'intangible_assets_cost',
       noteNumber: 12,
+      noteTitle: 'สินทรัพย์ไม่มีตัวตน',
+      accountRanges: JSON.stringify({
+        ranges: [{ from: 1800, to: 1859 }]
+      })
+    },
+    {
+      noteType: 'other_assets',
+      noteNumber: 13,
       noteTitle: 'สินทรัพย์อื่น',
       accountRanges: JSON.stringify({
         ranges: [{ from: 1660, to: 1700 }]
@@ -1352,7 +1368,7 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
     },
     {
       noteType: 'asset_long_term_loans',
-      noteNumber: 13,
+      noteNumber: 14,
       noteTitle: 'เงินให้กู้ยืมระยะยาว',
       accountRanges: JSON.stringify({
         includes: [1710]

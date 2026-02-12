@@ -10,7 +10,9 @@ export interface BalanceSheetLinkResolver {
     tradeReceivables: (n: NoteResults) => NoteTotal;
     inventory: (n: NoteResults) => NoteTotal;
     prepaidExpenses: (n: NoteResults) => NoteTotal;
+    investmentProperty: (n: NoteResults) => NoteTotal;
     propertyPlantEquipment: (n: NoteResults) => NoteTotal;
+    intangibleAssets: (n: NoteResults) => NoteTotal;
     otherAssets: (n: NoteResults) => NoteTotal;
   };
   liabilities: {
@@ -30,7 +32,9 @@ export const BalanceSheetLinkMap: BalanceSheetLinkResolver = {
     tradeReceivables: (n) => n.receivables.total,
     inventory: (n) => n.inventory.total,
     prepaidExpenses: (n) => n.prepaid, // populated in extractor extension
+    investmentProperty: (n) => n.investmentProperty.netBookValue,
     propertyPlantEquipment: (n) => n.ppe.netBookValue,
+    intangibleAssets: (n) => n.intangibleAssets.netBookValue,
     otherAssets: (n) => n.otherAssets // populated in extractor extension
   },
   liabilities: {

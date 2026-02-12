@@ -13,6 +13,7 @@ import {
   TradeReceivablesNoteGenerator, 
   TradePayablesNoteGenerator,
   InvestmentPropertyNoteGenerator,
+  IntangibleAssetsNoteGenerator,
   PPENoteGenerator,
   OtherIncomeNoteGenerator,
   ShortTermLoansNoteGenerator,
@@ -341,6 +342,13 @@ export class FinancialStatementGenerator {
     if (ppeTracker.headerRows.length > 0) {
       noteRegistry.ppe = noteNumber++;
       formatters.push({ type: 'ppe', tracker: ppeTracker });
+    }
+
+    // Intangible Assets Note (สินทรัพย์ไม่มีตัวตน) - Note 12
+    const intangibleAssetsTracker = IntangibleAssetsNoteGenerator.generateWithRowTracking(notes, trialBalanceData, companyInfo, processingType, trialBalancePrevious, noteNumber, selection);
+    if (intangibleAssetsTracker.headerRows.length > 0) {
+      noteRegistry.intangibleAssets = noteNumber++;
+      formatters.push({ type: 'intangibleAssets', tracker: intangibleAssetsTracker });
     }
     
     // Other Non-Current Assets (สินทรัพย์ไม่หมุนเวียนอื่น)

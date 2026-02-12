@@ -45,16 +45,29 @@ export class AssetsBuilder {
     // Investment Property (net) = cost - accum depreciation
     const investmentPropertyCostCurrent = sel?.investment_property_cost?.current ?? 0;
     const investmentPropertyAccumCurrent = sel?.investment_property_accum_depr?.current ?? 0;
-    const investmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+    const investmentProperty = (sel && (sel.investment_property_cost || sel.investment_property_accum_depr))
       ? (investmentPropertyCostCurrent - investmentPropertyAccumCurrent)
-      : (globalData
-          ? globalData.noteCalculations.investmentProperty.netBookValue.current
-          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1759)));
+      : ((NOTE_FIRST_MODE && n)
+          ? BalanceSheetLinkMap.assets.investmentProperty(n).current
+          : (globalData
+              ? globalData.noteCalculations.investmentProperty.netBookValue.current
+              : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1759))));
+    
+    // Intangible Assets (net) = cost - accum amortization
+    const intangibleAssetsCostCurrent = sel?.intangible_assets_cost?.current ?? 0;
+    const intangibleAssetsAccumCurrent = sel?.intangible_assets_accum_amort?.current ?? 0;
+    const intangibleAssets = (sel && (sel.intangible_assets_cost || sel.intangible_assets_accum_amort))
+      ? (intangibleAssetsCostCurrent - intangibleAssetsAccumCurrent)
+      : ((NOTE_FIRST_MODE && n)
+          ? BalanceSheetLinkMap.assets.intangibleAssets(n).current
+          : (globalData
+              ? globalData.noteCalculations.intangibleAssets.netBookValue.current
+              : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1800, 1859))));
     
     // PPE (net) = cost - accum depreciation; if selection not present, fallback existing
     const ppeCostCurrent = sel?.ppe_cost?.current ?? 0;
     const ppeAccumCurrent = sel?.ppe_accum_depr?.current ?? 0;
-    const landBuildingsEquipment = (sel && (sel.ppe_cost && sel.ppe_accum_depr))
+    const landBuildingsEquipment = (sel && (sel.ppe_cost || sel.ppe_accum_depr))
       ? (ppeCostCurrent - ppeAccumCurrent)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.propertyPlantEquipment(n).current
@@ -90,15 +103,27 @@ export class AssetsBuilder {
     // Previous prepaid expenses removed from presentation
     const investmentPropertyCostPrev = sel?.investment_property_cost?.previous ?? 0;
     const investmentPropertyAccumPrev = sel?.investment_property_accum_depr?.previous ?? 0;
-    const prevInvestmentProperty = (sel && (sel.investment_property_cost && sel.investment_property_accum_depr))
+    const prevInvestmentProperty = (sel && (sel.investment_property_cost || sel.investment_property_accum_depr))
       ? (investmentPropertyCostPrev - investmentPropertyAccumPrev)
-      : (globalData
-          ? globalData.noteCalculations.investmentProperty.netBookValue.previous
-          : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1759));
+      : ((NOTE_FIRST_MODE && n)
+          ? BalanceSheetLinkMap.assets.investmentProperty(n).previous
+          : (globalData
+              ? globalData.noteCalculations.investmentProperty.netBookValue.previous
+              : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1759)));
+    
+    const intangibleAssetsCostPrev = sel?.intangible_assets_cost?.previous ?? 0;
+    const intangibleAssetsAccumPrev = sel?.intangible_assets_accum_amort?.previous ?? 0;
+    const prevIntangibleAssets = (sel && (sel.intangible_assets_cost || sel.intangible_assets_accum_amort))
+      ? (intangibleAssetsCostPrev - intangibleAssetsAccumPrev)
+      : ((NOTE_FIRST_MODE && n)
+          ? BalanceSheetLinkMap.assets.intangibleAssets(n).previous
+          : (globalData
+              ? globalData.noteCalculations.intangibleAssets.netBookValue.previous
+              : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1800, 1859)));
     
     const ppeCostPrev = sel?.ppe_cost?.previous ?? 0;
     const ppeAccumPrev = sel?.ppe_accum_depr?.previous ?? 0;
-    const prevLandBuildingsEquipment = (sel && (sel.ppe_cost && sel.ppe_accum_depr))
+    const prevLandBuildingsEquipment = (sel && (sel.ppe_cost || sel.ppe_accum_depr))
       ? (ppeCostPrev - ppeAccumPrev)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.propertyPlantEquipment(n).previous
@@ -179,6 +204,10 @@ export class AssetsBuilder {
     currentRow++;
 
     worksheetData.push(['', '', 'ที่ดิน อาคาร และอุปกรณ์ (สุทธิ)', '', '', noteRegistry?.ppe?.toString() || '', landBuildingsEquipment, '', processingType === 'multi-year' ? prevLandBuildingsEquipment : '', '']);
+    nonCurrentAssetRows.push(currentRow);
+    currentRow++;
+
+    worksheetData.push(['', '', 'สินทรัพย์ไม่มีตัวตน (สุทธิ)', '', '', noteRegistry?.intangibleAssets?.toString() || '', intangibleAssets, '', processingType === 'multi-year' ? prevIntangibleAssets : '', '']);
     nonCurrentAssetRows.push(currentRow);
     currentRow++;
 
