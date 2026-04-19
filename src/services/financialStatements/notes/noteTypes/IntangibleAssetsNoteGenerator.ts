@@ -46,7 +46,7 @@ export class IntangibleAssetsNoteGenerator {
    */
   static generateWithRowTracking(
     notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
+    _trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     _trialBalancePrevious?: TrialBalanceEntry[], 
@@ -101,43 +101,13 @@ export class IntangibleAssetsNoteGenerator {
     addUnique(selectionAmortSource, selectionAmortAccounts);
     addUnique(spilloverDecimalAccounts, selectionAmortAccounts);
 
-    const normalizeTrialBalance = (entries: TrialBalanceEntry[], predicate: (entry: TrialBalanceEntry) => boolean): IntangibleAssetAccount[] => {
-      return entries
-        .filter(predicate)
-        .map(entry => {
-          const balance = (entry.balance ?? entry.currentBalance ?? 0) as number;
-          const previous = (entry.previousBalance ?? 0) as number;
-          return {
-            accountCode: entry.accountCode,
-            accountName: entry.accountName ?? entry.accountCode ?? 'ไม่ระบุ',
-            current: Math.abs(balance),
-            previous: Math.abs(previous)
-          };
-        });
-    };
-
-    const assetFallback = normalizeTrialBalance(trialBalanceData, entry => {
-      const codeStr = entry.accountCode ?? '';
-      if (codeStr.includes('.')) return false;
-      const code = Number.parseInt(codeStr, 10);
-      return Number.isFinite(code) && code >= 1800 && code <= 1859;
-    });
-
-    const amortizationFallback = normalizeTrialBalance(trialBalanceData, entry => {
-      const codeStr = entry.accountCode ?? '';
-      if (!codeStr.includes('.')) return false;
-      const base = Math.floor(Number.parseFloat(codeStr));
-      return Number.isFinite(base) && base >= 1800 && base <= 1859;
-    });
-
-  const usingSelection = selectionCostAccounts.length > 0 || selectionAmortAccounts.length > 0;
-
-    const assetAccounts = (selectionCostAccounts.length > 0 ? selectionCostAccounts : assetFallback)
+    // Use ONLY selection-first data - no fallback to ensure database mappings are respected
+    const assetAccounts = selectionCostAccounts
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
-    const amortizationAccounts = (selectionAmortAccounts.length > 0 ? selectionAmortAccounts : amortizationFallback)
+    const amortizationAccounts = selectionAmortAccounts
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
 
-    console.log(`[Intangible Assets Note] Using ${usingSelection ? 'selection-first' : 'fallback'} data -> assets: ${assetAccounts.length}, amortization: ${amortizationAccounts.length}`);
+    console.log(`[Intangible Assets Note] Using selection-first data -> assets: ${assetAccounts.length}, amortization: ${amortizationAccounts.length}`);
 
     if (assetAccounts.length === 0 && amortizationAccounts.length === 0) {
       return tracker;

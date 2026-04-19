@@ -1020,7 +1020,8 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteNumber: 11,
       noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 1610, to: 1659 }]
+        ranges: [{ from: 1610, to: 1659 }],
+        excludes: [1644.1, 1644.2]
       })
     },
     {
@@ -1130,7 +1131,7 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       noteTitle: 'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
       accountRanges: JSON.stringify({
         ranges: [{ from: 2010, to: 2999 }],
-        excludes: [2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2120, 2121, 2122, 2123]
+        excludes: [2015, 2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2120, 2121, 2122, 2123]
       })
     },
     {
@@ -1206,6 +1207,21 @@ app.post('/api/companies/:companyId/account-mappings/ensure-all', (req, res) => 
       accountRanges: JSON.stringify({
         ranges: [{ from: 2200, to: 2999 }],
         excludes: [2210, 2220, 2900, 2910]
+      })
+    },
+    {
+      noteType: 'hire_purchase_creditors',
+      noteNumber: 21,
+      noteTitle: 'เจ้าหนี้ตามสัญญาเช่าซื้อ',
+      accountRanges: JSON.stringify({
+        includes: [2015, 1644.2, 1644.1]
+      }),
+      subCategoryRules: JSON.stringify({
+        hirePurchase: {
+          principal: { includes: [2015] },
+          interestDeferred: { includes: [1644.2] },
+          vatDeferred: { includes: [1644.1] }
+        }
       })
     }
   ];
@@ -1339,7 +1355,8 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteNumber: 11,
       noteTitle: 'ที่ดิน อาคาร และอุปกรณ์',
       accountRanges: JSON.stringify({
-        ranges: [{ from: 1610, to: 1659 }]
+        ranges: [{ from: 1610, to: 1659 }],
+        excludes: [1644.1, 1644.2]
       })
     },
     {
@@ -1449,7 +1466,7 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteTitle: 'เจ้าหนี้การค้าและเจ้าหนี้อื่น',
       accountRanges: JSON.stringify({
         ranges: [{ from: 2010, to: 2999 }],
-        excludes: [2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2103, 2120, 2121, 2122, 2123]
+        excludes: [2015, 2030, 2045, 2050, 2051, 2052, 2100, 2101, 2102, 2103, 2120, 2121, 2122, 2123]
       })
     },
     {
@@ -1483,6 +1500,13 @@ app.post('/api/companies/:companyId/account-mappings/reset', (req, res) => {
       noteTitle: 'เจ้าหนี้ตามสัญญาเช่าซื้อ',
       accountRanges: JSON.stringify({
         includes: [2015, 1644.2, 1644.1]
+      }),
+      subCategoryRules: JSON.stringify({
+        hirePurchase: {
+          principal: { includes: [2015] },
+          interestDeferred: { includes: [1644.2] },
+          vatDeferred: { includes: [1644.1] }
+        }
       })
     },
     {

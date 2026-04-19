@@ -200,7 +200,10 @@ export class LiabilitiesBuilder {
     // Approval meeting line
     const meetingNumber = companyInfo.approvalMeetingNumber || '....';
     const meetingDate = companyInfo.approvalMeetingDate || '....';
-    worksheetData.push([`งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมสามัญผู้ถือหุ้นครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`, '', '', '', '', '', '', '', '', '']);
+    const approvalText = companyInfo.type === 'ห้างหุ้นส่วนจำกัด' 
+      ? `งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมของผู้เป็นหุ้นส่วนครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`
+      : `งบการเงินนี้ได้รับการอนุมัติจากที่ประชุมสามัญผู้ถือหุ้นครั้งที่ ${meetingNumber} เมื่อวันที่ ${meetingDate}`;
+    worksheetData.push([approvalText, '', '', '', '', '', '', '', '', '']);
     
     // Certification line
     worksheetData.push(['ขอรับรองว่าเป็นรายการอันถูกต้องและเป็นความจริง', '', '', '', '', '', '', '', '', '']);

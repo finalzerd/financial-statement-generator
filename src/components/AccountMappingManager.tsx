@@ -77,6 +77,17 @@ export function AccountMappingManager({
   const [unmappedVisibleCount, setUnmappedVisibleCount] = useState<number>(50);
   const [showAllUnmapped, setShowAllUnmapped] = useState<boolean>(false);
 
+  // Scroll to specific note mapping section
+  const scrollToNote = (noteType: string) => {
+    const element = document.getElementById(`mapping-${noteType}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Add a highlight effect
+      element.classList.add('highlight-flash');
+      setTimeout(() => element.classList.remove('highlight-flash'), 2000);
+    }
+  };
+
   // Load mappings on component mount
   useEffect(() => {
     loadMappings();
@@ -101,13 +112,11 @@ export function AccountMappingManager({
       const data = await ApiService.getCompanyAccountMappings(companyId);
       
       // Sort by note number for better organization
-      const sortedMappings = (data || []).sort((a: CompanyAccountMapping, b: CompanyAccountMapping) => {
+      const sortedMappings = (data || []).sort((a, b) => {
         // Put notes with number 0 at the end (P&L categories)
-        const aNum = a.noteNumber ?? 0;
-        const bNum = b.noteNumber ?? 0;
-        if (aNum === 0 && bNum !== 0) return 1;
-        if (aNum !== 0 && bNum === 0) return -1;
-        return aNum - bNum;
+        if (a.noteNumber === 0 && b.noteNumber !== 0) return 1;
+        if (a.noteNumber !== 0 && b.noteNumber === 0) return -1;
+        return a.noteNumber - b.noteNumber;
       });
       
       setMappings(sortedMappings);
@@ -550,6 +559,7 @@ export function AccountMappingManager({
           {validation.conflictingAccounts.length > 0 && (
             <div className="conflicting-accounts">
               <h4>Conflicting Accounts (mapped to multiple notes):</h4>
+              <p className="conflict-help-text">💡 คลิกที่ชื่อ Note เพื่อไปยังส่วนปรับแก้</p>
               <ul>
                 {validation.conflictingAccounts.slice(0, 10).map((account, i) => (
                   <li key={i}>
@@ -559,7 +569,14 @@ export function AccountMappingManager({
                     </div>
                     <div className="conflict-note-tags">
                       {account.noteTypes.map((note, idx) => (
-                        <span key={idx} className="note-tag">{note}</span>
+                        <button 
+                          key={idx} 
+                          className="note-tag clickable"
+                          onClick={() => scrollToNote(note)}
+                          title={`Go to ${note} mapping`}
+                        >
+                          {note}
+                        </button>
                       ))}
                     </div>
                   </li>
@@ -642,7 +659,7 @@ export function AccountMappingManager({
           const hasData = matchedAccounts.length > 0;
           
           return (
-          <div key={mapping.noteType} className="mapping-card">
+          <div key={mapping.noteType} id={`mapping-${mapping.noteType}`} className="mapping-card">
             <div className="mapping-header">
               <div className="mapping-header-left">
                 <h3>Note {mapping.noteNumber}: {mapping.noteTitle}</h3>

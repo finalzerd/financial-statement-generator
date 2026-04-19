@@ -140,12 +140,26 @@ export class SelectionFirstClassifier {
 
       let finalCat: NoteCategory | 'unmatched' = matched ?? 'unmatched';
 
+      // Debug logging for account 1646
+      if (codeStr === '1646' || codeStr.startsWith('1646')) {
+        console.log(`[SelectionFirst] DEBUG 1646: Initial category = ${finalCat}, hasDecimal = ${normalizedCode.includes('.')}`);
+      }
+
       if (finalCat === 'investment_property_cost' && normalizedCode.includes('.')) {
         finalCat = 'investment_property_accum_depr';
       }
       if (finalCat === 'ppe_cost' && normalizedCode.includes('.')) {
+        if (codeStr === '1646' || codeStr.startsWith('1646')) {
+          console.log(`[SelectionFirst] DEBUG 1646: Shifted from ppe_cost to ppe_accum_depr`);
+        }
         finalCat = 'ppe_accum_depr';
       }
+      
+      // Debug logging for account 1646
+      if (codeStr === '1646' || codeStr.startsWith('1646')) {
+        console.log(`[SelectionFirst] DEBUG 1646: Final category = ${finalCat}`);
+      }
+      
       const rec: ClassifiedAccount = {
         accountCode: codeStr,
         accountName,
@@ -278,6 +292,11 @@ export class SelectionFirstClassifier {
     provider?: IAccountMappingProvider,
     disableFallback: boolean = false
   ) {
+    // For depreciation categories, check if the base cost category has explicit rules
+    const baseCat = cat.endsWith('_accum_depr') || cat.endsWith('_accum_amort') 
+      ? cat.replace(/_accum_(depr|amort)$/, '_cost') as NoteCategory
+      : cat;
+    
     const rules = provider?.getRules(cat);
     const includes = new Set<string>((rules?.includes ?? []).map(String));
     const excludes = new Set<string>((rules?.excludes ?? []).map(String));
@@ -292,6 +311,11 @@ export class SelectionFirstClassifier {
     // 2. rules exists but empty (user explicitly cleared) → DON'T use fallback
     const mappingExists = rules !== null && rules !== undefined;
     const hasAnyRules = ranges.length > 0 || includes.size > 0 || excludes.size > 0;
+    
+    // For depreciation categories, also check if base cost category has rules
+    const baseCatHasRules = cat !== baseCat 
+      ? (provider?.getRules(baseCat) !== null && provider?.getRules(baseCat) !== undefined)
+      : false;
 
     // Fallback numeric ranges per legacy logic
     const fallback = (codeNum: number, codeStr: string) => {
@@ -308,7 +332,8 @@ export class SelectionFirstClassifier {
   case 'inventory_purchases': return codeNum === 5010;
   case 'inventory_purchase_returns': return normalized === '5010.1' || codeNum === 5010.1;
   case 'inventory_purchase_discounts': return normalized === '5010.2' || codeNum === 5010.2;
-        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
+        case 'prepaid': return codeNum >= 1400 && codeNum <= 1439;        case 'investment_property_cost': return codeNum >= 1700 && codeNum <= 1729;
+        case 'investment_property_accum_depr': return codeNum >= 1730 && codeNum <= 1759;        case 'ppe_cost': return codeNum >= 1600 && codeNum <= 1629;
         case 'ppe_accum_depr': return codeNum >= 1630 && codeNum <= 1659;
         case 'other_assets': return codeNum >= 1660 && codeNum <= 1700;
         case 'bank_overdrafts': return codeNum >= 2001 && codeNum <= 2009;
@@ -356,6 +381,15 @@ export class SelectionFirstClassifier {
       if (mappingExists && !hasAnyRules) {
         // Mapping exists but is completely empty (user explicitly cleared all rules)
         // DON'T use fallback - user wants this category to match nothing
+        return { matched: false };
+      }
+
+      // CRITICAL: For depreciation categories that borrow rules from cost categories,
+      // if the cost category has explicit mappings, don't use fallback for depreciation.
+      // This prevents fallback ranges from overriding database configuration.
+      if (cat !== baseCat && baseCatHasRules) {
+        // This is a depreciation/amortization category and its cost category has explicit mapping
+        // Don't use fallback - respect the database mapping
         return { matched: false };
       }
 

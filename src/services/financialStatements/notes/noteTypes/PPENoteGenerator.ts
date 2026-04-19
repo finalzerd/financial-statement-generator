@@ -45,7 +45,7 @@ export class PPENoteGenerator {
    */
   static generateWithRowTracking(
     notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
+    _trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     _trialBalancePrevious?: TrialBalanceEntry[], 
@@ -83,6 +83,14 @@ export class PPENoteGenerator {
     const selectionCostSource = normalizeSelection(selection?.byCategory?.ppe_cost);
     const selectionDeprSource = normalizeSelection(selection?.byCategory?.ppe_accum_depr);
 
+    console.log(`[PPE Note] Selection data received - Cost accounts: ${selectionCostSource.length}, Depr accounts: ${selectionDeprSource.length}`);
+    if (selectionCostSource.length > 0) {
+      console.log(`[PPE Note] Cost selection codes: ${selectionCostSource.map(a => a.accountCode).slice(0, 10).join(', ')}${selectionCostSource.length > 10 ? '...' : ''}`);
+    }
+    if (selectionDeprSource.length > 0) {
+      console.log(`[PPE Note] Depr selection codes: ${selectionDeprSource.map(a => a.accountCode).slice(0, 10).join(', ')}${selectionDeprSource.length > 10 ? '...' : ''}`);
+    }
+
     const selectionCostAccounts = selectionCostSource.filter(acc => !isDecimalAccount(acc.accountCode));
     const spilloverDecimalAccounts = selectionCostSource.filter(acc => isDecimalAccount(acc.accountCode));
 
@@ -100,43 +108,25 @@ export class PPENoteGenerator {
     addUnique(selectionDeprSource, selectionDeprAccounts);
     addUnique(spilloverDecimalAccounts, selectionDeprAccounts);
 
-    const normalizeTrialBalance = (entries: TrialBalanceEntry[], predicate: (entry: TrialBalanceEntry) => boolean): PPEAccount[] => {
-      return entries
-        .filter(predicate)
-        .map(entry => {
-          const balance = (entry.balance ?? entry.currentBalance ?? 0) as number;
-          const previous = (entry.previousBalance ?? 0) as number;
-          return {
-            accountCode: entry.accountCode,
-            accountName: entry.accountName ?? entry.accountCode ?? 'ไม่ระบุ',
-            current: Math.abs(balance),
-            previous: Math.abs(previous)
-          };
-        });
-    };
+    // Debug: Check if 1646 is in any list
+    const check1646InCost = selectionCostAccounts.find(a => a.accountCode?.startsWith('1646'));
+    const check1646InDepr = selectionDeprAccounts.find(a => a.accountCode?.startsWith('1646'));
+    if (check1646InCost) {
+      console.log(`[PPE Note] DEBUG: Found 1646 in COST accounts: ${JSON.stringify(check1646InCost)}`);
+    }
+    if (check1646InDepr) {
+      console.log(`[PPE Note] DEBUG: Found 1646 in DEPRECIATION accounts: ${JSON.stringify(check1646InDepr)}`);
+    }
 
-    const assetFallback = normalizeTrialBalance(trialBalanceData, entry => {
-      const codeStr = entry.accountCode ?? '';
-      if (codeStr.includes('.')) return false;
-      const code = Number.parseInt(codeStr, 10);
-      return Number.isFinite(code) && code >= 1600 && code <= 1699;
-    });
-
-    const depreciationFallback = normalizeTrialBalance(trialBalanceData, entry => {
-      const codeStr = entry.accountCode ?? '';
-      if (!codeStr.includes('.')) return false;
-      const base = Math.floor(Number.parseFloat(codeStr));
-      return Number.isFinite(base) && base >= 1600 && base <= 1699;
-    });
-
-  const usingSelection = selectionCostAccounts.length > 0 || selectionDeprAccounts.length > 0;
-
-    const assetAccounts = (selectionCostAccounts.length > 0 ? selectionCostAccounts : assetFallback)
+    // Use ONLY selection-first data - no fallback to ensure database mappings are respected
+    const assetAccounts = selectionCostAccounts
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
-    const depreciationAccounts = (selectionDeprAccounts.length > 0 ? selectionDeprAccounts : depreciationFallback)
+    const depreciationAccounts = selectionDeprAccounts
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
 
-    console.log(`[PPE Note] Using ${usingSelection ? 'selection-first' : 'fallback'} data -> assets: ${assetAccounts.length}, depreciation: ${depreciationAccounts.length}`);
+    console.log(`[PPE Note] Using selection-first data -> assets: ${assetAccounts.length}, depreciation: ${depreciationAccounts.length}`);
+    console.log(`[PPE Note] Asset account codes: ${assetAccounts.map(a => a.accountCode).join(', ')}`);
+    console.log(`[PPE Note] Depreciation account codes: ${depreciationAccounts.map(a => a.accountCode).join(', ')}`);
 
     if (assetAccounts.length === 0 && depreciationAccounts.length === 0) {
       return tracker;

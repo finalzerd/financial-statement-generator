@@ -46,7 +46,7 @@ export class InvestmentPropertyNoteGenerator {
    */
   static generateWithRowTracking(
     notes: any[][], 
-    trialBalanceData: TrialBalanceEntry[], 
+    _trialBalanceData: TrialBalanceEntry[], 
     companyInfo: CompanyInfo, 
     processingType: 'single-year' | 'multi-year', 
     _trialBalancePrevious?: TrialBalanceEntry[], 
@@ -101,7 +101,7 @@ export class InvestmentPropertyNoteGenerator {
     addUnique(selectionDeprSource, selectionDeprAccounts);
     addUnique(spilloverDecimalAccounts, selectionDeprAccounts);
 
-    // Only use selection data - no fallback to trial balance search
+    // Use ONLY selection-first data - no fallback to ensure database mappings are respected
     const assetAccounts = selectionCostAccounts
       .filter(acc => acc.current !== 0 || acc.previous !== 0);
     const depreciationAccounts = selectionDeprAccounts
