@@ -49,9 +49,7 @@ export class AssetsBuilder {
       ? (investmentPropertyCostCurrent - investmentPropertyAccumCurrent)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.investmentProperty(n).current
-          : (globalData
-              ? globalData.noteCalculations.investmentProperty.netBookValue.current
-              : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1700, 1759))));
+          : (globalData?.noteCalculations?.investmentProperty?.netBookValue?.current ?? 0));
     
     // Intangible Assets (net) = cost - accum amortization
     const intangibleAssetsCostCurrent = sel?.intangible_assets_cost?.current ?? 0;
@@ -60,9 +58,7 @@ export class AssetsBuilder {
       ? (intangibleAssetsCostCurrent - intangibleAssetsAccumCurrent)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.intangibleAssets(n).current
-          : (globalData
-              ? globalData.noteCalculations.intangibleAssets.netBookValue.current
-              : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 1800, 1859))));
+          : (globalData?.noteCalculations?.intangibleAssets?.netBookValue?.current ?? 0));
     
     // PPE (net) = cost - accum depreciation; if selection not present, fallback existing
     const ppeCostCurrent = sel?.ppe_cost?.current ?? 0;
@@ -107,9 +103,7 @@ export class AssetsBuilder {
       ? (investmentPropertyCostPrev - investmentPropertyAccumPrev)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.investmentProperty(n).previous
-          : (globalData
-              ? globalData.noteCalculations.investmentProperty.netBookValue.previous
-              : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1700, 1759)));
+          : (globalData?.noteCalculations?.investmentProperty?.netBookValue?.previous ?? 0));
     
     const intangibleAssetsCostPrev = sel?.intangible_assets_cost?.previous ?? 0;
     const intangibleAssetsAccumPrev = sel?.intangible_assets_accum_amort?.previous ?? 0;
@@ -117,9 +111,7 @@ export class AssetsBuilder {
       ? (intangibleAssetsCostPrev - intangibleAssetsAccumPrev)
       : ((NOTE_FIRST_MODE && n)
           ? BalanceSheetLinkMap.assets.intangibleAssets(n).previous
-          : (globalData
-              ? globalData.noteCalculations.intangibleAssets.netBookValue.previous
-              : FinancialCalculations.sumPreviousBalanceByNumericRange(trialBalanceData, 1800, 1859)));
+          : (globalData?.noteCalculations?.intangibleAssets?.netBookValue?.previous ?? 0));
     
     const ppeCostPrev = sel?.ppe_cost?.previous ?? 0;
     const ppeAccumPrev = sel?.ppe_accum_depr?.previous ?? 0;

@@ -49,16 +49,10 @@ export class LiabilitiesBuilder {
           : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2045, 2045))));
     const longTermLoansFromFI = sel?.long_term_loans_fi?.current ?? ((NOTE_FIRST_MODE && n)
       ? BalanceSheetLinkMap.liabilities.longTermLoansFromFI(n).current
-      : (globalData
-          ? globalData.balanceSheetTotals.liabilities.longTermLoansFromFI.current
-          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2120, 2123)) -
-            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2121, 2121))));
+      : (globalData?.balanceSheetTotals.liabilities.longTermLoansFromFI?.current ?? 0));
     const otherLongTermLoans = sel?.long_term_loans_other?.current ?? ((NOTE_FIRST_MODE && n)
       ? BalanceSheetLinkMap.liabilities.otherLongTermLoans(n).current
-      : (globalData
-          ? globalData.balanceSheetTotals.liabilities.otherLongTermLoans.current
-          : Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2050, 2052)) +
-            Math.abs(FinancialCalculations.sumAccountsByNumericRange(trialBalanceData, 2100, 2119))));
+      : (globalData?.balanceSheetTotals.liabilities.otherLongTermLoans?.current ?? 0));
     const hirePurchaseCreditors = (NOTE_FIRST_MODE && n && BalanceSheetLinkMap.liabilities.hirePurchaseCreditors)
       ? BalanceSheetLinkMap.liabilities.hirePurchaseCreditors(n).current
       : (globalData?.balanceSheetTotals.liabilities.hirePurchaseCreditors?.current ?? 0);
@@ -348,8 +342,9 @@ export class LiabilitiesBuilder {
     processingType: 'single-year' | 'multi-year'
   ) {
     const numberOfShares = (companyInfo as any)?.shares || registeredCapital;
-    const shareValue = (companyInfo as any)?.shareValue || 1;
-    const numberOfPaidShares = paidUpCapital / shareValue;
+    const registeredShareValue = (companyInfo as any)?.shareValue || 1;
+    const numberOfPaidShares = numberOfShares;
+    const paidShareValue = numberOfShares > 0 ? paidUpCapital / numberOfShares : registeredShareValue;
 
     worksheetData.push(['', equityTerm, '', '', '', '', '', '', '', '']);
     cellTracker.currentRow++;
@@ -368,11 +363,11 @@ export class LiabilitiesBuilder {
       cellTracker.currentRow++;
     } else {
       worksheetData.push(['', '', 'ทุนจดทะเบียน', '', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${shareValue} บาท`, '', '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${registeredShareValue} บาท`, '', '', registeredCapital, '', processingType === 'multi-year' ? registeredCapital : '', '']);
       cellTracker.currentRow += 2;
 
       worksheetData.push(['', '', 'ทุนที่ออกและชำระแล้ว', '', '', '', '', '', '', '']);
-      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfPaidShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${shareValue} บาท`, '', '', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
+      worksheetData.push(['', '', '', `หุ้นสามัญ ${numberOfPaidShares.toLocaleString()} หุ้น มูลค่าหุ้นละ ${paidShareValue} บาท`, '', '', paidUpCapital, '', processingType === 'multi-year' ? prevPaidUpCapital : '', '']);
       cellTracker.equityDataRows.push(cellTracker.currentRow + 1);
       cellTracker.currentRow += 2;
 
